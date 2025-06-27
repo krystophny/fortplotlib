@@ -24,7 +24,7 @@ contains
 
         ! Create raster canvas and copy components to PNG context
         raster_base = create_raster_canvas(width, height)
-        
+
         ! Initialize PNG context with same data as raster context
         call setup_canvas(ctx, width, height)
         ctx%raster = raster_base%raster
@@ -61,7 +61,7 @@ contains
 
         data_size = size(image_data)
         compressed_data = zlib_compress(image_data, data_size, compressed_size)
-        
+
         if (.not. allocated(compressed_data) .or. compressed_size <= 0) then
             print *, "Compression failed"
             close(png_unit)
@@ -72,7 +72,7 @@ contains
         call write_iend_chunk(png_unit)
 
         close(png_unit)
-        
+
         ! Free allocated memory
         deallocate(compressed_data)
 
@@ -178,16 +178,16 @@ contains
         integer, intent(in) :: width, height
         integer :: i, j, idx, rgb_idx
         integer(int8), allocatable :: rgb_data(:)
-        
+
         ! Convert grayscale to RGB with filter bytes (3 bytes per pixel + 1 filter byte per row)
         allocate(rgb_data(height * (width * 3 + 1)))
-        
+
         rgb_idx = 1
         do j = 1, height
             ! Add filter byte (0 = None filter) at the beginning of each row
             rgb_data(rgb_idx) = 0_int8
             rgb_idx = rgb_idx + 1
-            
+
             do i = 1, width
                 idx = (j - 1) * width + i
                 if (idx <= size(array)) then
@@ -203,10 +203,10 @@ contains
                 rgb_idx = rgb_idx + 3
             end do
         end do
-        
+
         call write_png_file(filename, width, height, rgb_data)
         deallocate(rgb_data)
-        
+
     end subroutine save_grayscale_array_as_png
 
 end module fortplot_png

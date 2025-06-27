@@ -381,7 +381,7 @@ contains
 
         num_edges = 0
         point_idx = 1
-        
+
         ! Generate edges from each contour
         do i = 1, num_contours
             ! Create edges from consecutive points in this contour
@@ -400,7 +400,7 @@ contains
                 ! Transform points to screen coordinates
                 real_x1 = points(a)%x * scale_x + shift_x
                 real_y1 = points(a)%y * y_scale_inv + shift_y
-                real_x2 = points(b)%x * scale_x + shift_x  
+                real_x2 = points(b)%x * scale_x + shift_x
                 real_y2 = points(b)%y * y_scale_inv + shift_y
 
                 ! Skip horizontal edges (degenerate)
@@ -409,14 +409,14 @@ contains
                 end if
 
                 num_edges = num_edges + 1
-                
+
                 ! Simple STB-style edge creation: store with y0 <= y1
                 if (real_y1 <= real_y2) then
                     edges(num_edges)%x0 = real_x1
-                    edges(num_edges)%y0 = real_y1  
+                    edges(num_edges)%y0 = real_y1
                     edges(num_edges)%x1 = real_x2
                     edges(num_edges)%y1 = real_y2
-                    edges(num_edges)%invert = .false.  ! Normal direction 
+                    edges(num_edges)%invert = .false.  ! Normal direction
                 else
                     edges(num_edges)%x0 = real_x2
                     edges(num_edges)%y0 = real_y2
@@ -432,7 +432,7 @@ contains
                              edges(num_edges)%x1, ",", edges(num_edges)%y1, ")"
                 end if
             end do
-            
+
             point_idx = point_idx + contour_lengths(i)
         end do
 
@@ -487,7 +487,7 @@ contains
         ! Simple scanline approach
         do y = 0, bmp%h - 1
             y_pos = real(y + off_y, wp) + 0.5_wp  ! Middle of pixel row
-            
+
             ! Find all edge intersections with this scanline
             num_intersections = 0
             do i = 1, num_edges
@@ -496,14 +496,14 @@ contains
                     if (abs(edges(i)%y1 - edges(i)%y0) > 1.0e-6_wp) then
                         x_pos = edges(i)%x0 + (edges(i)%x1 - edges(i)%x0) * &
                                 (y_pos - edges(i)%y0) / (edges(i)%y1 - edges(i)%y0)
-                        
+
                         num_intersections = num_intersections + 1
                         intersections(num_intersections) = x_pos - real(off_x, wp)
                         directions(num_intersections) = merge(1, -1, edges(i)%invert)
                     end if
                 end if
             end do
-            
+
             ! Sort intersections
             do i = 1, num_intersections - 1
                 do j = i + 1, num_intersections
@@ -517,7 +517,7 @@ contains
                     end if
                 end do
             end do
-            
+
             ! Simple fill using winding rule
             winding_count = 0
             do x = 0, bmp%w - 1
@@ -527,15 +527,15 @@ contains
                         winding_count = winding_count + directions(k)
                     end if
                 end do
-                
+
                 ! Fill pixel if winding count is non-zero
                 coverage = merge(127.0_wp, 0.0_wp, winding_count /= 0)
-                
+
                 i = y * bmp%stride + x + 1
                 if (i >= 1 .and. i <= bmp%stride * bmp%h) then
                     bmp%pixels(i) = int(coverage, int8)
                 end if
-                
+
                 ! Reset for next pixel
                 winding_count = 0
             end do
@@ -576,15 +576,15 @@ contains
         else
             dxdy = 0.0_wp
         end if
-        
+
         new_edge%fdx = dxdy
         new_edge%fdy = merge(1.0_wp / dxdy, 0.0_wp, abs(dxdy) > 1.0e-10_wp)
         new_edge%fx = edge%x0 + dxdy * (start_point - edge%y0) - real(off_x, wp)
-        
-        ! STB direction: invert ? 1.0f : -1.0f 
+
+        ! STB direction: invert ? 1.0f : -1.0f
         ! This means inverted edges contribute +1, normal edges contribute -1
         new_edge%direction = merge(1.0_wp, -1.0_wp, edge%invert)
-        
+
         new_edge%sy = edge%y0
         new_edge%ey = edge%y1
         new_edge%next => active
@@ -617,18 +617,18 @@ contains
 
             ! Get x position for this edge at current scanline
             x_pos = edge%fx
-            
+
             ! Simple approach: just accumulate edge contributions
             if (x_pos >= 0.0_wp .and. x_pos < real(len, wp)) then
                 x = int(x_pos)
                 if (x >= 0 .and. x < len) then
                     ! Add edge direction to scanline_fill for winding rule
                     scanline_fill(x) = scanline_fill(x) + edge%direction
-                    
+
                     ! Simple coverage calculation
                     height = min(edge%ey, y_bottom) - max(edge%sy, y_top)
                     scanline(x) = scanline(x) + edge%direction * height * (1.0_wp - (x_pos - real(x, wp)))
-                    
+
                     ! Also affect the next pixel if we're not at the boundary
                     if (x + 1 < len) then
                         scanline(x + 1) = scanline(x + 1) + edge%direction * height * (x_pos - real(x, wp))
@@ -651,7 +651,7 @@ contains
         !! Calculate trapezoid area like STB
         real(wp), intent(in) :: height, tx0, tx1, bx0, bx1
         real(wp) :: top_width, bottom_width
-        
+
         top_width = tx1 - tx0
         bottom_width = bx1 - bx0
         position_trapezoid_area = (top_width + bottom_width) * height * 0.5_wp
