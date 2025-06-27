@@ -345,10 +345,6 @@ contains
 
         ! Render actual glyph or fallback to bitmap character
         call render_glyph_bitmap_with_offset(font_info, bitmap_ptr, width, height, codepoint, scale_x, scale_y, ix0, iy0)
-        
-        ! Temporary: Use test pattern to verify the pipeline works
-        ! TODO: Fix actual glyph rasterization
-        call create_test_pattern(bitmap_ptr, width, height, codepoint)
 
     end function native_get_codepoint_bitmap
 
@@ -423,6 +419,11 @@ contains
 
         if (glyph_index > 0 .and. allocated(font_info%glyph_offsets) .and. font_info%glyf_offset > 0) then
             call rasterize_glyph_outline_with_offset(font_info, bitmap, width, height, glyph_index, scale_x, scale_y, x_off, y_off)
+            ! Debug: Check if anything was rendered
+            if (all(bitmap == 0_int8)) then
+                ! Fallback to simple bitmap character for debugging
+                call render_bitmap_character(bitmap, width, height, codepoint)
+            end if
         else
             call render_bitmap_character(bitmap, width, height, codepoint)
         end if

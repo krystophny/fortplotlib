@@ -410,7 +410,7 @@ contains
     end subroutine add_active_edge
 
     subroutine fill_active_edges(scanline, len, active, y_top)
-        !! Fill scanline using proper STB-style winding rule algorithm
+        !! Fill scanline using STB-style non-zero winding rule algorithm
         real(wp), intent(inout) :: scanline(0:)
         integer, intent(in) :: len
         type(active_edge_t), pointer, intent(in) :: active
@@ -419,13 +419,14 @@ contains
         type(active_edge_t), pointer :: edge
         integer :: x, winding_count
         real(wp), allocatable :: intersections(:)
+        real(wp), allocatable :: directions(:)
         integer :: num_intersections, i, j
-        real(wp) :: temp_x
+        real(wp) :: temp_x, temp_dir
 
         ! Clear scanline
         scanline(0:len-1) = 0.0_wp
 
-        ! Count intersections and allocate array
+        ! Count intersections and allocate arrays
         num_intersections = 0
         edge => active
         do while (associated(edge))
@@ -436,40 +437,60 @@ contains
         if (num_intersections == 0) return
 
         allocate(intersections(num_intersections))
+        allocate(directions(num_intersections))
 
-        ! Collect x-intersections at scanline y
+        ! Collect x-intersections and directions at scanline y
         i = 1
         edge => active
         do while (associated(edge))
-            intersections(i) = edge%fx + edge%fdx * 0.5_wp  ! Use middle of scanline
+            intersections(i) = edge%fx
+            directions(i) = edge%direction  ! Use direction for winding rule
             i = i + 1
             edge => edge%next
         end do
 
-        ! Sort intersections (simple bubble sort)
+        ! Sort intersections and directions together
         do i = 1, num_intersections - 1
             do j = i + 1, num_intersections
                 if (intersections(i) > intersections(j)) then
                     temp_x = intersections(i)
                     intersections(i) = intersections(j)
                     intersections(j) = temp_x
+                    temp_dir = directions(i)
+                    directions(i) = directions(j)
+                    directions(j) = temp_dir
                 end if
             end do
         end do
 
-        ! Fill between pairs of intersections (even-odd rule)
-        do i = 1, num_intersections - 1, 2
-            if (i + 1 <= num_intersections) then
-                do x = max(0, int(intersections(i))), min(len-1, int(intersections(i+1)))
-                    if (x >= 0 .and. x < len) then
-                        ! Simple coverage (can be improved with subpixel precision)
-                        scanline(x) = scanline(x) + 1.0_wp
+        ! Use non-zero winding rule (STB default)
+        winding_count = 0
+        do i = 1, num_intersections
+            x = int(intersections(i))
+            if (x >= 0 .and. x < len) then
+                ! Update winding count
+                if (directions(i) > 0.0_wp) then
+                    winding_count = winding_count + 1
+                else
+                    winding_count = winding_count - 1
+                end if
+                
+                ! Fill pixels where winding count is non-zero
+                if (winding_count /= 0) then
+                    ! Fill from this intersection to the next
+                    if (i < num_intersections) then
+                        do x = max(0, int(intersections(i))), min(len-1, int(intersections(i+1)) - 1)
+                            if (x >= 0 .and. x < len) then
+                                scanline(x) = scanline(x) + 1.0_wp
+                            end if
+                        end do
                     end if
-                end do
+                end if
             end if
         end do
 
         deallocate(intersections)
+        deallocate(directions)
 
     end subroutine fill_active_edges
 
