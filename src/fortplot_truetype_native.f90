@@ -247,8 +247,7 @@ contains
         integer, intent(in) :: codepoint
         integer, intent(out) :: width, height, xoff, yoff
         integer(int8), pointer :: bitmap_ptr(:)
-        integer :: scaled_width, scaled_height
-        integer :: i, j, byte_idx
+        integer :: ix0, iy0, ix1, iy1
 
         nullify(bitmap_ptr)
 
@@ -257,14 +256,17 @@ contains
             return
         end if
 
-        ! Calculate scaled dimensions
-        scaled_width = max(1, int(real(BITMAP_CHAR_WIDTH) * scale_x))
-        scaled_height = max(1, int(real(BITMAP_CHAR_HEIGHT) * scale_y))
+        ! Get proper bitmap bounding box based on glyph metrics
+        call native_get_codepoint_bitmap_box(font_info, codepoint, scale_x, scale_y, ix0, iy0, ix1, iy1)
 
-        width = scaled_width
-        height = scaled_height
-        xoff = 0
-        yoff = -int(real(scaled_height) * 0.8_wp)  ! Negative offset for baseline
+        width = ix1 - ix0
+        height = iy1 - iy0
+        xoff = ix0
+        yoff = iy0
+
+        ! Ensure minimum size
+        if (width <= 0) width = 1
+        if (height <= 0) height = 1
 
         ! Allocate bitmap
         allocate(bitmap_ptr(width * height))

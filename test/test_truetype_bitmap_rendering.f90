@@ -66,7 +66,7 @@ contains
         end if
 
         ! Test bitmap rendering for 'A'
-        scale = 0.05_wp  ! Small scale for testing
+        scale = native_scale_for_pixel_height(native_font, 16.0_wp)  ! Use proper scale for 16px font
 
         stb_bitmap_ptr = stb_get_codepoint_bitmap(stb_font, scale, scale, iachar('A'), &
                                                   stb_width, stb_height, stb_xoff, stb_yoff)
@@ -147,8 +147,8 @@ contains
             return
         end if
 
-        scale1 = 0.03_wp  ! Smaller scale
-        scale2 = 0.07_wp  ! Larger scale
+        scale1 = native_scale_for_pixel_height(native_font, 12.0_wp)  ! Smaller font
+        scale2 = native_scale_for_pixel_height(native_font, 20.0_wp)  ! Larger font
 
         bitmap1 => native_get_codepoint_bitmap(native_font, scale1, scale1, iachar('A'), &
                                                width1, height1, xoff1, yoff1)
@@ -201,7 +201,7 @@ contains
             return
         end if
 
-        scale = 0.05_wp
+        scale = native_scale_for_pixel_height(native_font, 16.0_wp)
 
         bitmap_A => native_get_codepoint_bitmap(native_font, scale, scale, iachar('A'), &
                                                 width_A, height_A, xoff_A, yoff_A)
