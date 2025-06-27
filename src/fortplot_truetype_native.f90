@@ -4,6 +4,7 @@ module fortplot_truetype_native
     use, intrinsic :: iso_fortran_env, only: wp => real64, int8, int16, int32
     use fortplot_truetype_types
     use fortplot_truetype_parser
+    use fortplot_truetype_reader, only: read_uint16_be, read_int16_be
     use fortplot_truetype_bitmap, only: render_bitmap_character, render_bitmap_character_to_buffer
     use fortplot_truetype_raster, only: rasterize_glyph_outline, rasterize_glyph_outline_to_buffer
     implicit none
@@ -11,7 +12,7 @@ module fortplot_truetype_native
     private
     public :: native_fontinfo_t, native_init_font, native_cleanup_font
     public :: native_get_codepoint_bitmap, native_free_bitmap
-    public :: native_get_codepoint_hmetrics, native_get_font_vmetrics
+    public :: native_get_codepoint_hmetrics, native_get_glyph_hmetrics, native_get_font_vmetrics
     public :: native_scale_for_pixel_height, native_get_codepoint_bitmap_box
     public :: native_find_glyph_index, native_make_codepoint_bitmap
 
@@ -106,17 +107,24 @@ contains
 
     function native_scale_for_pixel_height(font_info, pixel_height) result(scale)
         !! Calculate scale factor for desired pixel height
+        !! Uses same method as STB: pixel_height / (ascent - descent)
         type(native_fontinfo_t), intent(in) :: font_info
         real(wp), intent(in) :: pixel_height
         real(wp) :: scale
+        integer :: font_height
 
         if (.not. font_info%valid) then
             scale = 0.0_wp
             return
         end if
 
-        ! Simple scaling based on units per EM
-        scale = pixel_height / real(font_info%units_per_em, wp)
+        ! Match STB's method: pixel_height / (ascent - descent)
+        font_height = font_info%ascent - font_info%descent
+        if (font_height > 0) then
+            scale = pixel_height / real(font_height, wp)
+        else
+            scale = 0.0_wp
+        end if
 
     end function native_scale_for_pixel_height
 
@@ -139,37 +147,71 @@ contains
     end subroutine native_get_font_vmetrics
 
     subroutine native_get_codepoint_hmetrics(font_info, codepoint, advance_width, left_side_bearing)
-        !! Get horizontal character metrics
+        !! Get horizontal character metrics - directly match STB implementation
         type(native_fontinfo_t), intent(in) :: font_info
         integer, intent(in) :: codepoint
         integer, intent(out) :: advance_width, left_side_bearing
         integer :: glyph_index
+        
+        call native_get_glyph_hmetrics(font_info, native_find_glyph_index(font_info, codepoint), &
+                                      advance_width, left_side_bearing)
+        
+    end subroutine native_get_codepoint_hmetrics
 
-        if (.not. font_info%valid .or. codepoint < 0) then
+    subroutine native_get_glyph_hmetrics(font_info, glyph_index, advance_width, left_side_bearing)
+        !! Get horizontal glyph metrics - matches STB's stbtt_GetGlyphHMetrics exactly
+        type(native_fontinfo_t), intent(in) :: font_info
+        integer, intent(in) :: glyph_index
+        integer, intent(out) :: advance_width, left_side_bearing
+        integer :: num_long_hor_metrics, hmtx_offset
+        
+        if (.not. font_info%valid .or. glyph_index < 0 .or. &
+            font_info%hmtx_offset == 0 .or. font_info%hhea_offset == 0) then
             advance_width = 500
             left_side_bearing = 0
             return
         end if
-
-        ! Get glyph index for this codepoint
-        glyph_index = native_find_glyph_index(font_info, codepoint)
-
-        ! Use parsed horizontal metrics if available
-        if (allocated(font_info%advance_widths) .and. glyph_index > 0 .and. &
-            glyph_index <= size(font_info%advance_widths)) then
-            advance_width = font_info%advance_widths(glyph_index)
-        else
-            advance_width = 500  ! Default advance width
+        
+        ! Get numOfLongHorMetrics from hhea table (offset 34)
+        if (size(font_info%font_data) < font_info%hhea_offset + 34 + 2 - 1) then
+            advance_width = 500
+            left_side_bearing = 0
+            return
         end if
-
-        if (allocated(font_info%left_side_bearings) .and. glyph_index > 0 .and. &
-            glyph_index <= size(font_info%left_side_bearings)) then
-            left_side_bearing = font_info%left_side_bearings(glyph_index)
+        
+        num_long_hor_metrics = read_uint16_be(font_info%font_data, font_info%hhea_offset + 34)
+        hmtx_offset = font_info%hmtx_offset
+        
+        ! Match STB's logic exactly
+        if (glyph_index < num_long_hor_metrics) then
+            ! Read from longHorMetric array: advanceWidth, leftSideBearing pairs
+            if (size(font_info%font_data) >= hmtx_offset + glyph_index * 4 + 4 - 1) then
+                advance_width = read_uint16_be(font_info%font_data, hmtx_offset + glyph_index * 4)
+                left_side_bearing = read_int16_be(font_info%font_data, hmtx_offset + glyph_index * 4 + 2)
+            else
+                advance_width = 500
+                left_side_bearing = 0
+            end if
         else
-            left_side_bearing = 0  ! Default left side bearing
+            ! Beyond longHorMetric array: use last advanceWidth, indexed leftSideBearing
+            if (size(font_info%font_data) >= hmtx_offset + (num_long_hor_metrics - 1) * 4 + 2 - 1) then
+                advance_width = read_uint16_be(font_info%font_data, hmtx_offset + (num_long_hor_metrics - 1) * 4)
+            else
+                advance_width = 500
+            end if
+            
+            ! leftSideBearing from leftSideBearing array after longHorMetric array
+            if (size(font_info%font_data) >= hmtx_offset + num_long_hor_metrics * 4 + &
+                                           (glyph_index - num_long_hor_metrics) * 2 + 2 - 1) then
+                left_side_bearing = read_int16_be(font_info%font_data, &
+                                                 hmtx_offset + num_long_hor_metrics * 4 + &
+                                                 (glyph_index - num_long_hor_metrics) * 2)
+            else
+                left_side_bearing = 0
+            end if
         end if
-
-    end subroutine native_get_codepoint_hmetrics
+        
+    end subroutine native_get_glyph_hmetrics
 
     function native_find_glyph_index(font_info, codepoint) result(glyph_index)
         !! Find glyph index for Unicode codepoint
