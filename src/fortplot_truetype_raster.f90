@@ -726,6 +726,7 @@ contains
                         end if
                     else
                         ! Multi-pixel case: covers 2+ pixels
+                        if (y_top < 0.1_wp) print *, 'DEBUG: Multi-pixel edge x_top=', x_top, 'x_bottom=', x_bottom, 'direction=', e%direction
                         ! Flip coordinates if necessary to ensure x_top <= x_bottom
                         if (x_top > x_bottom) then
                             call swap_real(x_top, x_bottom)
