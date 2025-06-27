@@ -764,7 +764,8 @@ contains
         glyph_index = native_find_glyph_index(native_font, iachar('A'))
 
         ! Parse the points
-        call parse_simple_glyph_points(font_info=native_font, glyph_index=glyph_index, points=points, num_points=num_points, success=points_success)
+        call parse_simple_glyph_points(font_info=native_font, glyph_index=glyph_index, &
+                                       points=points, num_points=num_points, success=points_success)
 
         if (points_success .and. allocated(points)) then
             print *, "✅ Successfully parsed glyph points for 'A'"

@@ -510,13 +510,21 @@ contains
         ! Parse flags
         i = 1
         do while (i <= num_points)
-            if (flags_offset > size(font_info%font_data)) then; deallocate(endpoints, points); success=.false.; return; end if
+            if (flags_offset > size(font_info%font_data)) then
+                deallocate(endpoints, points)
+                success = .false.
+                return
+            end if
             flag = read_uint8(font_info%font_data, flags_offset)
             flags_offset = flags_offset + 1
             points(i)%flags = int(flag, int8)
 
             if (btest(flag, 3)) then ! repeat flag
-                if (flags_offset > size(font_info%font_data)) then; deallocate(endpoints, points); success=.false.; return; end if
+                if (flags_offset > size(font_info%font_data)) then
+                    deallocate(endpoints, points)
+                    success = .false.
+                    return
+                end if
                 repeat_count = read_uint8(font_info%font_data, flags_offset)
                 flags_offset = flags_offset + 1
                 do while (repeat_count > 0 .and. i < num_points)
@@ -534,7 +542,11 @@ contains
         do i = 1, num_points
             flag = int(points(i)%flags)
             if (btest(flag, 1)) then ! x-short vector
-                if (x_offset > size(font_info%font_data)) then; deallocate(endpoints, points); success=.false.; return; end if
+                if (x_offset > size(font_info%font_data)) then
+                    deallocate(endpoints, points)
+                    success = .false.
+                    return
+                end if
                 val = read_uint8(font_info%font_data, x_offset)
                 if (btest(flag, 4)) then ! This bit means the sign is positive
                     x_val = x_val + val
@@ -544,7 +556,11 @@ contains
                 x_offset = x_offset + 1
             else
                 if (.not. btest(flag, 4)) then ! not x-is-same
-                    if (x_offset > size(font_info%font_data) - 1) then; deallocate(endpoints, points); success=.false.; return; end if
+                    if (x_offset > size(font_info%font_data) - 1) then
+                        deallocate(endpoints, points)
+                        success = .false.
+                        return
+                    end if
                     x_val = x_val + read_int16_be(font_info%font_data, x_offset)
                     x_offset = x_offset + 2
                 end if
@@ -558,7 +574,11 @@ contains
         do i = 1, num_points
             flag = int(points(i)%flags)
             if (btest(flag, 2)) then ! y-short vector
-                if (y_offset > size(font_info%font_data)) then; deallocate(endpoints, points); success=.false.; return; end if
+                if (y_offset > size(font_info%font_data)) then
+                    deallocate(endpoints, points)
+                    success = .false.
+                    return
+                end if
                 val = read_uint8(font_info%font_data, y_offset)
                 if (btest(flag, 5)) then ! This bit means the sign is positive
                     y_val = y_val + val
@@ -568,7 +588,11 @@ contains
                 y_offset = y_offset + 1
             else
                 if (.not. btest(flag, 5)) then ! not y-is-same
-                    if (y_offset > size(font_info%font_data) - 1) then; deallocate(endpoints, points); success=.false.; return; end if
+                    if (y_offset > size(font_info%font_data) - 1) then
+                        deallocate(endpoints, points)
+                        success = .false.
+                        return
+                    end if
                     y_val = y_val + read_int16_be(font_info%font_data, y_offset)
                     y_offset = y_offset + 2
                 end if

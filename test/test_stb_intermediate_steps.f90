@@ -17,7 +17,8 @@ program test_stb_intermediate_steps
             integer(c_int) :: success
         end function
 
-        function stb_wrapper_scale_for_pixel_height(wrapper, height) bind(c, name='stb_wrapper_scale_for_pixel_height') result(scale)
+        function stb_wrapper_scale_for_pixel_height(wrapper, height) &
+                 bind(c, name='stb_wrapper_scale_for_pixel_height') result(scale)
             import :: c_ptr, c_float
             type(c_ptr), value :: wrapper
             real(c_float), value :: height

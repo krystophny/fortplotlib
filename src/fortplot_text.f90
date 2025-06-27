@@ -299,8 +299,10 @@ contains
                             pixel_idx = final_y * (1 + width * 3) + 1 + final_x * 3 + 1
                             if (pixel_idx > 0 .and. pixel_idx <= width * height * 3) then
                                 image_data(pixel_idx) = int(real(image_data(pixel_idx)) * (1.0 - alpha) + real(r) * alpha, kind=1)
-                                image_data(pixel_idx + 1) = int(real(image_data(pixel_idx + 1)) * (1.0 - alpha) + real(g) * alpha, kind=1)
-                                image_data(pixel_idx + 2) = int(real(image_data(pixel_idx + 2)) * (1.0 - alpha) + real(b) * alpha, kind=1)
+                                image_data(pixel_idx + 1) = int(real(image_data(pixel_idx + 1)) * (1.0 - alpha) + &
+                                                                 real(g) * alpha, kind=1)
+                                image_data(pixel_idx + 2) = int(real(image_data(pixel_idx + 2)) * (1.0 - alpha) + &
+                                                                 real(b) * alpha, kind=1)
                             end if
                         end if
                     end if

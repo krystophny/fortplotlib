@@ -6,7 +6,8 @@ module fortplot_truetype_raster
     implicit none
 
     private
-    public :: rasterize_glyph_outline_to_buffer, rasterize_glyph_outline, rasterize_glyph_outline_with_offset, rasterize_glyph_outline_to_buffer_with_offset
+    public :: rasterize_glyph_outline_to_buffer, rasterize_glyph_outline, &
+              rasterize_glyph_outline_with_offset, rasterize_glyph_outline_to_buffer_with_offset
     public :: raster_point_t, raster_edge_t, active_edge_t, get_glyph_shape, flatten_curves
     public :: add_active_edge, fill_active_edges_stb_exact, cleanup_active_edges
 
@@ -50,7 +51,8 @@ contains
         integer, intent(in) :: width, height, glyph_index, x_off, y_off
         real(wp), intent(in) :: scale_x, scale_y
 
-        call rasterize_glyph_outline_to_buffer_with_offset(font_info, bitmap, width, height, width, glyph_index, scale_x, scale_y, x_off, y_off)
+        call rasterize_glyph_outline_to_buffer_with_offset(font_info, bitmap, width, height, width, &
+                                                            glyph_index, scale_x, scale_y, x_off, y_off)
     end subroutine rasterize_glyph_outline_with_offset
 
     subroutine rasterize_glyph_outline_to_buffer(font_info, buffer, width, height, stride, glyph_index, scale_x, scale_y)
@@ -100,7 +102,8 @@ contains
 
     end subroutine rasterize_glyph_outline_to_buffer
 
-    subroutine rasterize_glyph_outline_to_buffer_with_offset(font_info, buffer, width, height, stride, glyph_index, scale_x, scale_y, x_off, y_off)
+    subroutine rasterize_glyph_outline_to_buffer_with_offset(font_info, buffer, width, height, stride, &
+                                                             glyph_index, scale_x, scale_y, x_off, y_off)
         !! Rasterize a glyph outline to a strided buffer with STB-matching offsets
         type(native_fontinfo_t), intent(in) :: font_info
         integer(int8), intent(inout), target :: buffer(*)
@@ -721,12 +724,14 @@ contains
                         x = int(x_top)
                         height = (sy1 - sy0) * e%direction
                         if (x >= 0 .and. x < len) then
-                            scanline(x) = scanline(x) + position_trapezoid_area(height, x_top, real(x + 1, wp), x_bottom, real(x + 1, wp))
+                            scanline(x) = scanline(x) + &
+                                position_trapezoid_area(height, x_top, real(x + 1, wp), x_bottom, real(x + 1, wp))
                             scanline_fill(x) = scanline_fill(x) + height
                         end if
                     else
                         ! Multi-pixel case: covers 2+ pixels
-                        if (y_top < 0.1_wp) print *, 'DEBUG: Multi-pixel edge x_top=', x_top, 'x_bottom=', x_bottom, 'direction=', e%direction
+                        if (y_top < 0.1_wp) print *, 'DEBUG: Multi-pixel edge x_top=', x_top, &
+                            'x_bottom=', x_bottom, 'direction=', e%direction
                         ! Flip coordinates if necessary to ensure x_top <= x_bottom
                         if (x_top > x_bottom) then
                             call swap_real(x_top, x_bottom)
@@ -776,7 +781,8 @@ contains
 
                         ! Last pixel (STB exact formula)
                         if (x2 >= 0 .and. x2 < len) then
-                            scanline(x2) = scanline(x2) + area + sign * position_trapezoid_area(sy1 - y_final, real(x2, wp), real(x2 + 1, wp), x_bottom, real(x2 + 1, wp))
+                            scanline(x2) = scanline(x2) + area + sign * &
+                                position_trapezoid_area(sy1 - y_final, real(x2, wp), real(x2 + 1, wp), x_bottom, real(x2 + 1, wp))
                             scanline_fill(x2) = scanline_fill(x2) + sign * (sy1 - sy0)
                         end if
                     end if

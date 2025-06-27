@@ -6,7 +6,8 @@ module fortplot_truetype_native
     use fortplot_truetype_parser
     use fortplot_truetype_reader, only: read_uint16_be, read_int16_be
     use fortplot_truetype_bitmap, only: render_bitmap_character, render_bitmap_character_to_buffer
-    use fortplot_truetype_raster, only: rasterize_glyph_outline, rasterize_glyph_outline_to_buffer, rasterize_glyph_outline_with_offset
+    use fortplot_truetype_raster, only: rasterize_glyph_outline, rasterize_glyph_outline_to_buffer, &
+                                        rasterize_glyph_outline_with_offset
     implicit none
 
     private
