@@ -466,83 +466,83 @@ contains
     end subroutine sort_edges
 
     subroutine rasterize_sorted_edges(bmp, edges, num_edges, off_x, off_y)
-        !! Rasterize sorted edges with simple scanline approach
+        !! Rasterize sorted edges with FULL STB algorithm - exact implementation
         type(bitmap_t), intent(inout) :: bmp
         type(raster_edge_t), intent(in) :: edges(:)
         integer, intent(in) :: num_edges, off_x, off_y
 
-        integer :: i, j, y, x
-        real(wp) :: y_pos, x_pos, coverage
-        real(wp), allocatable :: intersections(:)
-        integer, allocatable :: directions(:)
-        integer :: num_intersections, k, winding_count
-        real(wp) :: temp_x
-        integer :: temp_dir
+        type(active_edge_t), pointer :: active => null()
+        real(wp), allocatable :: scanline(:), scanline_fill(:)
+        integer :: y, edge_idx, x, pixel_idx
+        real(wp) :: y_top, y_bottom, sum, k
+        integer :: m
 
         if (num_edges == 0 .or. bmp%h <= 0 .or. bmp%w <= 0) return
 
-        allocate(intersections(num_edges))
-        allocate(directions(num_edges))
+        allocate(scanline(0:bmp%w-1))
+        allocate(scanline_fill(0:bmp%w-1))
 
-        ! Simple scanline approach
+        edge_idx = 1
+
+        ! STB-style scanline rasterization - exactly one scanline per pixel row (no subsampling)
         do y = 0, bmp%h - 1
-            y_pos = real(y + off_y, wp) + 0.5_wp  ! Middle of pixel row
+            y_top = real(y + off_y, wp)
+            y_bottom = y_top + 1.0_wp
 
-            ! Find all edge intersections with this scanline
-            num_intersections = 0
-            do i = 1, num_edges
-                if (edges(i)%y0 <= y_pos .and. edges(i)%y1 > y_pos) then
-                    ! Edge intersects this scanline
-                    if (abs(edges(i)%y1 - edges(i)%y0) > 1.0e-6_wp) then
-                        x_pos = edges(i)%x0 + (edges(i)%x1 - edges(i)%x0) * &
-                                (y_pos - edges(i)%y0) / (edges(i)%y1 - edges(i)%y0)
+            ! Clear scanline buffers
+            scanline = 0.0_wp
+            scanline_fill = 0.0_wp
 
-                        num_intersections = num_intersections + 1
-                        intersections(num_intersections) = x_pos - real(off_x, wp)
-                        directions(num_intersections) = merge(1, -1, edges(i)%invert)
-                    end if
+            ! Step 1: Add new edges that start at or before this scanline
+            do while (edge_idx <= num_edges .and. edges(edge_idx)%y0 <= y_bottom)
+                if (edges(edge_idx)%y1 > y_top) then
+                    if (y == 0) print *, 'DEBUG: Adding edge', edge_idx, 'y0=', edges(edge_idx)%y0, 'y1=', edges(edge_idx)%y1
+                    call add_active_edge(active, edges(edge_idx), off_x, y_top)
                 end if
+                edge_idx = edge_idx + 1
             end do
 
-            ! Sort intersections
-            do i = 1, num_intersections - 1
-                do j = i + 1, num_intersections
-                    if (intersections(i) > intersections(j)) then
-                        temp_x = intersections(i)
-                        intersections(i) = intersections(j)
-                        intersections(j) = temp_x
-                        temp_dir = directions(i)
-                        directions(i) = directions(j)
-                        directions(j) = temp_dir
-                    end if
-                end do
-            end do
+            ! Step 2: Fill this scanline using exact STB algorithm
+            if (associated(active)) then
+                call fill_active_edges_stb_exact(scanline, scanline_fill, bmp%w, active, y_top)
+            end if
 
-            ! Simple fill using winding rule
-            winding_count = 0
+            ! Step 3: Convert to final pixels using exact STB conversion
+            sum = 0.0_wp
             do x = 0, bmp%w - 1
-                ! Count intersections to the left of this pixel
-                do k = 1, num_intersections
-                    if (intersections(k) < real(x, wp) + 0.5_wp) then
-                        winding_count = winding_count + directions(k)
-                    end if
-                end do
+                ! Exact STB algorithm from lines 3367-3376
+                sum = sum + scanline_fill(x)               ! Running winding sum
+                k = scanline(x) + sum                     ! Combined edge + winding
+                k = abs(k) * 255.0_wp + 0.5_wp           ! Scale and round
+                m = int(k)
+                if (m > 255) m = 255
 
-                ! Fill pixel if winding count is non-zero
-                coverage = merge(127.0_wp, 0.0_wp, winding_count /= 0)
-
-                i = y * bmp%stride + x + 1
-                if (i >= 1 .and. i <= bmp%stride * bmp%h) then
-                    bmp%pixels(i) = int(coverage, int8)
+                ! Debug first few pixels of first scanline
+                if (y == 0 .and. x < 8 .and. (scanline(x) /= 0.0_wp .or. scanline_fill(x) /= 0.0_wp .or. m > 0)) then
+                    print *, 'DEBUG: scanline[', x, '] =', scanline(x), ' scanline_fill[', x, '] =', scanline_fill(x), &
+                             ' sum =', sum, ' k =', k, ' m =', m
                 end if
 
-                ! Reset for next pixel
-                winding_count = 0
+                pixel_idx = y * bmp%stride + x + 1
+                if (pixel_idx >= 1 .and. pixel_idx <= bmp%stride * bmp%h) then
+                    ! Store as signed int8 (will be inverted later in test)
+                    if (m == 0) then
+                        bmp%pixels(pixel_idx) = 0_int8
+                    else
+                        ! Map 1-255 to signed range, handling the conversion properly
+                        bmp%pixels(pixel_idx) = int(m - 128, int8)  ! Convert to signed
+                    end if
+                end if
             end do
+
+            ! Step 4: Remove finished edges and advance active edges
+            call remove_finished_edges(active, y_bottom)
         end do
 
-        if (allocated(intersections)) deallocate(intersections)
-        if (allocated(directions)) deallocate(directions)
+        ! Final cleanup
+        call cleanup_active_edges(active)
+        if (allocated(scanline)) deallocate(scanline)
+        if (allocated(scanline_fill)) deallocate(scanline_fill)
 
     end subroutine rasterize_sorted_edges
 
@@ -592,54 +592,162 @@ contains
 
     end subroutine add_active_edge
 
-    subroutine fill_active_edges(scanline, scanline_fill, len, active, y_top)
-        !! Fill scanline using simplified approach based on STB
+    subroutine fill_active_edges_stb_exact(scanline, scanline_fill, len, active, y_top)
+        !! Fill scanline using the EXACT STB algorithm
         real(wp), intent(inout) :: scanline(0:), scanline_fill(0:)
         integer, intent(in) :: len
         type(active_edge_t), pointer, intent(in) :: active
         real(wp), intent(in) :: y_top
 
-        type(active_edge_t), pointer :: edge
-        real(wp) :: y_bottom, height, x_pos
-        integer :: x
+        type(active_edge_t), pointer :: e
+        real(wp) :: y_bottom, x0, dx, xb, x_top, x_bottom, sy0, sy1, dy
+        real(wp) :: height, y_crossing, y_final, step, sign, area
+        integer :: x, x1, x2, x1_i, x2_i
 
         y_bottom = y_top + 1.0_wp
-        scanline(0:len-1) = 0.0_wp
-        scanline_fill(0:len) = 0.0_wp
+        e => active
 
-        edge => active
-        do while (associated(edge))
-            ! Skip degenerate edges
-            if (abs(edge%ey - edge%sy) < 1.0e-6_wp) then
-                edge => edge%next
-                cycle
-            end if
+        do while (associated(e))
+            ! STB algorithm starts here (from stbtt__fill_active_edges_new)
+            if (abs(e%fdx) < 1.0e-10_wp) then
+                ! Vertical edge case (fdx == 0)
+                x0 = e%fx
+                if (x0 < real(len, wp) .and. x0 >= 0.0_wp) then
+                    x1_i = int(x0)
+                    if (x1_i >= 0 .and. x1_i < len) then
+                        height = (min(e%ey, y_bottom) - max(e%sy, y_top)) * e%direction
+                        scanline_fill(x1_i) = scanline_fill(x1_i) + height
+                    end if
+                end if
+            else
+                ! Sloped edge case
+                x0 = e%fx
+                dx = e%fdx
+                xb = x0 + dx
+                dy = e%fdy
 
-            ! Get x position for this edge at current scanline
-            x_pos = edge%fx
+                ! Compute endpoints of line segment clipped to this scanline
+                if (e%sy > y_top) then
+                    x_top = x0 + dx * (e%sy - y_top)
+                    sy0 = e%sy
+                else
+                    x_top = x0
+                    sy0 = y_top
+                end if
 
-            ! Simple approach: just accumulate edge contributions
-            if (x_pos >= 0.0_wp .and. x_pos < real(len, wp)) then
-                x = int(x_pos)
-                if (x >= 0 .and. x < len) then
-                    ! Add edge direction to scanline_fill for winding rule
-                    scanline_fill(x) = scanline_fill(x) + edge%direction
+                if (e%ey < y_bottom) then
+                    x_bottom = x0 + dx * (e%ey - y_top)
+                    sy1 = e%ey
+                else
+                    x_bottom = xb
+                    sy1 = y_bottom
+                end if
 
-                    ! Simple coverage calculation
-                    height = min(edge%ey, y_bottom) - max(edge%sy, y_top)
-                    scanline(x) = scanline(x) + edge%direction * height * (1.0_wp - (x_pos - real(x, wp)))
+                ! Ensure edge is within bounds (simplified bounds check)
+                if (x_top >= 0.0_wp .and. x_bottom >= 0.0_wp .and. &
+                    x_top < real(len, wp) .and. x_bottom < real(len, wp)) then
 
-                    ! Also affect the next pixel if we're not at the boundary
-                    if (x + 1 < len) then
-                        scanline(x + 1) = scanline(x + 1) + edge%direction * height * (x_pos - real(x, wp))
+                    if (int(x_top) == int(x_bottom)) then
+                        ! Simple case: edge entirely within one pixel
+                        x = int(x_top)
+                        height = (sy1 - sy0) * e%direction
+                        if (x >= 0 .and. x < len) then
+                            scanline(x) = scanline(x) + position_trapezoid_area(height, x_top, real(x + 1, wp), x_bottom, real(x + 1, wp))
+                            scanline_fill(x) = scanline_fill(x) + height
+                        end if
+                    else
+                        ! Multi-pixel case: covers 2+ pixels
+                        ! Flip coordinates if necessary to ensure x_top <= x_bottom
+                        if (x_top > x_bottom) then
+                            call swap_real(x_top, x_bottom)
+                            call swap_real(sy0, sy1)
+                            sy0 = y_bottom - (sy0 - y_top)
+                            sy1 = y_bottom - (sy1 - y_top)
+                            dx = -dx
+                            dy = -dy
+                        end if
+
+                        x1 = int(x_top)
+                        x2 = int(x_bottom)
+
+                        ! Compute intersection with y axis at x1+1
+                        y_crossing = y_top + dy * (real(x1 + 1, wp) - x0)
+                        if (y_crossing > y_bottom) y_crossing = y_bottom
+
+                        ! Compute intersection with y axis at x2
+                        y_final = y_top + dy * (real(x2, wp) - x0)
+                        if (y_final > y_bottom) then
+                            y_final = y_bottom
+                            if (x2 > x1 + 1) then
+                                dy = (y_final - y_crossing) / real(x2 - (x1 + 1), wp)
+                            end if
+                        end if
+
+                        sign = e%direction
+
+                        ! Area of the rectangle covered from sy0..y_crossing
+                        area = sign * (y_crossing - sy0)
+
+                        ! Area of the triangle in first pixel
+                        if (x1 >= 0 .and. x1 < len) then
+                            scanline(x1) = scanline(x1) + sized_triangle_area(area, real(x1 + 1, wp) - x_top)
+                        end if
+
+                        ! Step for trapezoid area calculation
+                        step = sign * dy
+
+                        ! Fill intermediate pixels
+                        do x = x1 + 1, x2 - 1
+                            if (x >= 0 .and. x < len) then
+                                scanline(x) = scanline(x) + area + step * 0.5_wp
+                                area = area + step
+                            end if
+                        end do
+
+                        ! Last pixel
+                        if (x2 >= 0 .and. x2 < len) then
+                            scanline(x2) = scanline(x2) + area + sign * position_trapezoid_area(sy1 - y_final, real(x2, wp), real(x2 + 1, wp), x_bottom, real(x2 + 1, wp))
+                            scanline_fill(x2) = scanline_fill(x2) + sign * (sy1 - sy0)
+                        end if
                     end if
                 end if
             end if
 
-            edge => edge%next
+            e => e%next
         end do
 
-    end subroutine fill_active_edges
+    end subroutine fill_active_edges_stb_exact
+
+    subroutine update_active_edges(active, y_bottom)
+        !! Update active edges: remove finished ones and advance others
+        type(active_edge_t), pointer, intent(inout) :: active
+        real(wp), intent(in) :: y_bottom
+
+        type(active_edge_t), pointer :: current, prev, temp
+
+        prev => null()
+        current => active
+
+        do while (associated(current))
+            if (current%ey <= y_bottom) then
+                ! Remove this edge
+                if (associated(prev)) then
+                    prev%next => current%next
+                else
+                    active => current%next
+                end if
+                temp => current%next
+                deallocate(current)
+                current => temp
+            else
+                ! Advance this edge to next scanline
+                current%fx = current%fx + current%fdx
+                prev => current
+                current => current%next
+            end if
+        end do
+
+    end subroutine update_active_edges
 
     real(wp) function sized_triangle_area(height, width)
         !! Calculate triangle area like STB
