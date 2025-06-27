@@ -3,7 +3,7 @@ program test_stb_intermediate_steps
     !! This test identifies where the native implementation diverges from STB
     use fortplot_truetype_native
     use fortplot_truetype_types
-    use fortplot_bmp, only: save_grayscale_bmp
+    use fortplot_png, only: save_grayscale_array_as_png
     use, intrinsic :: iso_fortran_env, only: wp => real64, int8
     use iso_c_binding
     implicit none
@@ -418,6 +418,10 @@ contains
             do i = 1, total_pixels
                 if (stb_bitmap(i) /= native_bitmap(i)) then
                     differences = differences + 1
+                    ! Debug first few differences
+                    if (differences <= 10) then
+                        print *, "Pixel", i, ": STB=", int(stb_bitmap(i)), " Native=", int(native_bitmap(i))
+                    end if
                 end if
             end do
 
@@ -438,9 +442,9 @@ contains
         end if
 
         ! Save bitmaps for visual inspection
-        call save_grayscale_bmp("stb_step_" // trim(TEST_CHAR) // ".bmp", stb_bitmap, int(stb_width), int(stb_height))
-        call save_grayscale_bmp("native_step_" // trim(TEST_CHAR) // ".bmp", native_bitmap, native_width, native_height)
-        print *, "Saved bitmaps: stb_step_", trim(TEST_CHAR), ".bmp and native_step_", trim(TEST_CHAR), ".bmp"
+        call save_grayscale_array_as_png("stb_step_" // trim(TEST_CHAR) // ".png", stb_bitmap, int(stb_width), int(stb_height))
+        call save_grayscale_array_as_png("native_step_" // trim(TEST_CHAR) // ".png", native_bitmap, native_width, native_height)
+        print *, "Saved bitmaps: stb_step_", trim(TEST_CHAR), ".png and native_step_", trim(TEST_CHAR), ".png"
 
         ! Cleanup
         call stb_wrapper_free_bitmap(stb_bitmap_ptr)

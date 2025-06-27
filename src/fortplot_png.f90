@@ -7,7 +7,7 @@ module fortplot_png
     implicit none
 
     private
-    public :: png_context, create_png_canvas, draw_axes_and_labels, write_png_file
+    public :: png_context, create_png_canvas, draw_axes_and_labels, write_png_file, save_grayscale_array_as_png
 
     ! PNG plotting context - extends raster context and adds PNG file I/O
     type, extends(raster_context) :: png_context
@@ -171,6 +171,36 @@ contains
         crc = crc32_calculate(data, len)
     end function calculate_crc32
 
-
+    subroutine save_grayscale_array_as_png(filename, array, width, height)
+        !! Save grayscale array as PNG file
+        character(len=*), intent(in) :: filename
+        integer(int8), intent(in) :: array(:)
+        integer, intent(in) :: width, height
+        integer :: i, j, idx
+        integer(int8), allocatable :: rgb_data(:)
+        
+        ! Convert grayscale to RGB (3 bytes per pixel)
+        allocate(rgb_data(width * height * 3))
+        
+        do j = 1, height
+            do i = 1, width
+                idx = (j - 1) * width + i
+                if (idx <= size(array)) then
+                    ! Convert grayscale to RGB by replicating value
+                    rgb_data((idx - 1) * 3 + 1) = array(idx)  ! R
+                    rgb_data((idx - 1) * 3 + 2) = array(idx)  ! G
+                    rgb_data((idx - 1) * 3 + 3) = array(idx)  ! B
+                else
+                    rgb_data((idx - 1) * 3 + 1) = 0_int8
+                    rgb_data((idx - 1) * 3 + 2) = 0_int8
+                    rgb_data((idx - 1) * 3 + 3) = 0_int8
+                end if
+            end do
+        end do
+        
+        call write_png_file(filename, width, height, rgb_data)
+        deallocate(rgb_data)
+        
+    end subroutine save_grayscale_array_as_png
 
 end module fortplot_png

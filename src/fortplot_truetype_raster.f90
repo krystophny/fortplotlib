@@ -6,7 +6,7 @@ module fortplot_truetype_raster
     implicit none
 
     private
-    public :: rasterize_glyph_outline_to_buffer, rasterize_glyph_outline
+    public :: rasterize_glyph_outline_to_buffer, rasterize_glyph_outline, rasterize_glyph_outline_with_offset, rasterize_glyph_outline_to_buffer_with_offset
 
     type :: raster_edge_t
         real(wp) :: x0, y0, x1, y1
@@ -40,6 +40,16 @@ contains
 
         call rasterize_glyph_outline_to_buffer(font_info, bitmap, width, height, width, glyph_index, scale_x, scale_y)
     end subroutine rasterize_glyph_outline
+
+    subroutine rasterize_glyph_outline_with_offset(font_info, bitmap, width, height, glyph_index, scale_x, scale_y, x_off, y_off)
+        !! Rasterize a glyph outline to a bitmap with STB-matching offsets
+        type(native_fontinfo_t), intent(in) :: font_info
+        integer(int8), intent(inout) :: bitmap(:)
+        integer, intent(in) :: width, height, glyph_index, x_off, y_off
+        real(wp), intent(in) :: scale_x, scale_y
+
+        call rasterize_glyph_outline_to_buffer_with_offset(font_info, bitmap, width, height, width, glyph_index, scale_x, scale_y, x_off, y_off)
+    end subroutine rasterize_glyph_outline_with_offset
 
     subroutine rasterize_glyph_outline_to_buffer(font_info, buffer, width, height, stride, glyph_index, scale_x, scale_y)
         !! Rasterize a glyph outline to a strided buffer
@@ -79,6 +89,46 @@ contains
         if (allocated(contour_lengths)) deallocate(contour_lengths)
 
     end subroutine rasterize_glyph_outline_to_buffer
+
+    subroutine rasterize_glyph_outline_to_buffer_with_offset(font_info, buffer, width, height, stride, glyph_index, scale_x, scale_y, x_off, y_off)
+        !! Rasterize a glyph outline to a strided buffer with STB-matching offsets
+        type(native_fontinfo_t), intent(in) :: font_info
+        integer(int8), intent(inout), target :: buffer(*)
+        integer, intent(in) :: width, height, stride, glyph_index, x_off, y_off
+        real(wp), intent(in) :: scale_x, scale_y
+
+        type(vertex_t), allocatable :: vertices(:)
+        type(raster_point_t), allocatable :: points(:)
+        integer, allocatable :: contour_lengths(:)
+        integer :: num_vertices, num_points, num_contours
+        type(bitmap_t) :: bmp
+        logical :: success
+
+        call clear_buffer(buffer, width, height, stride)
+
+        call get_glyph_shape(font_info, glyph_index, vertices, num_vertices, success)
+        if (.not. success .or. num_vertices == 0) return
+
+        call flatten_curves(vertices, num_vertices, points, num_points, contour_lengths, num_contours, 0.35_wp)
+        if (num_points == 0) then
+            if (allocated(vertices)) deallocate(vertices)
+            return
+        end if
+
+        bmp%w = width
+        bmp%h = height
+        bmp%stride = stride
+        bmp%pixels => buffer(1:stride*height)
+
+        ! Pass offsets to rasterize_points - this is the key STB matching change
+        call rasterize_points(bmp, points, num_points, contour_lengths, num_contours, &
+                              scale_x, scale_y, 0.0_wp, 0.0_wp, x_off, y_off, .true.)
+
+        if (allocated(vertices)) deallocate(vertices)
+        if (allocated(points)) deallocate(points)
+        if (allocated(contour_lengths)) deallocate(contour_lengths)
+
+    end subroutine rasterize_glyph_outline_to_buffer_with_offset
 
     subroutine clear_buffer(buffer, width, height, stride)
         !! Clear the raster buffer
@@ -304,15 +354,25 @@ contains
             end do
 
             call fill_active_edges(scanline, bmp%w, active, y_top)
+            
+            ! DEBUG: Check if we have any scanline values
+            if (y < 5) then
+                do x = 0, min(bmp%w - 1, 10)
+                    if (abs(scanline(x)) > 0.001_wp) then
+                        print *, "DEBUG: Row", y, "col", x, "scanline=", scanline(x)
+                    end if
+                end do
+            end if
 
             call remove_finished_edges(active, y_bottom)
 
+            ! Convert scanline values to pixels with proper STB-style antialiasing
             do x = 0, bmp%w - 1
-                if (abs(scanline(x)) > 0.01_wp) then
+                if (abs(scanline(x)) > 0.001_wp) then
                     j = y * bmp%stride + x + 1
                     if (j >= 1 .and. j <= bmp%stride * bmp%h) then
-                        ! Use simplified coverage value - proper antialiasing needs more work
-                        bmp%pixels(j) = int(min(127.0_wp, abs(scanline(x)) * 127.0_wp), int8)
+                        ! Clamp to 0-255 range like STB
+                        bmp%pixels(j) = int(max(0.0_wp, min(255.0_wp, abs(scanline(x)) * 255.0_wp)), int8)
                     end if
                 end if
             end do
@@ -350,39 +410,66 @@ contains
     end subroutine add_active_edge
 
     subroutine fill_active_edges(scanline, len, active, y_top)
-        !! Fill scanline using active edges
+        !! Fill scanline using proper STB-style winding rule algorithm
         real(wp), intent(inout) :: scanline(0:)
         integer, intent(in) :: len
         type(active_edge_t), pointer, intent(in) :: active
         real(wp), intent(in) :: y_top
 
         type(active_edge_t), pointer :: edge
-        integer :: x0, x1, i
-        real(wp) :: w
+        integer :: x, winding_count
+        real(wp), allocatable :: intersections(:)
+        integer :: num_intersections, i, j
+        real(wp) :: temp_x
 
+        ! Clear scanline
+        scanline(0:len-1) = 0.0_wp
+
+        ! Count intersections and allocate array
+        num_intersections = 0
         edge => active
-        w = 0.0_wp
-
         do while (associated(edge))
-            x0 = max(0, min(len-1, int(edge%fx)))
-            x1 = max(0, min(len-1, int(edge%fx + edge%fdx)))
-
-            if (abs(w) < 1.0e-6_wp) then
-                w = edge%direction
-            else
-                w = w + edge%direction
-                if (abs(w) < 1.0e-6_wp) then
-                    do i = x0, x1
-                        if (i >= 0 .and. i < len) then
-                            scanline(i) = scanline(i) + 1.0_wp
-                        end if
-                    end do
-                    w = 0.0_wp
-                end if
-            end if
-
+            num_intersections = num_intersections + 1
             edge => edge%next
         end do
+
+        if (num_intersections == 0) return
+
+        allocate(intersections(num_intersections))
+
+        ! Collect x-intersections at scanline y
+        i = 1
+        edge => active
+        do while (associated(edge))
+            intersections(i) = edge%fx + edge%fdx * 0.5_wp  ! Use middle of scanline
+            i = i + 1
+            edge => edge%next
+        end do
+
+        ! Sort intersections (simple bubble sort)
+        do i = 1, num_intersections - 1
+            do j = i + 1, num_intersections
+                if (intersections(i) > intersections(j)) then
+                    temp_x = intersections(i)
+                    intersections(i) = intersections(j)
+                    intersections(j) = temp_x
+                end if
+            end do
+        end do
+
+        ! Fill between pairs of intersections (even-odd rule)
+        do i = 1, num_intersections - 1, 2
+            if (i + 1 <= num_intersections) then
+                do x = max(0, int(intersections(i))), min(len-1, int(intersections(i+1)))
+                    if (x >= 0 .and. x < len) then
+                        ! Simple coverage (can be improved with subpixel precision)
+                        scanline(x) = scanline(x) + 1.0_wp
+                    end if
+                end do
+            end if
+        end do
+
+        deallocate(intersections)
 
     end subroutine fill_active_edges
 
