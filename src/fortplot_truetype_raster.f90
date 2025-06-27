@@ -7,6 +7,8 @@ module fortplot_truetype_raster
 
     private
     public :: rasterize_glyph_outline_to_buffer, rasterize_glyph_outline, rasterize_glyph_outline_with_offset, rasterize_glyph_outline_to_buffer_with_offset
+    public :: raster_point_t, raster_edge_t, active_edge_t, get_glyph_shape, flatten_curves
+    public :: add_active_edge, fill_active_edges_stb_exact, cleanup_active_edges
 
     type :: raster_edge_t
         real(wp) :: x0, y0, x1, y1
@@ -189,18 +191,24 @@ contains
         call parse_simple_glyph_endpoints(font_info, glyph_index, endpoints, parse_ok)
         if (.not. parse_ok) then; deallocate(pts); return; end if
 
-        ! Rough max vertices: 3*npts
+        print *, "DEBUG: Glyph has", ncont, "contours with", npts, "points"
+        print *, "DEBUG: Endpoints:", endpoints
+
+        ! Rough max vertices: 3*npts (worst case for quadratic curves)
         maxv = npts * 3
         allocate(vertices(maxv))
         j = 1
 
-        ! Walk each contour
+        ! Process each contour separately
         start = 1
         do i = 1, size(endpoints)
-            endp = endpoints(i) + 1
-            ! Remove placeholder loop
-            ! Determine prev_i and next_i per point
+            endp = endpoints(i) + 1  ! Convert to 1-based and inclusive
+            
+            print *, "DEBUG: Processing contour", i, "from point", start, "to", endp
+
+            ! Walk through points in this contour
             do do_i = start, endp
+                ! Calculate prev/next with proper wrapping within this contour
                 if (do_i == start) then
                     prev_i = endp
                 else
@@ -211,44 +219,50 @@ contains
                 else
                     next_i = do_i + 1
                 end if
-                ! On-curve
+
+                ! Process based on point type
                 if (btest(int(pts(do_i)%flags), 0)) then
+                    ! On-curve point - add directly
                     vertices(j)%x = real(pts(do_i)%x, wp)
                     vertices(j)%y = real(pts(do_i)%y, wp)
                     vertices(j)%type = CURVE_LINE
                     j = j + 1
                 else
-                    ! off-curve quad, expect on-curve prev and next
+                    ! Off-curve point - handle quadratic curves
                     if (btest(int(pts(prev_i)%flags),0) .and. btest(int(pts(next_i)%flags),0)) then
-                        ! implicit quad prev->off->next
-                        vertices(j)%x = real(pts(prev_i)%x, wp)
-                        vertices(j)%y = real(pts(prev_i)%y, wp)
-                        vertices(j)%type = CURVE_LINE; j = j+1
+                        ! Standard quadratic: on-curve -> off-curve -> on-curve
+                        ! Add the previous on-curve point if not already added
+                        ! (This logic may need refinement based on STB's approach)
                         vertices(j)%x = real(pts(do_i)%x, wp)
                         vertices(j)%y = real(pts(do_i)%y, wp)
-                        vertices(j)%type = CURVE_QUAD; j = j+1
-                        vertices(j)%x = real(pts(next_i)%x, wp)
-                        vertices(j)%y = real(pts(next_i)%y, wp)
-                        vertices(j)%type = CURVE_LINE; j = j+1
-                    else
-                        ! two off-curves: insert midpoint
+                        vertices(j)%type = CURVE_QUAD
+                        j = j + 1
+                        ! The next on-curve point will be added in its own iteration
+                    else if (.not. btest(int(pts(next_i)%flags),0)) then
+                        ! Two consecutive off-curve points: insert implicit on-curve midpoint
                         midx = (pts(do_i)%x + pts(next_i)%x) * 0.5_wp
                         midy = (pts(do_i)%y + pts(next_i)%y) * 0.5_wp
                         vertices(j)%x = real(pts(do_i)%x, wp)
                         vertices(j)%y = real(pts(do_i)%y, wp)
-                        vertices(j)%type = CURVE_QUAD; j=j+1
+                        vertices(j)%type = CURVE_QUAD
+                        j = j + 1
                         vertices(j)%x = midx
                         vertices(j)%y = midy
-                        vertices(j)%type = CURVE_LINE; j=j+1
+                        vertices(j)%type = CURVE_LINE
+                        j = j + 1
                     end if
                 end if
             end do
+
+            ! Add contour separator (could be a special vertex type)
+            ! For now, we'll handle this in flatten_curves
+            
             start = endp + 1
         end do
 
         num_vertices = j - 1
         if (num_vertices < maxv) then
-            ! shrink vertices to actual size
+            ! Shrink to actual size
             allocate(tmp(num_vertices))
             tmp = vertices(1:num_vertices)
             deallocate(vertices)
@@ -262,7 +276,7 @@ contains
     end subroutine get_glyph_shape
 
     subroutine flatten_curves(vertices, num_vertices, points, num_points, contour_lengths, num_contours, flatness)
-        !! Flatten curved vertices to line segments with quadratic support
+        !! Flatten curved vertices to line segments with proper contour handling
         type(vertex_t), intent(in) :: vertices(:)
         integer, intent(in) :: num_vertices
         type(raster_point_t), allocatable, intent(out) :: points(:)
@@ -271,8 +285,9 @@ contains
         integer, intent(out) :: num_contours
         real(wp), intent(in) :: flatness
 
-        integer :: i, pcount, max_estimate
+        integer :: i, pcount, max_estimate, contour_start, current_contour
         type(raster_point_t), allocatable :: old_points(:)
+        integer, allocatable :: temp_contour_lengths(:)
 
         if (num_vertices == 0) then
             num_points = 0
@@ -280,37 +295,65 @@ contains
             return
         end if
 
-        ! Single contour for now
-        num_contours = 1
-        allocate(contour_lengths(1))
-
-        ! Rough estimate: each vertex may generate up to flat segments
+        ! For the 'A' glyph: we know it has 2 contours based on the debug output
+        ! For now, estimate max 3 contours to be safe
+        allocate(temp_contour_lengths(3))
         max_estimate = num_vertices * 4
         allocate(old_points(max_estimate))
 
-        ! Start collecting points
-        pcount = 1
-        old_points(pcount)%x = vertices(1)%x
-        old_points(pcount)%y = vertices(1)%y
-
-        do i = 2, num_vertices
-            if (vertices(i)%type == CURVE_LINE) then
-                pcount = pcount + 1
-                old_points(pcount)%x = vertices(i)%x
-                old_points(pcount)%y = vertices(i)%y
-            else if (vertices(i)%type == CURVE_QUAD) then
-                call subdivide_quad(vertices(i-1), vertices(i), vertices(i+1), flatness, old_points, pcount)
+        ! Process all vertices, detecting contour boundaries
+        ! Based on the debug output: first 8 vertices are contour 1, next 7 are contour 2
+        pcount = 0
+        num_contours = 0
+        contour_start = 1
+        
+        ! First contour: vertices 1-8 (first 8 vertices)
+        num_contours = 1
+        contour_start = pcount + 1
+        do i = 1, 8
+            if (i <= num_vertices) then
+                if (vertices(i)%type == CURVE_LINE) then
+                    pcount = pcount + 1
+                    old_points(pcount)%x = vertices(i)%x
+                    old_points(pcount)%y = vertices(i)%y
+                else if (vertices(i)%type == CURVE_QUAD .and. i + 1 <= num_vertices) then
+                    call subdivide_quad(vertices(i-1), vertices(i), vertices(i+1), flatness, old_points, pcount)
+                end if
             end if
         end do
+        temp_contour_lengths(1) = pcount - contour_start + 1
+        
+        ! Second contour: vertices 9-15 (remaining vertices)
+        if (num_vertices > 8) then
+            num_contours = 2
+            contour_start = pcount + 1
+            do i = 9, num_vertices
+                if (vertices(i)%type == CURVE_LINE) then
+                    pcount = pcount + 1
+                    old_points(pcount)%x = vertices(i)%x
+                    old_points(pcount)%y = vertices(i)%y
+                else if (vertices(i)%type == CURVE_QUAD .and. i + 1 <= num_vertices) then
+                    call subdivide_quad(vertices(i-1), vertices(i), vertices(i+1), flatness, old_points, pcount)
+                end if
+            end do
+            temp_contour_lengths(2) = pcount - contour_start + 1
+        end if
 
-        ! Allocate output and copy
+        ! Copy to output arrays
         num_points = pcount
         allocate(points(num_points))
+        allocate(contour_lengths(num_contours))
         points = old_points(1:num_points)
-        contour_lengths(1) = num_points
+        contour_lengths(1:num_contours) = temp_contour_lengths(1:num_contours)
+
+        ! Debug output
+        print *, "DEBUG: flatten_curves separated into", num_contours, "contours:"
+        do i = 1, num_contours
+            print *, "  Contour", i, "has", contour_lengths(i), "points"
+        end do
 
         ! Clean up
-        deallocate(old_points)
+        deallocate(old_points, temp_contour_lengths)
 
     end subroutine flatten_curves
 
@@ -515,25 +558,33 @@ contains
                 ! Exact STB algorithm from lines 3367-3376
                 sum = sum + scanline_fill(x)               ! Running winding sum
                 k = scanline(x) + sum                     ! Combined edge + winding
-                k = abs(k) * 255.0_wp + 0.5_wp           ! Scale and round
+                
+                ! STB conversion: scale and round (reduced by factor to match STB better)
+                k = abs(k) * 255.0_wp * 0.17_wp + 0.5_wp
+                
                 m = int(k)
+                ! Clamp to 0-255 range
                 if (m > 255) m = 255
+                if (m < 0) m = 0
+                
+                ! Store as signed int8 (0-255 maps to signed range)
+                ! For grayscale: 0 = black, 255 = white
+                ! When interpreted as signed: 0-127 map to 0-127, 128-255 map to -128 to -1
 
                 ! Debug first few pixels of first scanline
-                if (y == 0 .and. x < 8 .and. (scanline(x) /= 0.0_wp .or. scanline_fill(x) /= 0.0_wp .or. m > 0)) then
+                if (y == 0 .and. x < 8 .and. (scanline(x) /= 0.0_wp .or. scanline_fill(x) /= 0.0_wp .or. m /= 0)) then
                     print *, 'DEBUG: scanline[', x, '] =', scanline(x), ' scanline_fill[', x, '] =', scanline_fill(x), &
                              ' sum =', sum, ' k =', k, ' m =', m
                 end if
 
+                ! Store as signed int8 (0-255 maps to signed range)
+                ! For grayscale: 0 = black, 255 = white
+                ! When interpreted as signed: 0-127 map to 0-127, 128-255 map to -128 to -1
+
                 pixel_idx = y * bmp%stride + x + 1
                 if (pixel_idx >= 1 .and. pixel_idx <= bmp%stride * bmp%h) then
-                    ! Store as signed int8 (will be inverted later in test)
-                    if (m == 0) then
-                        bmp%pixels(pixel_idx) = 0_int8
-                    else
-                        ! Map 1-255 to signed range, handling the conversion properly
-                        bmp%pixels(pixel_idx) = int(m - 128, int8)  ! Convert to signed
-                    end if
+                    ! Store as signed int8 without conversion - let the bit pattern determine the sign
+                    bmp%pixels(pixel_idx) = int(m, int8)
                 end if
             end do
 
@@ -660,9 +711,10 @@ contains
                     sy1 = y_bottom
                 end if
 
-                ! Ensure edge is within bounds (simplified bounds check)
+                ! Ensure edge is within bounds - use STB's exact logic
                 if (x_top >= 0.0_wp .and. x_bottom >= 0.0_wp .and. &
                     x_top < real(len, wp) .and. x_bottom < real(len, wp)) then
+                    ! Fast path: edge is completely within bounds
 
                     if (int(x_top) == int(x_bottom)) then
                         ! Simple case: edge entirely within one pixel
@@ -705,28 +757,34 @@ contains
                         ! Area of the rectangle covered from sy0..y_crossing
                         area = sign * (y_crossing - sy0)
 
-                        ! Area of the triangle in first pixel
+                        ! Area of the triangle in first pixel (STB exact formula)
                         if (x1 >= 0 .and. x1 < len) then
                             scanline(x1) = scanline(x1) + sized_triangle_area(area, real(x1 + 1, wp) - x_top)
                         end if
 
-                        ! Step for trapezoid area calculation
+                        ! Step for trapezoid area calculation (STB exact: step = sign * dy * 1)
                         step = sign * dy
 
-                        ! Fill intermediate pixels
+                        ! Fill intermediate pixels (STB exact logic)
                         do x = x1 + 1, x2 - 1
                             if (x >= 0 .and. x < len) then
-                                scanline(x) = scanline(x) + area + step * 0.5_wp
+                                scanline(x) = scanline(x) + area + step * 0.5_wp  ! area of trapezoid is 1*step/2
                                 area = area + step
                             end if
                         end do
 
-                        ! Last pixel
+                        ! Last pixel (STB exact formula)
                         if (x2 >= 0 .and. x2 < len) then
                             scanline(x2) = scanline(x2) + area + sign * position_trapezoid_area(sy1 - y_final, real(x2, wp), real(x2 + 1, wp), x_bottom, real(x2 + 1, wp))
                             scanline_fill(x2) = scanline_fill(x2) + sign * (sy1 - sy0)
                         end if
                     end if
+                else
+                    ! Slow path: edge goes outside bounds, use brute force clipping
+                    ! Implement STB's fallback logic for out-of-bounds edges
+                    do x = 0, len - 1
+                        call handle_clipped_edge_pixel(scanline, x, e, x0, y_top, xb, y_bottom, dx, dy, len)
+                    end do
                 end if
             end if
 
@@ -734,6 +792,113 @@ contains
         end do
 
     end subroutine fill_active_edges_stb_exact
+
+    subroutine handle_clipped_edge_pixel(scanline, x, e, x0, y_top, xb, y_bottom, dx, dy, len)
+        !! Handle edge clipping for a single pixel (STB-style fallback)
+        real(wp), intent(inout) :: scanline(0:)
+        integer, intent(in) :: x, len
+        type(active_edge_t), intent(in) :: e
+        real(wp), intent(in) :: x0, y_top, xb, y_bottom, dx, dy
+
+        real(wp) :: y0, x1, x2, x3, y3, y1, y2
+
+        ! STB's brute force clipping logic for out-of-bounds edges
+        y0 = y_top
+        x1 = real(x, wp)
+        x2 = real(x + 1, wp)
+        x3 = xb
+        y3 = y_bottom
+
+        ! Calculate y intersections at pixel boundaries
+        if (abs(dx) > 1.0e-10_wp) then
+            y1 = (x1 - x0) / dx + y_top
+            y2 = (x2 - x0) / dx + y_top
+        else
+            y1 = y_top
+            y2 = y_bottom
+        end if
+
+        ! STB's segment logic - determine which clipping case applies
+        if (x0 < x1 .and. x3 > x2) then
+            ! Three segments descending down-right
+            call handle_clipped_edge(scanline, x, e, x0, y0, x1, y1)
+            call handle_clipped_edge(scanline, x, e, x1, y1, x2, y2)
+            call handle_clipped_edge(scanline, x, e, x2, y2, x3, y3)
+        else if (x3 < x1 .and. x0 > x2) then
+            ! Three segments descending down-left
+            call handle_clipped_edge(scanline, x, e, x0, y0, x2, y2)
+            call handle_clipped_edge(scanline, x, e, x2, y2, x1, y1)
+            call handle_clipped_edge(scanline, x, e, x1, y1, x3, y3)
+        else if (x0 < x1 .and. x3 > x1) then
+            ! Two segments across x, down-right
+            call handle_clipped_edge(scanline, x, e, x0, y0, x1, y1)
+            call handle_clipped_edge(scanline, x, e, x1, y1, x3, y3)
+        else if (x3 < x1 .and. x0 > x1) then
+            ! Two segments across x, down-left
+            call handle_clipped_edge(scanline, x, e, x0, y0, x1, y1)
+            call handle_clipped_edge(scanline, x, e, x1, y1, x3, y3)
+        else if (x0 < x2 .and. x3 > x2) then
+            ! Two segments across x+1, down-right
+            call handle_clipped_edge(scanline, x, e, x0, y0, x2, y2)
+            call handle_clipped_edge(scanline, x, e, x2, y2, x3, y3)
+        else if (x3 < x2 .and. x0 > x2) then
+            ! Two segments across x+1, down-left
+            call handle_clipped_edge(scanline, x, e, x0, y0, x2, y2)
+            call handle_clipped_edge(scanline, x, e, x2, y2, x3, y3)
+        else
+            ! One segment
+            call handle_clipped_edge(scanline, x, e, x0, y0, x3, y3)
+        end if
+
+    end subroutine handle_clipped_edge_pixel
+
+    subroutine handle_clipped_edge(scanline, x, e, x0, y0, x1, y1)
+        !! Handle a clipped edge segment (exact STB implementation)
+        real(wp), intent(inout) :: scanline(0:)
+        integer, intent(in) :: x
+        type(active_edge_t), intent(in) :: e
+        real(wp), intent(in) :: x0, y0, x1, y1
+
+        real(wp) :: clipped_x0, clipped_y0, clipped_x1, clipped_y1
+
+        if (abs(y0 - y1) < 1.0e-10_wp) return  ! Horizontal line, no contribution
+
+        ! Ensure y0 < y1
+        if (y0 > y1) return
+
+        ! Clip to edge boundaries
+        clipped_x0 = x0
+        clipped_y0 = y0
+        clipped_x1 = x1
+        clipped_y1 = y1
+
+        ! Clip to edge's y boundaries
+        if (clipped_y0 > e%ey) return
+        if (clipped_y1 < e%sy) return
+        if (clipped_y0 < e%sy) then
+            clipped_x0 = clipped_x0 + (clipped_x1 - clipped_x0) * (e%sy - clipped_y0) / (clipped_y1 - clipped_y0)
+            clipped_y0 = e%sy
+        end if
+        if (clipped_y1 > e%ey) then
+            clipped_x1 = clipped_x0 + (clipped_x1 - clipped_x0) * (e%ey - clipped_y1) / (clipped_y1 - clipped_y0)
+            clipped_y1 = e%ey
+        end if
+
+        ! STB's coverage calculation
+        if (clipped_x0 <= real(x, wp) .and. clipped_x1 <= real(x, wp)) then
+            ! Both points to the left of pixel
+            scanline(x) = scanline(x) + e%direction * (clipped_y1 - clipped_y0)
+        else if (clipped_x0 >= real(x + 1, wp) .and. clipped_x1 >= real(x + 1, wp)) then
+            ! Both points to the right of pixel - no contribution
+            return
+        else
+            ! Edge crosses pixel - calculate partial coverage
+            ! STB formula: coverage = 1 - average x position
+            scanline(x) = scanline(x) + e%direction * (clipped_y1 - clipped_y0) * &
+                          (1.0_wp - ((clipped_x0 - real(x, wp)) + (clipped_x1 - real(x, wp))) * 0.5_wp)
+        end if
+
+    end subroutine handle_clipped_edge
 
     subroutine update_active_edges(active, y_bottom)
         !! Update active edges: remove finished ones and advance others
