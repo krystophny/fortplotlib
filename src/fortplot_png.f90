@@ -172,29 +172,35 @@ contains
     end function calculate_crc32
 
     subroutine save_grayscale_array_as_png(filename, array, width, height)
-        !! Save grayscale array as PNG file
+        !! Save grayscale array as PNG file with proper PNG filter bytes
         character(len=*), intent(in) :: filename
         integer(int8), intent(in) :: array(:)
         integer, intent(in) :: width, height
-        integer :: i, j, idx
+        integer :: i, j, idx, rgb_idx
         integer(int8), allocatable :: rgb_data(:)
         
-        ! Convert grayscale to RGB (3 bytes per pixel)
-        allocate(rgb_data(width * height * 3))
+        ! Convert grayscale to RGB with filter bytes (3 bytes per pixel + 1 filter byte per row)
+        allocate(rgb_data(height * (width * 3 + 1)))
         
+        rgb_idx = 1
         do j = 1, height
+            ! Add filter byte (0 = None filter) at the beginning of each row
+            rgb_data(rgb_idx) = 0_int8
+            rgb_idx = rgb_idx + 1
+            
             do i = 1, width
                 idx = (j - 1) * width + i
                 if (idx <= size(array)) then
                     ! Convert grayscale to RGB by replicating value
-                    rgb_data((idx - 1) * 3 + 1) = array(idx)  ! R
-                    rgb_data((idx - 1) * 3 + 2) = array(idx)  ! G
-                    rgb_data((idx - 1) * 3 + 3) = array(idx)  ! B
+                    rgb_data(rgb_idx) = array(idx)      ! R
+                    rgb_data(rgb_idx + 1) = array(idx)  ! G
+                    rgb_data(rgb_idx + 2) = array(idx)  ! B
                 else
-                    rgb_data((idx - 1) * 3 + 1) = 0_int8
-                    rgb_data((idx - 1) * 3 + 2) = 0_int8
-                    rgb_data((idx - 1) * 3 + 3) = 0_int8
+                    rgb_data(rgb_idx) = 0_int8     ! R
+                    rgb_data(rgb_idx + 1) = 0_int8 ! G
+                    rgb_data(rgb_idx + 2) = 0_int8 ! B
                 end if
+                rgb_idx = rgb_idx + 3
             end do
         end do
         

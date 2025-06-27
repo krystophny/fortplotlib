@@ -441,8 +441,18 @@ contains
             end if
         end if
 
-        ! Save bitmaps for visual inspection
+        ! Save bitmaps for visual inspection - invert both STB and native for correct polarity
+        
+        ! Invert STB bitmap colors before saving for correct polarity (white glyph on black background)
+        do i = 1, stb_width * stb_height
+            stb_bitmap(i) = -stb_bitmap(i) - 1_int8  ! Invert: 0->-1, 127->-128, -1->0, etc.
+        end do
         call save_grayscale_array_as_png("stb_step_" // trim(TEST_CHAR) // ".png", stb_bitmap, int(stb_width), int(stb_height))
+        
+        ! Invert native bitmap colors before saving for correct polarity
+        do i = 1, native_width * native_height
+            native_bitmap(i) = -native_bitmap(i) - 1_int8  ! Invert: 0->-1, 127->-128, -1->0, etc.
+        end do
         call save_grayscale_array_as_png("native_step_" // trim(TEST_CHAR) // ".png", native_bitmap, native_width, native_height)
         print *, "Saved bitmaps: stb_step_", trim(TEST_CHAR), ".png and native_step_", trim(TEST_CHAR), ".png"
 

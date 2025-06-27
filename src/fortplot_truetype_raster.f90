@@ -466,13 +466,13 @@ contains
     end subroutine sort_edges
 
     subroutine rasterize_sorted_edges(bmp, edges, num_edges, off_x, off_y)
-        !! Rasterize sorted edges using simplified approach
+        !! Rasterize sorted edges with simple scanline approach
         type(bitmap_t), intent(inout) :: bmp
         type(raster_edge_t), intent(in) :: edges(:)
         integer, intent(in) :: num_edges, off_x, off_y
 
-        integer :: i, j, y, x, edge_idx
-        real(wp) :: y_pos, x_pos
+        integer :: i, j, y, x
+        real(wp) :: y_pos, x_pos, coverage
         real(wp), allocatable :: intersections(:)
         integer, allocatable :: directions(:)
         integer :: num_intersections, k, winding_count
@@ -484,7 +484,7 @@ contains
         allocate(intersections(num_edges))
         allocate(directions(num_edges))
 
-        ! Simple scanline approach: for each row, find edge intersections
+        ! Simple scanline approach
         do y = 0, bmp%h - 1
             y_pos = real(y + off_y, wp) + 0.5_wp  ! Middle of pixel row
             
@@ -518,27 +518,25 @@ contains
                 end do
             end do
             
-            ! Fill pixels using non-zero winding rule
+            ! Simple fill using winding rule
             winding_count = 0
             do x = 0, bmp%w - 1
-                ! Count crossings to the left of this pixel
+                ! Count intersections to the left of this pixel
                 do k = 1, num_intersections
-                    if (intersections(k) <= real(x, wp) + 0.5_wp) then
+                    if (intersections(k) < real(x, wp) + 0.5_wp) then
                         winding_count = winding_count + directions(k)
                     end if
                 end do
                 
-                ! Set pixel based on winding count
+                ! Fill pixel if winding count is non-zero
+                coverage = merge(127.0_wp, 0.0_wp, winding_count /= 0)
+                
                 i = y * bmp%stride + x + 1
                 if (i >= 1 .and. i <= bmp%stride * bmp%h) then
-                    if (winding_count /= 0) then
-                        bmp%pixels(i) = 127_int8  ! Inside
-                    else
-                        bmp%pixels(i) = 0_int8    ! Outside
-                    end if
+                    bmp%pixels(i) = int(coverage, int8)
                 end if
                 
-                ! Reset winding count for next pixel
+                ! Reset for next pixel
                 winding_count = 0
             end do
         end do
