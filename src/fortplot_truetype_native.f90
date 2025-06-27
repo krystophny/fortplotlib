@@ -152,10 +152,10 @@ contains
         integer, intent(in) :: codepoint
         integer, intent(out) :: advance_width, left_side_bearing
         integer :: glyph_index
-        
+
         call native_get_glyph_hmetrics(font_info, native_find_glyph_index(font_info, codepoint), &
                                       advance_width, left_side_bearing)
-        
+
     end subroutine native_get_codepoint_hmetrics
 
     subroutine native_get_glyph_hmetrics(font_info, glyph_index, advance_width, left_side_bearing)
@@ -164,24 +164,24 @@ contains
         integer, intent(in) :: glyph_index
         integer, intent(out) :: advance_width, left_side_bearing
         integer :: num_long_hor_metrics, hmtx_offset
-        
+
         if (.not. font_info%valid .or. glyph_index < 0 .or. &
             font_info%hmtx_offset == 0 .or. font_info%hhea_offset == 0) then
             advance_width = 500
             left_side_bearing = 0
             return
         end if
-        
+
         ! Get numOfLongHorMetrics from hhea table (offset 34)
         if (size(font_info%font_data) < font_info%hhea_offset + 34 + 2 - 1) then
             advance_width = 500
             left_side_bearing = 0
             return
         end if
-        
+
         num_long_hor_metrics = read_uint16_be(font_info%font_data, font_info%hhea_offset + 34)
         hmtx_offset = font_info%hmtx_offset
-        
+
         ! Match STB's logic exactly
         if (glyph_index < num_long_hor_metrics) then
             ! Read from longHorMetric array: advanceWidth, leftSideBearing pairs
@@ -199,7 +199,7 @@ contains
             else
                 advance_width = 500
             end if
-            
+
             ! leftSideBearing from leftSideBearing array after longHorMetric array
             if (size(font_info%font_data) >= hmtx_offset + num_long_hor_metrics * 4 + &
                                            (glyph_index - num_long_hor_metrics) * 2 + 2 - 1) then
@@ -210,7 +210,7 @@ contains
                 left_side_bearing = 0
             end if
         end if
-        
+
     end subroutine native_get_glyph_hmetrics
 
     function native_find_glyph_index(font_info, codepoint) result(glyph_index)
@@ -267,7 +267,7 @@ contains
 
         ! Get glyph index for this codepoint
         glyph_index = native_find_glyph_index(font_info, codepoint)
-        
+
         ! DEBUG: Print glyph index
         if (codepoint == 65) then  ! 'A'
             print *, "DEBUG: Codepoint 65 ('A') maps to glyph index:", glyph_index
@@ -394,7 +394,6 @@ contains
         integer :: glyph_index
 
         bitmap = 0_int8
-
         glyph_index = native_find_glyph_index(font_info, codepoint)
 
         if (glyph_index > 0 .and. allocated(font_info%glyph_offsets) .and. font_info%glyf_offset > 0) then
@@ -414,15 +413,10 @@ contains
         integer :: glyph_index
 
         bitmap = 0_int8
-
         glyph_index = native_find_glyph_index(font_info, codepoint)
 
         if (glyph_index > 0 .and. allocated(font_info%glyph_offsets) .and. font_info%glyf_offset > 0) then
             call rasterize_glyph_outline_with_offset(font_info, bitmap, width, height, glyph_index, scale_x, scale_y, x_off, y_off)
-            ! TODO: Temporarily disabled fallback to see raw TrueType output
-            ! if (all(bitmap == 0_int8)) then
-            !     call render_bitmap_character(bitmap, width, height, codepoint)
-            ! end if
         else
             call render_bitmap_character(bitmap, width, height, codepoint)
         end if
@@ -452,7 +446,7 @@ contains
         integer(int8), intent(inout) :: bitmap(:)
         integer, intent(in) :: width, height, codepoint
         integer :: i, j, idx
-        
+
         ! Create a simple cross pattern for character 'A'
         if (codepoint == ichar('A')) then
             do j = 1, height
@@ -480,7 +474,7 @@ contains
                 end do
             end do
         end if
-        
+
     end subroutine create_test_pattern
 
 end module fortplot_truetype_native

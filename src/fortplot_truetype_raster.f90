@@ -1,7 +1,7 @@
 module fortplot_truetype_raster
     !! Glyph rasterization using scanline algorithm for TrueType outlines
     use, intrinsic :: iso_fortran_env, only: wp => real64, int8
-    use fortplot_truetype_types, only: native_fontinfo_t, vertex_t, glyph_point_t, CURVE_LINE
+    use fortplot_truetype_types, only: native_fontinfo_t, vertex_t, glyph_point_t, CURVE_LINE, CURVE_QUAD
     use fortplot_truetype_parser, only: parse_glyph_header, parse_simple_glyph_points, parse_simple_glyph_endpoints
     implicit none
 
@@ -68,13 +68,21 @@ contains
         call clear_buffer(buffer, width, height, stride)
 
         call get_glyph_shape(font_info, glyph_index, vertices, num_vertices, success)
-        if (.not. success .or. num_vertices == 0) return
+        if (.not. success .or. num_vertices == 0) then
+            print *, "DEBUG: get_glyph_shape failed, success=", success, "num_vertices=", num_vertices
+            return
+        end if
+
+        print *, "DEBUG: Got", num_vertices, "vertices from glyph shape"
 
         call flatten_curves(vertices, num_vertices, points, num_points, contour_lengths, num_contours, 0.35_wp)
         if (num_points == 0) then
+            print *, "DEBUG: flatten_curves produced 0 points"
             if (allocated(vertices)) deallocate(vertices)
             return
         end if
+
+        print *, "DEBUG: Flattened to", num_points, "points,", num_contours, "contours"
 
         bmp%w = width
         bmp%h = height
@@ -107,13 +115,21 @@ contains
         call clear_buffer(buffer, width, height, stride)
 
         call get_glyph_shape(font_info, glyph_index, vertices, num_vertices, success)
-        if (.not. success .or. num_vertices == 0) return
+        if (.not. success .or. num_vertices == 0) then
+            print *, "DEBUG: get_glyph_shape(offset) failed, success=", success, "num_vertices=", num_vertices
+            return
+        end if
+
+        print *, "DEBUG: Got", num_vertices, "vertices from glyph shape (offset)"
 
         call flatten_curves(vertices, num_vertices, points, num_points, contour_lengths, num_contours, 0.35_wp)
         if (num_points == 0) then
+            print *, "DEBUG: flatten_curves(offset) produced 0 points"
             if (allocated(vertices)) deallocate(vertices)
             return
         end if
+
+        print *, "DEBUG: Flattened to", num_points, "points,", num_contours, "contours (offset)"
 
         bmp%w = width
         bmp%h = height
@@ -123,6 +139,8 @@ contains
         ! Pass offsets to rasterize_points - this is the key STB matching change
         call rasterize_points(bmp, points, num_points, contour_lengths, num_contours, &
                               scale_x, scale_y, 0.0_wp, 0.0_wp, x_off, y_off, .true.)
+
+        print *, "DEBUG: Rasterization complete (offset)"
 
         if (allocated(vertices)) deallocate(vertices)
         if (allocated(points)) deallocate(points)
@@ -144,70 +162,107 @@ contains
     end subroutine clear_buffer
 
     subroutine get_glyph_shape(font_info, glyph_index, vertices, num_vertices, success)
-        !! Extract glyph shape as vertex array
+        !! Extract glyph shape as vertex array (STB-style on/off-curve logic)
         type(native_fontinfo_t), intent(in) :: font_info
         integer, intent(in) :: glyph_index
         type(vertex_t), allocatable, intent(out) :: vertices(:)
         integer, intent(out) :: num_vertices
         logical, intent(out) :: success
 
-        type(glyph_point_t), allocatable :: points(:)
+        type(glyph_point_t), allocatable :: pts(:)
         integer, allocatable :: endpoints(:)
-        integer :: num_points, number_of_contours, i, j, endpoint, start, current_contour
-        integer :: x_min, y_min, x_max, y_max
-        logical :: parse_success
+        integer :: npts, ncont, start, endp, i, j, maxv
+        integer :: prev_i, next_i, do_i
+        integer :: dummy_xmin, dummy_ymin, dummy_xmax, dummy_ymax
+        type(vertex_t), allocatable :: tmp(:)
+        logical :: parse_ok
+        real(wp) :: midx, midy
 
         success = .false.
         num_vertices = 0
 
-        call parse_glyph_header(font_info, glyph_index, number_of_contours, x_min, y_min, x_max, y_max)
-        if (number_of_contours < 0) then
-            return
-        end if
+        ! Load raw points and contour endpoints
+        call parse_glyph_header(font_info, glyph_index, ncont, dummy_xmin, dummy_ymin, dummy_xmax, dummy_ymax)
+        if (ncont < 0) return
+        call parse_simple_glyph_points(font_info, glyph_index, pts, npts, parse_ok)
+        if (.not. parse_ok .or. npts == 0) return
+        call parse_simple_glyph_endpoints(font_info, glyph_index, endpoints, parse_ok)
+        if (.not. parse_ok) then; deallocate(pts); return; end if
 
-        call parse_simple_glyph_points(font_info, glyph_index, points, num_points, parse_success)
-        if (.not. parse_success .or. num_points == 0) return
-
-        call parse_simple_glyph_endpoints(font_info, glyph_index, endpoints, parse_success)
-        if (.not. parse_success) then
-            if (allocated(points)) deallocate(points)
-            return
-        end if
-
-        num_vertices = num_points + number_of_contours
-
-        allocate(vertices(num_vertices))
-
+        ! Rough max vertices: 3*npts
+        maxv = npts * 3
+        allocate(vertices(maxv))
         j = 1
+
+        ! Walk each contour
         start = 1
-        do current_contour = 1, number_of_contours
-            endpoint = endpoints(current_contour) + 1
-
-            vertices(j)%x = real(points(start)%x, wp)
-            vertices(j)%y = real(points(start)%y, wp)
-            vertices(j)%type = CURVE_LINE
-            j = j + 1
-
-            do i = start + 1, endpoint
-                vertices(j)%x = real(points(i)%x, wp)
-                vertices(j)%y = real(points(i)%y, wp)
-                vertices(j)%type = CURVE_LINE
-                j = j + 1
+        do i = 1, size(endpoints)
+            endp = endpoints(i) + 1
+            ! Remove placeholder loop
+            ! Determine prev_i and next_i per point
+            do do_i = start, endp
+                if (do_i == start) then
+                    prev_i = endp
+                else
+                    prev_i = do_i - 1
+                end if
+                if (do_i == endp) then
+                    next_i = start
+                else
+                    next_i = do_i + 1
+                end if
+                ! On-curve
+                if (btest(int(pts(do_i)%flags), 0)) then
+                    vertices(j)%x = real(pts(do_i)%x, wp)
+                    vertices(j)%y = real(pts(do_i)%y, wp)
+                    vertices(j)%type = CURVE_LINE
+                    j = j + 1
+                else
+                    ! off-curve quad, expect on-curve prev and next
+                    if (btest(int(pts(prev_i)%flags),0) .and. btest(int(pts(next_i)%flags),0)) then
+                        ! implicit quad prev->off->next
+                        vertices(j)%x = real(pts(prev_i)%x, wp)
+                        vertices(j)%y = real(pts(prev_i)%y, wp)
+                        vertices(j)%type = CURVE_LINE; j = j+1
+                        vertices(j)%x = real(pts(do_i)%x, wp)
+                        vertices(j)%y = real(pts(do_i)%y, wp)
+                        vertices(j)%type = CURVE_QUAD; j = j+1
+                        vertices(j)%x = real(pts(next_i)%x, wp)
+                        vertices(j)%y = real(pts(next_i)%y, wp)
+                        vertices(j)%type = CURVE_LINE; j = j+1
+                    else
+                        ! two off-curves: insert midpoint
+                        midx = (pts(do_i)%x + pts(next_i)%x) * 0.5_wp
+                        midy = (pts(do_i)%y + pts(next_i)%y) * 0.5_wp
+                        vertices(j)%x = real(pts(do_i)%x, wp)
+                        vertices(j)%y = real(pts(do_i)%y, wp)
+                        vertices(j)%type = CURVE_QUAD; j=j+1
+                        vertices(j)%x = midx
+                        vertices(j)%y = midy
+                        vertices(j)%type = CURVE_LINE; j=j+1
+                    end if
+                end if
             end do
-
-            start = endpoint + 1
+            start = endp + 1
         end do
 
         num_vertices = j - 1
+        if (num_vertices < maxv) then
+            ! shrink vertices to actual size
+            allocate(tmp(num_vertices))
+            tmp = vertices(1:num_vertices)
+            deallocate(vertices)
+            allocate(vertices(num_vertices))
+            vertices = tmp
+            deallocate(tmp)
+        end if
+
         success = .true.
-
-        if (allocated(points)) deallocate(points)
-        if (allocated(endpoints)) deallocate(endpoints)
-
+        deallocate(pts, endpoints)
     end subroutine get_glyph_shape
 
     subroutine flatten_curves(vertices, num_vertices, points, num_points, contour_lengths, num_contours, flatness)
-        !! Flatten curved vertices to line segments
+        !! Flatten curved vertices to line segments with quadratic support
         type(vertex_t), intent(in) :: vertices(:)
         integer, intent(in) :: num_vertices
         type(raster_point_t), allocatable, intent(out) :: points(:)
@@ -216,7 +271,8 @@ contains
         integer, intent(out) :: num_contours
         real(wp), intent(in) :: flatness
 
-        integer :: i
+        integer :: i, pcount, max_estimate
+        type(raster_point_t), allocatable :: old_points(:)
 
         if (num_vertices == 0) then
             num_points = 0
@@ -224,20 +280,70 @@ contains
             return
         end if
 
-        num_points = num_vertices
+        ! Single contour for now
         num_contours = 1
+        allocate(contour_lengths(1))
 
-        allocate(points(num_points))
-        allocate(contour_lengths(num_contours))
+        ! Rough estimate: each vertex may generate up to flat segments
+        max_estimate = num_vertices * 4
+        allocate(old_points(max_estimate))
 
-        do i = 1, num_vertices
-            points(i)%x = vertices(i)%x
-            points(i)%y = vertices(i)%y
+        ! Start collecting points
+        pcount = 1
+        old_points(pcount)%x = vertices(1)%x
+        old_points(pcount)%y = vertices(1)%y
+
+        do i = 2, num_vertices
+            if (vertices(i)%type == CURVE_LINE) then
+                pcount = pcount + 1
+                old_points(pcount)%x = vertices(i)%x
+                old_points(pcount)%y = vertices(i)%y
+            else if (vertices(i)%type == CURVE_QUAD) then
+                call subdivide_quad(vertices(i-1), vertices(i), vertices(i+1), flatness, old_points, pcount)
+            end if
         end do
 
+        ! Allocate output and copy
+        num_points = pcount
+        allocate(points(num_points))
+        points = old_points(1:num_points)
         contour_lengths(1) = num_points
 
+        ! Clean up
+        deallocate(old_points)
+
     end subroutine flatten_curves
+
+    recursive subroutine subdivide_quad(p0, p1, p2, flatness, pts, pcount)
+        type(vertex_t), intent(in) :: p0, p1, p2
+        real(wp), intent(in) :: flatness
+        type(raster_point_t), allocatable, intent(inout) :: pts(:)
+        integer, intent(inout) :: pcount
+        real(wp) :: midx1, midy1, midx2, midy2, midx, midy, dx, dy
+
+        ! Midpoints
+        midx1 = (p0%x + p1%x)/2
+        midy1 = (p0%y + p1%y)/2
+        midx2 = (p1%x + p2%x)/2
+        midy2 = (p1%y + p2%y)/2
+        midx  = (midx1 + midx2)/2
+        midy  = (midy1 + midy2)/2
+        ! Flatness test (distance from p1 to midpoint)
+        dx = p1%x - midx
+        dy = p1%y - midy
+        if (dx*dx + dy*dy < flatness*flatness) then
+            pcount = pcount + 1
+            pts(pcount)%x = p2%x
+            pts(pcount)%y = p2%y
+        else
+            ! Subdivide first half
+            call subdivide_quad(p0, vertex_t(midx1,midy1,0.0_wp,0.0_wp,CURVE_QUAD), &
+                                vertex_t(midx,midy,0.0_wp,0.0_wp,CURVE_QUAD), flatness, pts, pcount)
+            ! Subdivide second half
+            call subdivide_quad(vertex_t(midx,midy,0.0_wp,0.0_wp,CURVE_QUAD), &
+                                vertex_t(midx2,midy2,0.0_wp,0.0_wp,CURVE_QUAD), p2, flatness, pts, pcount)
+        end if
+    end subroutine subdivide_quad
 
     subroutine rasterize_points(bmp, points, num_points, contour_lengths, num_contours, &
                                 scale_x, scale_y, shift_x, shift_y, off_x, off_y, invert)
@@ -252,7 +358,10 @@ contains
 
         type(raster_edge_t), allocatable :: edges(:)
         integer :: num_edges, m, i, j, k, a, b, point_idx
-        real(wp) :: y_scale_inv
+        real(wp) :: y_scale_inv, real_x1, real_y1, real_x2, real_y2
+
+        print *, "DEBUG: rasterize_points called with", num_points, "points,", num_contours, "contours"
+        print *, "DEBUG: scale:", scale_x, scale_y, "shift:", shift_x, shift_y, "off:", off_x, off_y
 
         y_scale_inv = merge(-scale_y, scale_y, invert)
 
@@ -261,40 +370,70 @@ contains
             num_edges = num_edges + contour_lengths(i)
         end do
 
-        if (num_edges == 0) return
+        if (num_edges == 0) then
+            print *, "DEBUG: No edges generated, returning"
+            return
+        end if
+
+        print *, "DEBUG: Generated", num_edges, "edges"
 
         allocate(edges(num_edges))
 
         num_edges = 0
-        m = 1
+        point_idx = 1
+        
+        ! Generate edges from each contour
         do i = 1, num_contours
-            point_idx = m
-            j = contour_lengths(i) - 1
-            do k = 1, contour_lengths(i)
-                a = k
-                b = j
+            ! Create edges from consecutive points in this contour
+            do j = 1, contour_lengths(i)
+                ! Current point and next point (wrapping around)
+                k = point_idx + j - 1
+                if (j == contour_lengths(i)) then
+                    ! Last point connects to first point of contour
+                    a = k
+                    b = point_idx
+                else
+                    a = k
+                    b = k + 1
+                end if
 
-                if (abs(points(point_idx + j - 1)%y - points(point_idx + k - 1)%y) < 1.0e-6_wp) then
-                    j = k
+                ! Transform points to screen coordinates
+                real_x1 = points(a)%x * scale_x + shift_x
+                real_y1 = points(a)%y * y_scale_inv + shift_y
+                real_x2 = points(b)%x * scale_x + shift_x  
+                real_y2 = points(b)%y * y_scale_inv + shift_y
+
+                ! Skip horizontal edges (degenerate)
+                if (abs(real_y1 - real_y2) < 1.0e-6_wp) then
                     cycle
                 end if
 
                 num_edges = num_edges + 1
-                edges(num_edges)%invert = .false.
-                if (invert .eqv. (points(point_idx + j - 1)%y > points(point_idx + k - 1)%y)) then
-                    edges(num_edges)%invert = .true.
-                    a = j
-                    b = k
+                
+                ! Simple STB-style edge creation: store with y0 <= y1
+                if (real_y1 <= real_y2) then
+                    edges(num_edges)%x0 = real_x1
+                    edges(num_edges)%y0 = real_y1  
+                    edges(num_edges)%x1 = real_x2
+                    edges(num_edges)%y1 = real_y2
+                    edges(num_edges)%invert = .false.  ! Normal direction 
+                else
+                    edges(num_edges)%x0 = real_x2
+                    edges(num_edges)%y0 = real_y2
+                    edges(num_edges)%x1 = real_x1
+                    edges(num_edges)%y1 = real_y1
+                    edges(num_edges)%invert = .true.   ! Inverted direction
                 end if
 
-                edges(num_edges)%x0 = points(point_idx + a - 1)%x * scale_x + shift_x
-                edges(num_edges)%y0 = points(point_idx + a - 1)%y * y_scale_inv + shift_y
-                edges(num_edges)%x1 = points(point_idx + b - 1)%x * scale_x + shift_x
-                edges(num_edges)%y1 = points(point_idx + b - 1)%y * y_scale_inv + shift_y
-
-                j = k
+                ! Debug first few edges
+                if (num_edges <= 5) then
+                    print *, "DEBUG: Edge", num_edges, "invert=", edges(num_edges)%invert, &
+                             "from (", edges(num_edges)%x0, ",", edges(num_edges)%y0, ") to (", &
+                             edges(num_edges)%x1, ",", edges(num_edges)%y1, ")"
+                end if
             end do
-            m = m + contour_lengths(i)
+            
+            point_idx = point_idx + contour_lengths(i)
         end do
 
         call sort_edges(edges, num_edges)
@@ -327,63 +466,99 @@ contains
     end subroutine sort_edges
 
     subroutine rasterize_sorted_edges(bmp, edges, num_edges, off_x, off_y)
-        !! Rasterize sorted edges using scanline algorithm
+        !! Rasterize sorted edges using simplified approach
         type(bitmap_t), intent(inout) :: bmp
         type(raster_edge_t), intent(in) :: edges(:)
         integer, intent(in) :: num_edges, off_x, off_y
 
-        integer :: i, j, y, x, y_end
-        real(wp) :: y_top, y_bottom
-        real(wp), allocatable :: scanline(:)
-        type(active_edge_t), pointer :: active => null(), edge_ptr => null(), next_ptr => null()
+        integer :: i, j, y, x, edge_idx
+        real(wp) :: y_pos, x_pos
+        real(wp), allocatable :: intersections(:)
+        integer, allocatable :: directions(:)
+        integer :: num_intersections, k, winding_count
+        real(wp) :: temp_x
+        integer :: temp_dir
 
         if (num_edges == 0 .or. bmp%h <= 0 .or. bmp%w <= 0) return
 
-        allocate(scanline(0:bmp%w-1))
+        allocate(intersections(num_edges))
+        allocate(directions(num_edges))
 
-        y_top = 0.0_wp
+        ! Simple scanline approach: for each row, find edge intersections
         do y = 0, bmp%h - 1
-            y_bottom = y_top + 1.0_wp
-            scanline = 0.0_wp
-
+            y_pos = real(y + off_y, wp) + 0.5_wp  ! Middle of pixel row
+            
+            ! Find all edge intersections with this scanline
+            num_intersections = 0
             do i = 1, num_edges
-                if (min(edges(i)%y0, edges(i)%y1) <= y_bottom .and. &
-                    max(edges(i)%y0, edges(i)%y1) > y_top) then
-                    call add_active_edge(active, edges(i), off_x, y_top)
+                if (edges(i)%y0 <= y_pos .and. edges(i)%y1 > y_pos) then
+                    ! Edge intersects this scanline
+                    if (abs(edges(i)%y1 - edges(i)%y0) > 1.0e-6_wp) then
+                        x_pos = edges(i)%x0 + (edges(i)%x1 - edges(i)%x0) * &
+                                (y_pos - edges(i)%y0) / (edges(i)%y1 - edges(i)%y0)
+                        
+                        num_intersections = num_intersections + 1
+                        intersections(num_intersections) = x_pos - real(off_x, wp)
+                        directions(num_intersections) = merge(1, -1, edges(i)%invert)
+                    end if
                 end if
             end do
-
-            call fill_active_edges(scanline, bmp%w, active, y_top)
             
-            ! DEBUG: Check if we have any scanline values
-            if (y < 5) then
-                do x = 0, min(bmp%w - 1, 10)
-                    if (abs(scanline(x)) > 0.001_wp) then
-                        print *, "DEBUG: Row", y, "col", x, "scanline=", scanline(x)
+            ! Sort intersections
+            do i = 1, num_intersections - 1
+                do j = i + 1, num_intersections
+                    if (intersections(i) > intersections(j)) then
+                        temp_x = intersections(i)
+                        intersections(i) = intersections(j)
+                        intersections(j) = temp_x
+                        temp_dir = directions(i)
+                        directions(i) = directions(j)
+                        directions(j) = temp_dir
                     end if
                 end do
-            end if
-
-            call remove_finished_edges(active, y_bottom)
-
-            ! Convert scanline values to pixels with proper STB-style antialiasing
+            end do
+            
+            ! Fill pixels using non-zero winding rule
+            winding_count = 0
             do x = 0, bmp%w - 1
-                if (abs(scanline(x)) > 0.001_wp) then
-                    j = y * bmp%stride + x + 1
-                    if (j >= 1 .and. j <= bmp%stride * bmp%h) then
-                        ! Clamp to 0-255 range like STB
-                        bmp%pixels(j) = int(max(0.0_wp, min(255.0_wp, abs(scanline(x)) * 255.0_wp)), int8)
+                ! Count crossings to the left of this pixel
+                do k = 1, num_intersections
+                    if (intersections(k) <= real(x, wp) + 0.5_wp) then
+                        winding_count = winding_count + directions(k)
+                    end if
+                end do
+                
+                ! Set pixel based on winding count
+                i = y * bmp%stride + x + 1
+                if (i >= 1 .and. i <= bmp%stride * bmp%h) then
+                    if (winding_count /= 0) then
+                        bmp%pixels(i) = 127_int8  ! Inside
+                    else
+                        bmp%pixels(i) = 0_int8    ! Outside
                     end if
                 end if
+                
+                ! Reset winding count for next pixel
+                winding_count = 0
             end do
-
-            y_top = y_bottom
         end do
 
-        call cleanup_active_edges(active)
-        if (allocated(scanline)) deallocate(scanline)
+        if (allocated(intersections)) deallocate(intersections)
+        if (allocated(directions)) deallocate(directions)
 
     end subroutine rasterize_sorted_edges
+
+    subroutine advance_active_edges(active)
+        !! Advance all active edges to next scanline
+        type(active_edge_t), pointer, intent(in) :: active
+        type(active_edge_t), pointer :: edge
+
+        edge => active
+        do while (associated(edge))
+            edge%fx = edge%fx + edge%fdx
+            edge => edge%next
+        end do
+    end subroutine advance_active_edges
 
     subroutine add_active_edge(active, edge, off_x, start_point)
         !! Add an edge to the active edge list
@@ -397,11 +572,21 @@ contains
 
         allocate(new_edge)
 
-        dxdy = (edge%x1 - edge%x0) / (edge%y1 - edge%y0)
+        ! Calculate slope
+        if (abs(edge%y1 - edge%y0) > 1.0e-10_wp) then
+            dxdy = (edge%x1 - edge%x0) / (edge%y1 - edge%y0)
+        else
+            dxdy = 0.0_wp
+        end if
+        
         new_edge%fdx = dxdy
         new_edge%fdy = merge(1.0_wp / dxdy, 0.0_wp, abs(dxdy) > 1.0e-10_wp)
         new_edge%fx = edge%x0 + dxdy * (start_point - edge%y0) - real(off_x, wp)
+        
+        ! STB direction: invert ? 1.0f : -1.0f 
+        ! This means inverted edges contribute +1, normal edges contribute -1
         new_edge%direction = merge(1.0_wp, -1.0_wp, edge%invert)
+        
         new_edge%sy = edge%y0
         new_edge%ey = edge%y1
         new_edge%next => active
@@ -409,90 +594,79 @@ contains
 
     end subroutine add_active_edge
 
-    subroutine fill_active_edges(scanline, len, active, y_top)
-        !! Fill scanline using STB-style non-zero winding rule algorithm
-        real(wp), intent(inout) :: scanline(0:)
+    subroutine fill_active_edges(scanline, scanline_fill, len, active, y_top)
+        !! Fill scanline using simplified approach based on STB
+        real(wp), intent(inout) :: scanline(0:), scanline_fill(0:)
         integer, intent(in) :: len
         type(active_edge_t), pointer, intent(in) :: active
         real(wp), intent(in) :: y_top
 
         type(active_edge_t), pointer :: edge
-        integer :: x, winding_count
-        real(wp), allocatable :: intersections(:)
-        real(wp), allocatable :: directions(:)
-        integer :: num_intersections, i, j
-        real(wp) :: temp_x, temp_dir
+        real(wp) :: y_bottom, height, x_pos
+        integer :: x
 
-        ! Clear scanline
+        y_bottom = y_top + 1.0_wp
         scanline(0:len-1) = 0.0_wp
+        scanline_fill(0:len) = 0.0_wp
 
-        ! Count intersections and allocate arrays
-        num_intersections = 0
         edge => active
         do while (associated(edge))
-            num_intersections = num_intersections + 1
-            edge => edge%next
-        end do
+            ! Skip degenerate edges
+            if (abs(edge%ey - edge%sy) < 1.0e-6_wp) then
+                edge => edge%next
+                cycle
+            end if
 
-        if (num_intersections == 0) return
-
-        allocate(intersections(num_intersections))
-        allocate(directions(num_intersections))
-
-        ! Collect x-intersections and directions at scanline y
-        i = 1
-        edge => active
-        do while (associated(edge))
-            intersections(i) = edge%fx
-            directions(i) = edge%direction  ! Use direction for winding rule
-            i = i + 1
-            edge => edge%next
-        end do
-
-        ! Sort intersections and directions together
-        do i = 1, num_intersections - 1
-            do j = i + 1, num_intersections
-                if (intersections(i) > intersections(j)) then
-                    temp_x = intersections(i)
-                    intersections(i) = intersections(j)
-                    intersections(j) = temp_x
-                    temp_dir = directions(i)
-                    directions(i) = directions(j)
-                    directions(j) = temp_dir
-                end if
-            end do
-        end do
-
-        ! Use non-zero winding rule (STB default)
-        winding_count = 0
-        do i = 1, num_intersections
-            x = int(intersections(i))
-            if (x >= 0 .and. x < len) then
-                ! Update winding count
-                if (directions(i) > 0.0_wp) then
-                    winding_count = winding_count + 1
-                else
-                    winding_count = winding_count - 1
-                end if
-                
-                ! Fill pixels where winding count is non-zero
-                if (winding_count /= 0) then
-                    ! Fill from this intersection to the next
-                    if (i < num_intersections) then
-                        do x = max(0, int(intersections(i))), min(len-1, int(intersections(i+1)) - 1)
-                            if (x >= 0 .and. x < len) then
-                                scanline(x) = scanline(x) + 1.0_wp
-                            end if
-                        end do
+            ! Get x position for this edge at current scanline
+            x_pos = edge%fx
+            
+            ! Simple approach: just accumulate edge contributions
+            if (x_pos >= 0.0_wp .and. x_pos < real(len, wp)) then
+                x = int(x_pos)
+                if (x >= 0 .and. x < len) then
+                    ! Add edge direction to scanline_fill for winding rule
+                    scanline_fill(x) = scanline_fill(x) + edge%direction
+                    
+                    ! Simple coverage calculation
+                    height = min(edge%ey, y_bottom) - max(edge%sy, y_top)
+                    scanline(x) = scanline(x) + edge%direction * height * (1.0_wp - (x_pos - real(x, wp)))
+                    
+                    ! Also affect the next pixel if we're not at the boundary
+                    if (x + 1 < len) then
+                        scanline(x + 1) = scanline(x + 1) + edge%direction * height * (x_pos - real(x, wp))
                     end if
                 end if
             end if
+
+            edge => edge%next
         end do
 
-        deallocate(intersections)
-        deallocate(directions)
-
     end subroutine fill_active_edges
+
+    real(wp) function sized_triangle_area(height, width)
+        !! Calculate triangle area like STB
+        real(wp), intent(in) :: height, width
+        sized_triangle_area = height * width * 0.5_wp
+    end function sized_triangle_area
+
+    real(wp) function position_trapezoid_area(height, tx0, tx1, bx0, bx1)
+        !! Calculate trapezoid area like STB
+        real(wp), intent(in) :: height, tx0, tx1, bx0, bx1
+        real(wp) :: top_width, bottom_width
+        
+        top_width = tx1 - tx0
+        bottom_width = bx1 - bx0
+        position_trapezoid_area = (top_width + bottom_width) * height * 0.5_wp
+    end function position_trapezoid_area
+
+    subroutine swap_real(a, b)
+        !! Swap two real values
+        real(wp), intent(inout) :: a, b
+        real(wp) :: temp
+        temp = a
+        a = b
+        b = temp
+    end subroutine swap_real
 
     subroutine remove_finished_edges(active, y_bottom)
         !! Remove edges that have finished
