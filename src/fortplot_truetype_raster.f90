@@ -203,7 +203,7 @@ contains
         start = 1
         do i = 1, size(endpoints)
             endp = endpoints(i) + 1  ! Convert to 1-based and inclusive
-            
+
             print *, "DEBUG: Processing contour", i, "from point", start, "to", endp
 
             ! Walk through points in this contour
@@ -256,7 +256,7 @@ contains
 
             ! Add contour separator (could be a special vertex type)
             ! For now, we'll handle this in flatten_curves
-            
+
             start = endp + 1
         end do
 
@@ -306,7 +306,7 @@ contains
         pcount = 0
         num_contours = 0
         contour_start = 1
-        
+
         ! First contour: vertices 1-8 (first 8 vertices)
         num_contours = 1
         contour_start = pcount + 1
@@ -322,7 +322,7 @@ contains
             end if
         end do
         temp_contour_lengths(1) = pcount - contour_start + 1
-        
+
         ! Second contour: vertices 9-15 (remaining vertices)
         if (num_vertices > 8) then
             num_contours = 2
@@ -558,21 +558,21 @@ contains
                 ! Exact STB algorithm from lines 3367-3376
                 sum = sum + scanline_fill(x)               ! Running winding sum
                 k = scanline(x) + sum                     ! Combined edge + winding
-                
+
                 ! STB conversion: scale and round (reduced by factor to match STB better)
                 k = abs(k) * 255.0_wp * 0.17_wp + 0.5_wp
-                
+
                 m = int(k)
                 ! Clamp to 0-255 range
                 if (m > 255) m = 255
                 if (m < 0) m = 0
-                
+
                 ! Store as signed int8 (0-255 maps to signed range)
                 ! For grayscale: 0 = black, 255 = white
                 ! When interpreted as signed: 0-127 map to 0-127, 128-255 map to -128 to -1
 
                 ! Debug first few pixels of first scanline
-                if (y == 0 .and. x < 8 .and. (scanline(x) /= 0.0_wp .or. scanline_fill(x) /= 0.0_wp .or. m /= 0)) then
+                if (y == 0 .and. x < 16 .and. (scanline(x) /= 0.0_wp .or. scanline_fill(x) /= 0.0_wp .or. m /= 0)) then
                     print *, 'DEBUG: scanline[', x, '] =', scanline(x), ' scanline_fill[', x, '] =', scanline_fill(x), &
                              ' sum =', sum, ' k =', k, ' m =', m
                 end if
