@@ -8,6 +8,7 @@ These are not suggestions - they are strict requirements that MUST be followed i
 1. Test-Driven Development
 2. SOLID, KISS and DRY
 3. Single responsibility principle
+4. Always declare variables at top of a routine
 
 **⚠️ COMMUNICATION REQUIREMENTS ⚠️**
 - Keep responses minimal and direct
