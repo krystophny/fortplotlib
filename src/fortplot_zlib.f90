@@ -433,14 +433,18 @@ contains
         
         ! Encode length
         call get_length_code(length, length_code, length_extra_bits, length_extra)
-        call write_bits(buffer, bit_pos, byte_pos, bit_reverse(literal_codes(length_code), literal_lengths(length_code)), literal_lengths(length_code))
+        call write_bits(buffer, bit_pos, byte_pos, &
+                       bit_reverse(literal_codes(length_code), literal_lengths(length_code)), &
+                       literal_lengths(length_code))
         if (length_extra_bits > 0) then
             call write_bits(buffer, bit_pos, byte_pos, length_extra, length_extra_bits)
         end if
         
         ! Encode distance
         call get_distance_code(distance, distance_code, distance_extra_bits, distance_extra)
-        call write_bits(buffer, bit_pos, byte_pos, bit_reverse(distance_codes(distance_code), distance_lengths(distance_code)), distance_lengths(distance_code))
+        call write_bits(buffer, bit_pos, byte_pos, &
+                       bit_reverse(distance_codes(distance_code), distance_lengths(distance_code)), &
+                       distance_lengths(distance_code))
         if (distance_extra_bits > 0) then
             call write_bits(buffer, bit_pos, byte_pos, distance_extra, distance_extra_bits)
         end if

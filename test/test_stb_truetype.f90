@@ -53,8 +53,8 @@ contains
         do i = 1, 3
             if (stb_init_font(test_font, trim(font_paths(i)))) then
                 print *, "✅ Successfully loaded font:", trim(font_paths(i))
-                print *, "   Font start offset:", test_font%fontstart
-                print *, "   Number of glyphs:", test_font%numGlyphs
+                print *, "   Font initialized successfully"
+                print *, "   Using native Fortran implementation"
                 
                 call stb_cleanup_font(test_font)
                 passed = .true.
@@ -230,9 +230,9 @@ contains
         total_pixels = width * height
         non_zero_pixels = 0
         
-        ! Count non-zero pixels
+        ! Count non-zero pixels (handle signed/unsigned conversion)
         do i = 1, total_pixels
-            if (bitmap_data(i) > 0) then
+            if (bitmap_data(i) /= 0) then  ! Check for any non-zero value, signed or unsigned
                 non_zero_pixels = non_zero_pixels + 1
             end if
         end do
