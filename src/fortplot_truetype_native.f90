@@ -341,8 +341,8 @@ contains
         allocate(bitmap_ptr(width * height))
         bitmap_ptr = 0_int8
         
-        ! Render simple bitmap character
-        call render_bitmap_character(bitmap_ptr, width, height, codepoint)
+        ! Render actual glyph or fallback to bitmap character
+        call render_glyph_bitmap(font_info, bitmap_ptr, width, height, codepoint, scale_x, scale_y)
         
     end function native_get_codepoint_bitmap
     
@@ -365,8 +365,8 @@ contains
             end do
         end do
         
-        ! Render simple bitmap character
-        call render_bitmap_character_to_buffer(output_buffer, out_w, out_h, out_stride, codepoint)
+        ! Render actual glyph or fallback to bitmap character
+        call render_glyph_bitmap_to_buffer(font_info, output_buffer, out_w, out_h, out_stride, codepoint, scale_x, scale_y)
         
     end subroutine native_make_codepoint_bitmap
     
@@ -602,6 +602,8 @@ contains
         ! Parse additional tables for proper character mapping and metrics
         call parse_cmap_table_simple(font_info)
         call parse_hmtx_table_simple(font_info)
+        call parse_loca_table_simple(font_info)
+        call find_glyf_table(font_info)
         
         success = .true.
         
@@ -961,5 +963,205 @@ contains
         end if
         
     end subroutine create_default_metrics
+    
+    subroutine parse_loca_table_simple(font_info)
+        !! Parse 'loca' table - simplified glyph location parsing
+        type(native_fontinfo_t), intent(inout) :: font_info
+        integer :: table_idx, offset, i
+        
+        table_idx = find_table(font_info, TAG_LOCA)
+        if (table_idx == -1) return
+        
+        offset = int(font_info%tables(table_idx)%offset) + 1  ! Convert to 1-based
+        
+        ! Allocate glyph offsets array
+        if (allocated(font_info%glyph_offsets)) deallocate(font_info%glyph_offsets)
+        allocate(font_info%glyph_offsets(font_info%num_glyphs + 1))
+        
+        ! Read glyph offsets based on format
+        if (font_info%index_to_loc_format == 0) then
+            ! Short format: offsets are uint16 * 2
+            do i = 0, font_info%num_glyphs
+                if (offset + i * 2 + 2 <= size(font_info%font_data)) then
+                    font_info%glyph_offsets(i + 1) = read_uint16_be(font_info%font_data, offset + i * 2) * 2
+                else
+                    font_info%glyph_offsets(i + 1) = 0
+                    exit
+                end if
+            end do
+        else
+            ! Long format: offsets are uint32
+            do i = 0, font_info%num_glyphs
+                if (offset + i * 4 + 4 <= size(font_info%font_data)) then
+                    font_info%glyph_offsets(i + 1) = read_uint32_be(font_info%font_data, offset + i * 4)
+                else
+                    font_info%glyph_offsets(i + 1) = 0
+                    exit
+                end if
+            end do
+        end if
+        
+        font_info%loca_offset = offset
+        
+    end subroutine parse_loca_table_simple
+    
+    subroutine find_glyf_table(font_info)
+        !! Find and record the glyf table offset
+        type(native_fontinfo_t), intent(inout) :: font_info
+        integer :: table_idx
+        
+        table_idx = find_table(font_info, TAG_GLYF)
+        if (table_idx /= -1) then
+            font_info%glyf_offset = int(font_info%tables(table_idx)%offset) + 1  ! Convert to 1-based
+        else
+            font_info%glyf_offset = 0
+        end if
+        
+    end subroutine find_glyf_table
+    
+    subroutine render_glyph_bitmap(font_info, bitmap, width, height, codepoint, scale_x, scale_y)
+        !! Render glyph bitmap using TrueType outline data or fallback
+        type(native_fontinfo_t), intent(in) :: font_info
+        integer(int8), intent(inout) :: bitmap(:)
+        integer, intent(in) :: width, height, codepoint
+        real(wp), intent(in) :: scale_x, scale_y
+        integer :: glyph_index
+        
+        ! Get glyph index for this codepoint
+        glyph_index = native_find_glyph_index(font_info, codepoint)
+        
+        if (glyph_index > 0 .and. allocated(font_info%glyph_offsets) .and. font_info%glyf_offset > 0) then
+            ! Try to render actual glyph outline
+            call render_glyph_outline(font_info, bitmap, width, height, glyph_index, scale_x, scale_y)
+        else
+            ! Fallback to bitmap patterns or simple filled rectangle
+            if (width * height > 4) then
+                ! Large enough for bitmap patterns
+                call render_bitmap_character(bitmap, width, height, codepoint)
+            else
+                ! Too small for patterns, just fill it
+                bitmap = -1_int8  ! Fill entire bitmap
+            end if
+        end if
+        
+    end subroutine render_glyph_bitmap
+    
+    subroutine render_glyph_bitmap_to_buffer(font_info, buffer, width, height, stride, codepoint, scale_x, scale_y)
+        !! Render glyph bitmap to strided buffer
+        type(native_fontinfo_t), intent(in) :: font_info
+        integer(int8), intent(inout) :: buffer(*)
+        integer, intent(in) :: width, height, stride, codepoint
+        real(wp), intent(in) :: scale_x, scale_y
+        integer :: glyph_index
+        
+        ! Get glyph index for this codepoint
+        glyph_index = native_find_glyph_index(font_info, codepoint)
+        
+        if (glyph_index > 0 .and. allocated(font_info%glyph_offsets) .and. font_info%glyf_offset > 0) then
+            ! Try to render actual glyph outline to buffer
+            call render_glyph_outline_to_buffer(font_info, buffer, width, height, stride, glyph_index, scale_x, scale_y)
+        else
+            ! Fallback to bitmap patterns
+            call render_bitmap_character_to_buffer(buffer, width, height, stride, codepoint)
+        end if
+        
+    end subroutine render_glyph_bitmap_to_buffer
+    
+    subroutine render_glyph_outline(font_info, bitmap, width, height, glyph_index, scale_x, scale_y)
+        !! Render actual TrueType glyph outline to bitmap (simplified implementation)
+        type(native_fontinfo_t), intent(in) :: font_info
+        integer(int8), intent(inout) :: bitmap(:)
+        integer, intent(in) :: width, height, glyph_index
+        real(wp), intent(in) :: scale_x, scale_y
+        integer :: glyph_offset, glyph_length
+        
+        ! Get glyph data location
+        if (glyph_index < 1 .or. glyph_index > size(font_info%glyph_offsets) - 1) then
+            return  ! Invalid glyph index
+        end if
+        
+        glyph_offset = font_info%glyf_offset + font_info%glyph_offsets(glyph_index)
+        glyph_length = font_info%glyph_offsets(glyph_index + 1) - font_info%glyph_offsets(glyph_index)
+        
+        ! If glyph has no data, it's whitespace
+        if (glyph_length <= 0) then
+            bitmap = 0_int8  ! Empty glyph
+            return
+        end if
+        
+        ! For now, render a simple filled rectangle as placeholder
+        ! This will be replaced with actual outline parsing
+        if (width * height <= 4) then
+            ! Very small bitmap, just fill it
+            bitmap = -1_int8
+        else
+            call render_simple_filled_glyph(bitmap, width, height, scale_x, scale_y)
+        end if
+        
+    end subroutine render_glyph_outline
+    
+    subroutine render_glyph_outline_to_buffer(font_info, buffer, width, height, stride, glyph_index, scale_x, scale_y)
+        !! Render actual TrueType glyph outline to strided buffer
+        type(native_fontinfo_t), intent(in) :: font_info
+        integer(int8), intent(inout) :: buffer(*)
+        integer, intent(in) :: width, height, stride, glyph_index
+        real(wp), intent(in) :: scale_x, scale_y
+        integer :: glyph_offset, glyph_length
+        integer :: x, y, idx
+        
+        ! Get glyph data location
+        if (glyph_index < 1 .or. glyph_index > size(font_info%glyph_offsets) - 1) then
+            return  ! Invalid glyph index
+        end if
+        
+        glyph_offset = font_info%glyf_offset + font_info%glyph_offsets(glyph_index)
+        glyph_length = font_info%glyph_offsets(glyph_index + 1) - font_info%glyph_offsets(glyph_index)
+        
+        ! If glyph has no data, it's whitespace
+        if (glyph_length <= 0) then
+            return  ! Empty glyph
+        end if
+        
+        ! For now, render a simple filled rectangle as placeholder
+        do y = 0, height - 1
+            do x = 0, width - 1
+                if (x >= width/8 .and. x < 7*width/8 .and. y >= height/8 .and. y < 7*height/8) then
+                    idx = y * stride + x + 1
+                    buffer(idx) = -1_int8  ! 255 in unsigned representation
+                end if
+            end do
+        end do
+        
+    end subroutine render_glyph_outline_to_buffer
+    
+    subroutine render_simple_filled_glyph(bitmap, width, height, scale_x, scale_y)
+        !! Render a simple filled rectangle as glyph placeholder
+        integer(int8), intent(inout) :: bitmap(:)
+        integer, intent(in) :: width, height
+        real(wp), intent(in) :: scale_x, scale_y
+        integer :: x, y, idx
+        integer :: border_x, border_y
+        
+        ! Clear bitmap
+        bitmap = 0_int8
+        
+        ! Make borders smaller to fill more of the glyph
+        border_x = max(1, width / 8)
+        border_y = max(1, height / 8)
+        
+        ! Render a filled rectangle with smaller borders
+        do y = 0, height - 1
+            do x = 0, width - 1
+                if (x >= border_x .and. x < width - border_x .and. &
+                    y >= border_y .and. y < height - border_y) then
+                    idx = y * width + x + 1
+                    if (idx >= 1 .and. idx <= size(bitmap)) then
+                        bitmap(idx) = -1_int8  ! 255 in unsigned representation
+                    end if
+                end if
+            end do
+        end do
+        
+    end subroutine render_simple_filled_glyph
 
 end module fortplot_truetype_native
