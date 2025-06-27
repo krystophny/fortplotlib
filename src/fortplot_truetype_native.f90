@@ -10,6 +10,7 @@ module fortplot_truetype_native
     public :: native_get_codepoint_hmetrics, native_get_font_vmetrics
     public :: native_scale_for_pixel_height, native_get_codepoint_bitmap_box
     public :: native_find_glyph_index, native_make_codepoint_bitmap
+    public :: parse_glyph_header
     public :: NATIVE_SUCCESS, NATIVE_ERROR
     
     ! Constants
@@ -1163,5 +1164,52 @@ contains
         end do
         
     end subroutine render_simple_filled_glyph
+    
+    subroutine parse_glyph_header(font_info, glyph_index, number_of_contours, x_min, y_min, x_max, y_max)
+        !! Parse TrueType glyph header following STB format
+        !! Glyph header: numberOfContours(2) + xMin(2) + yMin(2) + xMax(2) + yMax(2) = 10 bytes
+        type(native_fontinfo_t), intent(in) :: font_info
+        integer, intent(in) :: glyph_index
+        integer, intent(out) :: number_of_contours, x_min, y_min, x_max, y_max
+        integer :: glyph_offset, glyph_length
+        
+        ! Initialize outputs
+        number_of_contours = 0
+        x_min = 0; y_min = 0; x_max = 0; y_max = 0
+        
+        ! Validate inputs
+        if (.not. font_info%valid .or. glyph_index < 1 .or. &
+            .not. allocated(font_info%glyph_offsets) .or. &
+            glyph_index > size(font_info%glyph_offsets) - 1) then
+            return
+        end if
+        
+        ! Get glyph data location from loca table
+        glyph_offset = font_info%glyf_offset + font_info%glyph_offsets(glyph_index)
+        glyph_length = font_info%glyph_offsets(glyph_index + 1) - font_info%glyph_offsets(glyph_index)
+        
+        ! Empty glyph (whitespace)
+        if (glyph_length <= 0) then
+            return
+        end if
+        
+        ! Ensure we have at least 10 bytes for the header
+        if (glyph_offset + 10 > size(font_info%font_data)) then
+            return
+        end if
+        
+        ! Parse glyph header following STB format:
+        ! Offset 0: numberOfContours (int16)
+        ! Offset 2: xMin (int16) 
+        ! Offset 4: yMin (int16)
+        ! Offset 6: xMax (int16)
+        ! Offset 8: yMax (int16)
+        number_of_contours = read_int16_be(font_info%font_data, glyph_offset + 0)
+        x_min = read_int16_be(font_info%font_data, glyph_offset + 2)
+        y_min = read_int16_be(font_info%font_data, glyph_offset + 4)
+        x_max = read_int16_be(font_info%font_data, glyph_offset + 6)
+        y_max = read_int16_be(font_info%font_data, glyph_offset + 8)
+        
+    end subroutine parse_glyph_header
 
 end module fortplot_truetype_native

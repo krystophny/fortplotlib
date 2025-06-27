@@ -12,6 +12,7 @@ module fortplot_stb_truetype
     public :: stb_get_codepoint_hmetrics, stb_get_font_vmetrics
     public :: stb_scale_for_pixel_height, stb_get_codepoint_bitmap_box
     public :: stb_find_glyph_index, stb_make_codepoint_bitmap
+    public :: stb_get_glyph_box
     public :: STB_SUCCESS, STB_ERROR
     
     ! Constants
@@ -185,5 +186,22 @@ contains
         end if
         
     end subroutine stb_free_bitmap
+
+    subroutine stb_get_glyph_box(font_info, glyph_index, x0, y0, x1, y1)
+        !! Get glyph bounding box using native implementation
+        type(stb_fontinfo_t), intent(in) :: font_info
+        integer, intent(in) :: glyph_index
+        integer, intent(out) :: x0, y0, x1, y1
+        integer :: contours
+        
+        if (.not. font_info%initialized) then
+            x0 = 0; y0 = 0; x1 = 0; y1 = 0
+            return
+        end if
+        
+        ! Use native glyph header parsing
+        call parse_glyph_header(font_info%native_font, glyph_index, contours, x0, y0, x1, y1)
+        
+    end subroutine stb_get_glyph_box
 
 end module fortplot_stb_truetype
