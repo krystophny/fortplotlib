@@ -244,8 +244,8 @@ contains
             total = total + bitmap(i)
         end do
 
-        print '(A,A,I0,A,I0,A,I0,A,I0,A,F6.2)', name, " bitmap: ", &
-              "non-zero pixels=", non_zero_count, "/", size, &
+        print '(A,A,I0,A,I0,A,I0,A,I0,A,F6.2)', name, " bitmap: non-zero pixels=", &
+              non_zero_count, "/", size, &
               " min=", min_val, " max=", max_val, " avg=", real(total)/real(size)
     end subroutine
 
