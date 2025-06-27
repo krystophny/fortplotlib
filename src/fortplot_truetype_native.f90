@@ -10,7 +10,7 @@ module fortplot_truetype_native
     public :: native_get_codepoint_hmetrics, native_get_font_vmetrics
     public :: native_scale_for_pixel_height, native_get_codepoint_bitmap_box
     public :: native_find_glyph_index, native_make_codepoint_bitmap
-    public :: parse_glyph_header
+    public :: parse_glyph_header, parse_simple_glyph_endpoints
     public :: NATIVE_SUCCESS, NATIVE_ERROR
     
     ! Constants
@@ -293,22 +293,44 @@ contains
     end function native_find_glyph_index
     
     subroutine native_get_codepoint_bitmap_box(font_info, codepoint, scale_x, scale_y, ix0, iy0, ix1, iy1)
-        !! Get bounding box for character bitmap
+        !! Get bounding box for character bitmap using actual glyph metrics
         type(native_fontinfo_t), intent(in) :: font_info
         integer, intent(in) :: codepoint
         real(wp), intent(in) :: scale_x, scale_y
         integer, intent(out) :: ix0, iy0, ix1, iy1
+        integer :: glyph_index, number_of_contours, x_min, y_min, x_max, y_max
+        
+        ! Initialize to empty bounds
+        ix0 = 0; iy0 = 0; ix1 = 0; iy1 = 0
         
         if (.not. font_info%valid) then
-            ix0 = 0; iy0 = 0; ix1 = 0; iy1 = 0
             return
         end if
         
-        ! Simple bitmap character bounds
-        ix0 = 0
-        iy0 = -int(real(BITMAP_CHAR_HEIGHT) * scale_y * 0.8_wp)
-        ix1 = int(real(BITMAP_CHAR_WIDTH) * scale_x)
-        iy1 = int(real(BITMAP_CHAR_HEIGHT) * scale_y * 0.2_wp)
+        ! Get glyph index for this codepoint
+        glyph_index = native_find_glyph_index(font_info, codepoint)
+        
+        if (glyph_index > 0 .and. allocated(font_info%glyph_offsets) .and. font_info%glyf_offset > 0) then
+            ! Parse actual glyph header to get bounding box
+            call parse_glyph_header(font_info, glyph_index, number_of_contours, &
+                                    x_min, y_min, x_max, y_max)
+            
+            ! Scale the bounding box
+            ix0 = int(real(x_min) * scale_x)
+            iy0 = int(real(y_min) * scale_y)
+            ix1 = int(real(x_max) * scale_x)
+            iy1 = int(real(y_max) * scale_y)
+            
+            ! Ensure non-zero size for rendering
+            if (ix1 <= ix0) ix1 = ix0 + 1
+            if (iy1 <= iy0) iy1 = iy0 + 1
+        else
+            ! Fallback to simple bitmap character bounds
+            ix0 = 0
+            iy0 = -int(real(BITMAP_CHAR_HEIGHT) * scale_y * 0.8_wp)
+            ix1 = int(real(BITMAP_CHAR_WIDTH) * scale_x)
+            iy1 = int(real(BITMAP_CHAR_HEIGHT) * scale_y * 0.2_wp)
+        end if
         
     end subroutine native_get_codepoint_bitmap_box
     
@@ -1211,5 +1233,54 @@ contains
         y_max = read_int16_be(font_info%font_data, glyph_offset + 8)
         
     end subroutine parse_glyph_header
+
+    subroutine parse_simple_glyph_endpoints(font_info, glyph_index, endpoints, success)
+        !! Parse simple glyph endpoint indices following STB reference
+        !! For simple glyphs (numberOfContours > 0), parse endPtsOfContours array
+        type(native_fontinfo_t), intent(in) :: font_info
+        integer, intent(in) :: glyph_index
+        integer, allocatable, intent(out) :: endpoints(:)
+        logical, intent(out) :: success
+        integer :: glyph_offset, glyph_length, number_of_contours
+        integer :: x_min, y_min, x_max, y_max, i
+        
+        success = .false.
+        if (allocated(endpoints)) deallocate(endpoints)
+        
+        ! First get glyph header to check if it's a simple glyph
+        call parse_glyph_header(font_info, glyph_index, number_of_contours, &
+                                x_min, y_min, x_max, y_max)
+        
+        ! Only handle simple glyphs (numberOfContours > 0)
+        if (number_of_contours <= 0) then
+            return
+        end if
+        
+        ! Get glyph data location
+        glyph_offset = font_info%glyf_offset + font_info%glyph_offsets(glyph_index)
+        glyph_length = font_info%glyph_offsets(glyph_index + 1) - font_info%glyph_offsets(glyph_index)
+        
+        ! Ensure we have enough data for header + endpoints
+        if (glyph_length < 10 + number_of_contours * 2) then
+            return
+        end if
+        
+        if (glyph_offset + 10 + number_of_contours * 2 > size(font_info%font_data)) then
+            return
+        end if
+        
+        ! Allocate endpoints array
+        allocate(endpoints(number_of_contours))
+        
+        ! Parse endPtsOfContours array following STB format:
+        ! After 10-byte header, we have numberOfContours uint16 values
+        ! Each value is the index of the last point in that contour
+        do i = 1, number_of_contours
+            endpoints(i) = read_uint16_be(font_info%font_data, glyph_offset + 10 + (i - 1) * 2)
+        end do
+        
+        success = .true.
+        
+    end subroutine parse_simple_glyph_endpoints
 
 end module fortplot_truetype_native

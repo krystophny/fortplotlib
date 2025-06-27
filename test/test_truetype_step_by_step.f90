@@ -44,6 +44,9 @@ program test_truetype_step_by_step
     ! Step 10: Test glyph header parsing
     if (.not. test_step10_glyph_header()) all_tests_passed = .false.
     
+    ! Step 11: Test simple glyph contour parsing  
+    if (.not. test_step11_simple_glyph()) all_tests_passed = .false.
+    
     print *, ""
     if (all_tests_passed) then
         print *, "✅ All step-by-step tests PASSED"
@@ -635,5 +638,96 @@ contains
         call native_cleanup_font(native_font)
         
     end function test_step10_glyph_header
+
+    function test_step11_simple_glyph() result(passed)
+        !! Step 11: Test simple glyph contour and endpoint parsing following STB reference
+        logical :: passed
+        type(stb_fontinfo_t) :: stb_font
+        type(native_fontinfo_t) :: native_font
+        character(len=256) :: font_path
+        logical :: stb_success, native_success
+        integer :: glyph_index
+        integer :: native_contours, native_x0, native_y0, native_x1, native_y1
+        integer :: glyph_start, glyph_end, glyph_size
+        integer, allocatable :: endpoints(:)
+        logical :: endpoints_success
+        
+        passed = .false.
+        
+        print *, ""
+        print *, "Step 11: Simple Glyph Contour Parsing"
+        print *, "-------------------------------------"
+        
+        font_path = "/usr/share/fonts/TTF/DejaVuSans.ttf"
+        
+        stb_success = stb_init_font(stb_font, font_path)
+        if (.not. stb_success) then
+            font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+            stb_success = stb_init_font(stb_font, font_path)
+        end if
+        
+        native_success = native_init_font(native_font, font_path)
+        
+        if (.not. stb_success .or. .not. native_success) then
+            print *, "❌ Cannot initialize fonts for simple glyph test"
+            return
+        end if
+        
+        ! Get glyph index for 'A'
+        glyph_index = native_find_glyph_index(native_font, iachar('A'))
+        
+        ! Parse glyph header to verify it's a simple glyph
+        call parse_glyph_header(native_font, glyph_index, native_contours, &
+                                native_x0, native_y0, native_x1, native_y1)
+        
+        print *, "Glyph 'A' has", native_contours, "contours"
+        
+        if (native_contours > 0) then
+            print *, "✅ Simple glyph detected (numberOfContours > 0)"
+            print *, "   Ready for contour point parsing implementation"
+            
+            ! For now, just verify we can access the glyph data
+            if (allocated(native_font%glyph_offsets)) then
+                glyph_start = native_font%glyph_offsets(glyph_index)
+                glyph_end = native_font%glyph_offsets(glyph_index + 1)
+                glyph_size = glyph_end - glyph_start
+                
+                print *, "   Glyph data starts at offset:", glyph_start
+                print *, "   Glyph data size:", glyph_size, "bytes"
+                
+                if (glyph_size > 10) then  ! Should have at least header + some data
+                    print *, "✅ Sufficient glyph data available for parsing"
+                    
+                    ! Now test actual contour endpoint parsing  
+                    call parse_simple_glyph_endpoints(native_font, glyph_index, endpoints, endpoints_success)
+                    
+                    if (endpoints_success .and. allocated(endpoints)) then
+                        print *, "✅ Successfully parsed contour endpoints"
+                        print *, "   Endpoints:", endpoints
+                        print *, "   Total points in glyph:", endpoints(size(endpoints)) + 1
+                        passed = .true.
+                    else
+                        print *, "❌ Failed to parse contour endpoints"
+                    end if
+                else
+                    print *, "❌ Insufficient glyph data"
+                end if
+            else
+                print *, "❌ No glyph offset data available"
+            end if
+        else if (native_contours == 0) then
+            print *, "⚠️  Empty glyph (numberOfContours = 0)"
+            passed = .true.  ! Empty glyphs are valid
+        else
+            print *, "⚠️  Composite glyph (numberOfContours < 0)"
+            print *, "   Will need separate composite glyph handling"
+            passed = .true.  ! Composite glyphs exist but need different handling
+        end if
+        
+        ! Clean up
+        call stb_cleanup_font(stb_font)
+        call native_cleanup_font(native_font)
+        
+    end function test_step11_simple_glyph
 
 end program test_truetype_step_by_step
