@@ -518,7 +518,7 @@ contains
         integer, intent(in) :: num_edges, off_x, off_y
 
         type(active_edge_t), pointer :: active => null()
-        real(wp), allocatable :: scanline(:), scanline_fill(:)
+        real(wp), allocatable :: scanline(:), scanline2(:)
         integer :: y, edge_idx, x, pixel_idx
         real(wp) :: y_top, y_bottom, sum, k
         integer :: m
@@ -526,7 +526,7 @@ contains
         if (num_edges == 0 .or. bmp%h <= 0 .or. bmp%w <= 0) return
 
         allocate(scanline(0:bmp%w-1))
-        allocate(scanline_fill(0:bmp%w-1))
+        allocate(scanline2(0:bmp%w))
 
         edge_idx = 1
 
@@ -537,7 +537,7 @@ contains
 
             ! Clear scanline buffers
             scanline = 0.0_wp
-            scanline_fill = 0.0_wp
+            scanline2 = 0.0_wp
 
             ! Step 1: Add new edges that start at or before this scanline
             do while (edge_idx <= num_edges .and. edges(edge_idx)%y0 <= y_bottom)
@@ -551,43 +551,44 @@ contains
             ! Step 2: Fill this scanline using exact STB algorithm
             if (associated(active)) then
                 ! STB calls: stbtt__fill_active_edges_new(scanline, scanline2+1, result->w, active, scan_y_top);
-                ! This means scanline_fill is offset by +1 from scanline
-                call fill_active_edges_stb_exact(scanline, scanline_fill, bmp%w, active, y_top)
+                ! scanline2+1 means we pass scanline2(1:) to avoid scanline2(0)
+                call fill_active_edges_stb_exact(scanline, scanline2(1:), bmp%w, active, y_top)
             end if
 
             ! Step 3: Convert to final pixels using exact STB conversion
             sum = 0.0_wp
             do x = 0, bmp%w - 1
                 ! Exact STB algorithm from lines 3367-3376
-                sum = sum + scanline_fill(x)               ! Running winding sum
-                k = scanline(x) + sum                     ! Combined edge + winding
+                sum = sum + scanline2(x + 1)              ! STB: sum += scanline2[i];
+                k = scanline(x) + sum                     ! STB: k = scanline[i] + sum;
 
-                ! STB conversion: scale and round (reduced by factor to match STB better)
-                k = abs(k) * 255.0_wp * 0.17_wp + 0.5_wp
+                ! STB conversion: k = (float) STBTT_fabs(k)*255 + 0.5f;
+                k = abs(k) * 255.0_wp + 0.5_wp
 
-                m = int(k)
-                ! Clamp to 0-255 range
-                if (m > 255) m = 255
-                if (m < 0) m = 0
-
-                ! Store as signed int8 (0-255 maps to signed range)
-                ! For grayscale: 0 = black, 255 = white
-                ! When interpreted as signed: 0-127 map to 0-127, 128-255 map to -128 to -1
+                m = int(k)                                ! STB: m = (int) k;
+                if (m > 255) m = 255                      ! STB: if (m > 255) m = 255;
 
                 ! Debug first few pixels of first scanline
-                if (y == 0 .and. x < 16 .and. (scanline(x) /= 0.0_wp .or. scanline_fill(x) /= 0.0_wp .or. m /= 0)) then
-                    print *, 'DEBUG: scanline[', x, '] =', scanline(x), ' scanline_fill[', x, '] =', scanline_fill(x), &
+                if (y == 0 .and. x < 16 .and. (scanline(x) /= 0.0_wp .or. scanline2(x + 1) /= 0.0_wp .or. m /= 0)) then
+                    print *, 'DEBUG: scanline[', x, '] =', scanline(x), ' scanline2[', x + 1, '] =', scanline2(x + 1), &
                              ' sum =', sum, ' k =', k, ' m =', m
                 end if
 
-                ! Store as signed int8 (0-255 maps to signed range)
-                ! For grayscale: 0 = black, 255 = white
-                ! When interpreted as signed: 0-127 map to 0-127, 128-255 map to -128 to -1
-
                 pixel_idx = y * bmp%stride + x + 1
                 if (pixel_idx >= 1 .and. pixel_idx <= bmp%stride * bmp%h) then
-                    ! Store as signed int8 without conversion - let the bit pattern determine the sign
-                    bmp%pixels(pixel_idx) = int(m, int8)
+                    ! CRITICAL FIX: Store unsigned byte values in signed int8 correctly
+                    ! STB: result->pixels[j*result->stride + i] = (unsigned char) m;
+                    ! For values 0-127: store as-is (positive)
+                    ! For values 128-255: store as negative equivalent (-128 to -1)
+                    ! This preserves the bit pattern for unsigned interpretation
+                    if (m >= 0 .and. m <= 127) then
+                        bmp%pixels(pixel_idx) = int(m, int8)
+                    else if (m <= 255) then
+                        ! Convert 128-255 to -128 to -1 (same bit pattern as unsigned)
+                        bmp%pixels(pixel_idx) = int(m - 256, int8)
+                    else
+                        bmp%pixels(pixel_idx) = int(0, int8)
+                    end if
                 end if
             end do
 
@@ -598,7 +599,7 @@ contains
         ! Final cleanup
         call cleanup_active_edges(active)
         if (allocated(scanline)) deallocate(scanline)
-        if (allocated(scanline_fill)) deallocate(scanline_fill)
+        if (allocated(scanline2)) deallocate(scanline2)
 
     end subroutine rasterize_sorted_edges
 
@@ -648,9 +649,9 @@ contains
 
     end subroutine add_active_edge
 
-    subroutine fill_active_edges_stb_exact(scanline, scanline_fill, len, active, y_top)
+    subroutine fill_active_edges_stb_exact(scanline, scanline2, len, active, y_top)
         !! Fill scanline using the EXACT STB algorithm
-        real(wp), intent(inout) :: scanline(0:), scanline_fill(0:)
+        real(wp), intent(inout) :: scanline(0:), scanline2(1:)
         integer, intent(in) :: len
         type(active_edge_t), pointer, intent(in) :: active
         real(wp), intent(in) :: y_top
@@ -676,17 +677,19 @@ contains
                             height = (min(e%ey, y_bottom) - max(e%sy, y_top)) * e%direction
                             scanline(x1_i) = scanline(x1_i) + height
                         end if
-                        ! STB does: stbtt__handle_clipped_edge(scanline_fill-1,(int) x0+1,e, x0,y_top, x0,y_bottom);
-                        x1_i = int(x0) + 1
+                        ! STB does: stbtt__handle_clipped_edge(scanline2-1,(int) x0+1,e, x0,y_top, x0,y_bottom);
+                        ! This means: (scanline2-1)[(int) x0+1] = scanline2[(int) x0]
+                        ! Since our scanline2 is 1-indexed, scanline2[(int) x0 + 1] is correct
+                        x1_i = int(x0)
                         if (x1_i >= 0 .and. x1_i < len) then
                             height = (min(e%ey, y_bottom) - max(e%sy, y_top)) * e%direction
-                            scanline_fill(x1_i) = scanline_fill(x1_i) + height
+                            scanline2(x1_i + 1) = scanline2(x1_i + 1) + height
                         end if
                     else
-                        ! STB does: stbtt__handle_clipped_edge(scanline_fill-1,0,e, x0,y_top, x0,y_bottom);
+                        ! STB does: stbtt__handle_clipped_edge(scanline2-1,0,e, x0,y_top, x0,y_bottom);
                         if (len > 0) then
                             height = (min(e%ey, y_bottom) - max(e%sy, y_top)) * e%direction
-                            scanline_fill(0) = scanline_fill(0) + height
+                            scanline2(1) = scanline2(1) + height
                         end if
                     end if
                 end if
@@ -726,7 +729,7 @@ contains
                         if (x >= 0 .and. x < len) then
                             scanline(x) = scanline(x) + &
                                 position_trapezoid_area(height, x_top, real(x + 1, wp), x_bottom, real(x + 1, wp))
-                            scanline_fill(x) = scanline_fill(x) + height
+                            scanline2(x + 1) = scanline2(x + 1) + height
                         end if
                     else
                         ! Multi-pixel case: covers 2+ pixels
@@ -783,7 +786,7 @@ contains
                         if (x2 >= 0 .and. x2 < len) then
                             scanline(x2) = scanline(x2) + area + sign * &
                                 position_trapezoid_area(sy1 - y_final, real(x2, wp), real(x2 + 1, wp), x_bottom, real(x2 + 1, wp))
-                            scanline_fill(x2) = scanline_fill(x2) + sign * (sy1 - sy0)
+                            scanline2(x2 + 1) = scanline2(x2 + 1) + sign * (sy1 - sy0)
                         end if
                     end if
                 else
