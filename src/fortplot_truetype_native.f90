@@ -419,11 +419,10 @@ contains
 
         if (glyph_index > 0 .and. allocated(font_info%glyph_offsets) .and. font_info%glyf_offset > 0) then
             call rasterize_glyph_outline_with_offset(font_info, bitmap, width, height, glyph_index, scale_x, scale_y, x_off, y_off)
-            ! Debug: Check if anything was rendered
-            if (all(bitmap == 0_int8)) then
-                ! Fallback to simple bitmap character for debugging
-                call render_bitmap_character(bitmap, width, height, codepoint)
-            end if
+            ! TODO: Temporarily disabled fallback to see raw TrueType output
+            ! if (all(bitmap == 0_int8)) then
+            !     call render_bitmap_character(bitmap, width, height, codepoint)
+            ! end if
         else
             call render_bitmap_character(bitmap, width, height, codepoint)
         end if
