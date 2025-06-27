@@ -28,7 +28,7 @@ contains
                 if (pixel_on) then
                     idx = y * width + x + 1
                     if (idx >= 1 .and. idx <= size(bitmap)) then
-                        bitmap(idx) = -1_int8
+                        bitmap(idx) = 127_int8  ! Use positive value for better STB compatibility
                     end if
                 end if
             end do
@@ -52,7 +52,7 @@ contains
 
                 if (pixel_on) then
                     idx = y * stride + x + 1
-                    buffer(idx) = -1_int8
+                    buffer(idx) = 127_int8  ! Use positive value for better STB compatibility
                 end if
             end do
         end do

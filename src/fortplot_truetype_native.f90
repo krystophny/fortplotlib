@@ -223,11 +223,11 @@ contains
             call parse_glyph_header(font_info, glyph_index, number_of_contours, &
                                     x_min, y_min, x_max, y_max)
 
-            ! Scale the bounding box
+            ! Scale the bounding box (match STB coordinate system)
             ix0 = int(real(x_min) * scale_x)
-            iy0 = int(real(y_min) * scale_y)
+            iy0 = -int(real(y_max) * scale_y)  ! STB inverts Y: negative y_max becomes positive iy0
             ix1 = int(real(x_max) * scale_x)
-            iy1 = int(real(y_max) * scale_y)
+            iy1 = -int(real(y_min) * scale_y)  ! STB inverts Y: negative y_min becomes positive iy1
 
             ! Ensure non-zero size for rendering
             if (ix1 <= ix0) ix1 = ix0 + 1

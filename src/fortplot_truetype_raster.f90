@@ -308,10 +308,11 @@ contains
             call remove_finished_edges(active, y_bottom)
 
             do x = 0, bmp%w - 1
-                if (abs(scanline(x)) > 0.5_wp) then
+                if (abs(scanline(x)) > 0.01_wp) then
                     j = y * bmp%stride + x + 1
                     if (j >= 1 .and. j <= bmp%stride * bmp%h) then
-                        bmp%pixels(j) = int(min(255.0_wp, abs(scanline(x)) * 255.0_wp), int8)
+                        ! Use simplified coverage value - proper antialiasing needs more work
+                        bmp%pixels(j) = int(min(127.0_wp, abs(scanline(x)) * 127.0_wp), int8)
                     end if
                 end if
             end do
