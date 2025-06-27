@@ -23,7 +23,7 @@ fi
 run_test() {
     local test_name=$1
     echo -e "${YELLOW}=== $test_name ===${NC}"
-    
+
     if fpm test --target $test_name; then
         echo -e "${GREEN}✅ $test_name: PASSED${NC}"
         return 0
@@ -37,25 +37,25 @@ run_test() {
 if [[ "$1" == "all" || "$1" == "" ]]; then
     echo "Running all TrueType tests..."
     echo ""
-    
+
     failed_tests=0
-    
+
     # Run each test
     run_test "test_truetype_font_reading" || ((failed_tests++))
     echo ""
-    
+
     run_test "test_truetype_table_parsing" || ((failed_tests++))
     echo ""
-    
+
     run_test "test_truetype_glyph_parsing" || ((failed_tests++))
     echo ""
-    
+
     run_test "test_truetype_bitmap_rendering" || ((failed_tests++))
     echo ""
-    
+
     run_test "test_truetype_comprehensive" || ((failed_tests++))
     echo ""
-    
+
     # Summary
     echo "========================================="
     if [[ $failed_tests -eq 0 ]]; then
@@ -65,22 +65,22 @@ if [[ "$1" == "all" || "$1" == "" ]]; then
         echo -e "${RED}❌ $failed_tests TEST(S) FAILED${NC}"
         exit 1
     fi
-    
+
 elif [[ "$1" == "font_reading" ]]; then
     run_test "test_truetype_font_reading"
-    
+
 elif [[ "$1" == "table_parsing" ]]; then
     run_test "test_truetype_table_parsing"
-    
+
 elif [[ "$1" == "glyph_parsing" ]]; then
     run_test "test_truetype_glyph_parsing"
-    
+
 elif [[ "$1" == "bitmap_rendering" ]]; then
     run_test "test_truetype_bitmap_rendering"
-    
+
 elif [[ "$1" == "comprehensive" ]]; then
     run_test "test_truetype_comprehensive"
-    
+
 else
     echo "Usage: $0 [all|font_reading|table_parsing|glyph_parsing|bitmap_rendering|comprehensive]"
     echo ""

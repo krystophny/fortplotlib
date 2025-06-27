@@ -68,7 +68,7 @@ contains
         if (allocated(native_font%glyph_offsets) .and. native_font%glyf_offset > 0) then
             print *, "✅ Native has glyph outline access infrastructure"
             print *, "   Glyf table offset:", native_font%glyf_offset
-            
+
             if (glyph_index > 0 .and. glyph_index <= size(native_font%glyph_offsets) - 1) then
                 print *, "   Glyph offset range:", native_font%glyph_offsets(glyph_index), &
                          "to", native_font%glyph_offsets(glyph_index + 1)
