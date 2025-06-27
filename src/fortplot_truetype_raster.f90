@@ -504,6 +504,8 @@ contains
 
             ! Step 2: Fill this scanline using exact STB algorithm
             if (associated(active)) then
+                ! STB calls: stbtt__fill_active_edges_new(scanline, scanline2+1, result->w, active, scan_y_top);
+                ! This means scanline_fill is offset by +1 from scanline
                 call fill_active_edges_stb_exact(scanline, scanline_fill, bmp%w, active, y_top)
             end if
 
@@ -610,13 +612,28 @@ contains
         do while (associated(e))
             ! STB algorithm starts here (from stbtt__fill_active_edges_new)
             if (abs(e%fdx) < 1.0e-10_wp) then
-                ! Vertical edge case (fdx == 0)
+                ! Vertical edge case (fdx == 0) - use STB's simple approach
                 x0 = e%fx
-                if (x0 < real(len, wp) .and. x0 >= 0.0_wp) then
-                    x1_i = int(x0)
-                    if (x1_i >= 0 .and. x1_i < len) then
-                        height = (min(e%ey, y_bottom) - max(e%sy, y_top)) * e%direction
-                        scanline_fill(x1_i) = scanline_fill(x1_i) + height
+                if (x0 < real(len, wp)) then
+                    if (x0 >= 0.0_wp) then
+                        ! STB does: stbtt__handle_clipped_edge(scanline,(int) x0,e, x0,y_top, x0,y_bottom);
+                        x1_i = int(x0)
+                        if (x1_i >= 0 .and. x1_i < len) then
+                            height = (min(e%ey, y_bottom) - max(e%sy, y_top)) * e%direction
+                            scanline(x1_i) = scanline(x1_i) + height
+                        end if
+                        ! STB does: stbtt__handle_clipped_edge(scanline_fill-1,(int) x0+1,e, x0,y_top, x0,y_bottom);
+                        x1_i = int(x0) + 1
+                        if (x1_i >= 0 .and. x1_i < len) then
+                            height = (min(e%ey, y_bottom) - max(e%sy, y_top)) * e%direction
+                            scanline_fill(x1_i) = scanline_fill(x1_i) + height
+                        end if
+                    else
+                        ! STB does: stbtt__handle_clipped_edge(scanline_fill-1,0,e, x0,y_top, x0,y_bottom);
+                        if (len > 0) then
+                            height = (min(e%ey, y_bottom) - max(e%sy, y_top)) * e%direction
+                            scanline_fill(0) = scanline_fill(0) + height
+                        end if
                     end if
                 end if
             else
