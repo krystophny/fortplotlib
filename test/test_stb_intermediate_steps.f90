@@ -149,9 +149,9 @@ contains
         character(len=256) :: font_paths(3)
         integer :: i
 
-        font_paths(1) = "/System/Library/Fonts/Supplemental/Arial.ttf"
-        font_paths(2) = "/System/Library/Fonts/Geneva.ttf"
-        font_paths(3) = "/System/Library/Fonts/Monaco.ttf"
+        font_paths(1) = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+        font_paths(2) = "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
+        font_paths(3) = "/usr/share/fonts/TTF/arial.ttf"
 
         success = .false.
         do i = 1, size(font_paths)
