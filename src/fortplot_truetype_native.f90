@@ -186,8 +186,16 @@ contains
         if (allocated(font_info%unicode_to_glyph)) then
             if (codepoint >= 0 .and. codepoint <= ubound(font_info%unicode_to_glyph, 1)) then
                 glyph_index = font_info%unicode_to_glyph(codepoint)
+                ! DEBUG: Show mapping for 'A'
+                if (codepoint == 65) then
+                    print *, "DEBUG: Unicode mapping table says 65 -> glyph", glyph_index
+                    print *, "DEBUG: Mapping table size:", ubound(font_info%unicode_to_glyph, 1)
+                end if
             else
                 glyph_index = 0  ! Character not in mapping range
+                if (codepoint == 65) then
+                    print *, "DEBUG: Codepoint 65 out of mapping range, using fallback"
+                end if
             end if
         else
             ! Fallback - direct mapping for basic characters
@@ -217,17 +225,36 @@ contains
 
         ! Get glyph index for this codepoint
         glyph_index = native_find_glyph_index(font_info, codepoint)
+        
+        ! DEBUG: Print glyph index
+        if (codepoint == 65) then  ! 'A'
+            print *, "DEBUG: Codepoint 65 ('A') maps to glyph index:", glyph_index
+        end if
 
         if (glyph_index > 0 .and. allocated(font_info%glyph_offsets) .and. font_info%glyf_offset > 0) then
             ! Parse actual glyph header to get bounding box
             call parse_glyph_header(font_info, glyph_index, number_of_contours, &
                                     x_min, y_min, x_max, y_max)
 
-            ! Scale the bounding box (match STB coordinate system)
-            ix0 = int(real(x_min) * scale_x)
-            iy0 = -int(real(y_max) * scale_y)  ! STB inverts Y: negative y_max becomes positive iy0
-            ix1 = int(real(x_max) * scale_x)
-            iy1 = -int(real(y_min) * scale_y)  ! STB inverts Y: negative y_min becomes positive iy1
+            ! DEBUG: Print raw glyph bounds
+            if (codepoint == 65) then  ! 'A'
+                print *, "DEBUG: Glyph ", glyph_index, " bounds: x(", x_min, ",", x_max, ") y(", y_min, ",", y_max, ")"
+                print *, "DEBUG: Scale: ", scale_x, scale_y
+            end if
+
+            ! Scale the bounding box (match STB exactly)
+            ! STB: ix0 = floor(x0 * scale_x), iy0 = floor(-y1 * scale_y)
+            !      ix1 = ceil(x1 * scale_x),  iy1 = ceil(-y0 * scale_y)
+            ix0 = int(floor(real(x_min) * scale_x))
+            iy0 = int(floor(-real(y_max) * scale_y))
+            ix1 = int(ceiling(real(x_max) * scale_x))
+            iy1 = int(ceiling(-real(y_min) * scale_y))
+
+            ! DEBUG: Print calculated bitmap bounds
+            if (codepoint == 65) then  ! 'A'
+                print *, "DEBUG: Calculated bitmap bounds: (", ix0, ",", iy0, ") to (", ix1, ",", iy1, ")"
+                print *, "DEBUG: Size: ", ix1-ix0, "x", iy1-iy0
+            end if
 
             ! Ensure non-zero size for rendering
             if (ix1 <= ix0) ix1 = ix0 + 1

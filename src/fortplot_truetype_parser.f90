@@ -387,7 +387,16 @@ contains
         if (glyph_index <= 0 .or. glyph_index > font_info%num_glyphs) return
         if (.not. allocated(font_info%glyph_offsets)) return
 
-        glyph_offset = font_info%glyf_offset + font_info%glyph_offsets(glyph_index)
+        glyph_offset = font_info%glyf_offset + font_info%glyph_offsets(glyph_index + 1)
+
+        ! DEBUG: For glyph 36 ('A')
+        if (glyph_index == 36) then
+            print *, "DEBUG: Glyph 36 offset calculation:"
+            print *, "  glyf_offset:", font_info%glyf_offset
+            print *, "  glyph_offsets(36):", font_info%glyph_offsets(glyph_index)
+            print *, "  final glyph_offset:", glyph_offset
+            print *, "  font_data size:", size(font_info%font_data)
+        end if
 
         if (glyph_offset <= 0 .or. glyph_offset > size(font_info%font_data) - 10) return
 
@@ -396,6 +405,20 @@ contains
         y_min = read_int16_be(font_info%font_data, glyph_offset + 4)
         x_max = read_int16_be(font_info%font_data, glyph_offset + 6)
         y_max = read_int16_be(font_info%font_data, glyph_offset + 8)
+
+        ! DEBUG: For glyph 36 ('A')
+        if (glyph_index == 36) then
+            print *, "DEBUG: Raw bytes at glyph offset:"
+            print *, "  bytes 0-1 (contours):", font_info%font_data(glyph_offset:glyph_offset+1)
+            print *, "  bytes 2-3 (x_min):", font_info%font_data(glyph_offset+2:glyph_offset+3)
+            print *, "  bytes 4-5 (y_min):", font_info%font_data(glyph_offset+4:glyph_offset+5)
+            print *, "  bytes 6-7 (x_max):", font_info%font_data(glyph_offset+6:glyph_offset+7)
+            print *, "  bytes 8-9 (y_max):", font_info%font_data(glyph_offset+8:glyph_offset+9)
+            print *, "DEBUG: Parsed bounds check:"
+            print *, "  x_min from [0,111]:", read_int16_be(font_info%font_data, glyph_offset + 2)
+            print *, "  x_max from [7,-43]:", read_int16_be(font_info%font_data, glyph_offset + 6)
+            print *, "  Expected: STB calculates bounds for 16x16 bitmap (-1,-16) to (15,0)"
+        end if
 
     end subroutine parse_glyph_header
 
@@ -412,7 +435,7 @@ contains
         if (glyph_index <= 0 .or. glyph_index > font_info%num_glyphs) return
         if (.not. allocated(font_info%glyph_offsets)) return
 
-        glyph_offset = font_info%glyf_offset + font_info%glyph_offsets(glyph_index)
+        glyph_offset = font_info%glyf_offset + font_info%glyph_offsets(glyph_index + 1)
 
         if (glyph_offset <= 0 .or. glyph_offset > size(font_info%font_data) - 10) return
 
@@ -451,7 +474,7 @@ contains
         if (glyph_index <= 0 .or. glyph_index > font_info%num_glyphs) return
         if (.not. allocated(font_info%glyph_offsets)) return
 
-        glyph_offset = font_info%glyf_offset + font_info%glyph_offsets(glyph_index)
+        glyph_offset = font_info%glyf_offset + font_info%glyph_offsets(glyph_index + 1)
 
         if (glyph_offset <= 0 .or. glyph_offset > size(font_info%font_data) - 10) return
 

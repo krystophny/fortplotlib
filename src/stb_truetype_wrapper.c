@@ -138,7 +138,14 @@ int stb_wrapper_find_glyph_index(const stb_fontinfo_wrapper_t *wrapper, int code
     }
     
     stb_font_context_t *context = (stb_font_context_t*)wrapper->private_data;
-    return stbtt_FindGlyphIndex(&context->font_info, codepoint);
+    int glyph_index = stbtt_FindGlyphIndex(&context->font_info, codepoint);
+    
+    // DEBUG: Print glyph mapping for 'A'
+    if (codepoint == 65) {
+        printf("DEBUG STB: Codepoint 65 ('A') -> glyph %d\n", glyph_index);
+    }
+    
+    return glyph_index;
 }
 
 /*
@@ -157,6 +164,12 @@ void stb_wrapper_get_codepoint_bitmap_box(const stb_fontinfo_wrapper_t *wrapper,
     
     stb_font_context_t *context = (stb_font_context_t*)wrapper->private_data;
     stbtt_GetCodepointBitmapBox(&context->font_info, codepoint, scale_x, scale_y, ix0, iy0, ix1, iy1);
+    
+    // DEBUG: Print STB bitmap box calculation for 'A'
+    if (codepoint == 65) {
+        printf("DEBUG STB: Bitmap box for 'A': (%d,%d) to (%d,%d) = %dx%d\n", 
+               *ix0, *iy0, *ix1, *iy1, *ix1 - *ix0, *iy1 - *iy0);
+    }
 }
 
 /*

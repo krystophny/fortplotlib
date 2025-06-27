@@ -42,6 +42,22 @@ program test_real_stb_vs_native
             import :: c_ptr
             type(c_ptr), value :: wrapper
         end subroutine
+
+        function stb_wrapper_find_glyph_index(wrapper, codepoint) bind(c, name='stb_wrapper_find_glyph_index') result(glyph_index)
+            import :: c_ptr, c_int
+            type(c_ptr), value :: wrapper
+            integer(c_int), value :: codepoint
+            integer(c_int) :: glyph_index
+        end function
+
+        subroutine stb_wrapper_get_codepoint_bitmap_box(wrapper, codepoint, scale_x, scale_y, ix0, iy0, ix1, iy1) &
+                bind(c, name='stb_wrapper_get_codepoint_bitmap_box')
+            import :: c_ptr, c_int, c_float
+            type(c_ptr), value :: wrapper
+            integer(c_int), value :: codepoint
+            real(c_float), value :: scale_x, scale_y
+            integer(c_int), intent(out) :: ix0, iy0, ix1, iy1
+        end subroutine
     end interface
 
     ! STB wrapper context structure (must match C structure layout)
@@ -72,6 +88,7 @@ program test_real_stb_vs_native
     logical :: stb_success, native_success
     integer :: i, pixel_diff_count
     character(len=256) :: font_path
+    integer :: stb_ix0, stb_iy0, stb_ix1, stb_iy1
 
     print *, "=== Real STB vs Native TrueType Comparison ==="
     print *, ""
@@ -123,6 +140,24 @@ program test_real_stb_vs_native
     ! Calculate scale for desired font size
     scale = stb_wrapper_scale_for_pixel_height(c_loc(stb_wrapper), real(FONT_SIZE, c_float))
     print *, "Scale for ", FONT_SIZE, " pixels: ", scale
+    
+    ! DEBUG: Check what glyph index STB finds for 'A'
+    print *, "STB glyph index for 'A':", stb_wrapper_find_glyph_index(c_loc(stb_wrapper), TEST_CODEPOINT)
+    
+    ! DEBUG: Check what STB calculates for bitmap box
+    call stb_wrapper_get_codepoint_bitmap_box(c_loc(stb_wrapper), TEST_CODEPOINT, scale, scale, &
+                                              stb_ix0, stb_iy0, stb_ix1, stb_iy1)
+    print *, "STB bitmap box calculation: (", stb_ix0, ",", stb_iy0, ") to (", stb_ix1, ",", stb_iy1, ")"
+    print *, "Expected STB box: (-1,-16) to (15,0) = 16x16"
+    
+    ! FAIL THE TEST if STB box doesn't match expected values
+    if (stb_ix0 /= -1 .or. stb_iy0 /= -16 .or. stb_ix1 /= 15 .or. stb_iy1 /= 0) then
+        print *, "ERROR: STB bitmap box calculation is wrong!"
+        print *, "Expected: (-1,-16) to (15,0), got: (", stb_ix0, ",", stb_iy0, ") to (", stb_ix1, ",", stb_iy1, ")"
+        call cleanup_and_exit(1)
+    end if
+    
+    print *, "✅ STB bitmap box calculation matches expected values"
 
     ! Get STB bitmap
     print *, "Rendering character '", TEST_CHAR, "' (codepoint ", TEST_CODEPOINT, ") with STB..."
@@ -156,7 +191,8 @@ program test_real_stb_vs_native
     print *, "Native: ", native_width, "x", native_height, " offset=(", native_xoff, ",", native_yoff, ")"
 
     if (stb_width /= native_width .or. stb_height /= native_height) then
-        print *, "WARNING: Dimension mismatch between STB and native implementations"
+        print *, "ERROR: Dimension mismatch between STB and native implementations"
+        call cleanup_and_exit(1)
     else
         print *, "Dimensions match!"
     end if
