@@ -83,8 +83,8 @@ We refactor `src/fortplot_stb.f90` and `test/test_stb_comparison.f90` into focus
 **Phase 2: STB API Modularization**
 In every step refactor `src/fortplot_stb.f90` to remove funcionality moved to specialized modules and become a thin API layer importing/re-exporting modules.
 
-- [ ] Move functionality to `src/fortplot_stb_core.f90` (font init/cleanup, TTC support)
-- [ ] Run Tests. Ensure all core functionality works as before.
+- [x] Move functionality to `src/fortplot_stb_core.f90` (font init/cleanup, TTC support)
+- [x] Run Tests. Ensure all core functionality works as before.
 - [ ] Move functionality to `src/fortplot_stb_metrics.f90` (horizontal, vertical, OS/2, kerning metrics)
 - [ ] Run Tests. Ensure all metrics functions work as before.
 - [ ] Move functionality to `src/fortplot_stb_mapping.f90` (character-to-glyph mapping and lookup)
