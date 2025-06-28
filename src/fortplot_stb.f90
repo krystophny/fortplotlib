@@ -256,18 +256,21 @@ contains
     end subroutine stb_cleanup_font_pure
 
     function stb_scale_for_pixel_height_pure(font_info, pixel_height) result(scale)
-        !! Calculate scale factor for desired pixel height using head table
+        !! Calculate scale factor for desired pixel height using hhea metrics
+        !! Uses ascent - descent (total visible height) like STB
         type(stb_fontinfo_pure_t), intent(in) :: font_info
         real(wp), intent(in) :: pixel_height
         real(wp) :: scale
+        integer :: font_height
 
-        if (.not. font_info%initialized .or. .not. font_info%head_parsed) then
+        if (.not. font_info%initialized .or. .not. font_info%hhea_parsed) then
             scale = 0.0_wp
             return
         end if
 
-        ! Calculate scale factor from units per em
-        scale = pixel_height / real(font_info%head_table%units_per_em, wp)
+        ! Calculate font height as ascender - descender (STB approach)
+        font_height = font_info%hhea_table%ascender - font_info%hhea_table%descender
+        scale = pixel_height / real(font_height, wp)
 
     end function stb_scale_for_pixel_height_pure
 
