@@ -6,10 +6,11 @@ Tests build code automatically. Just run
 `fpm test --target test_stb_comparison 2>&1` to run all tests and build the code.
 
 ## !! Important Notes
+- YOU MUST USE RED-GREEN TEST-DRIVEN DEVELOPMENT (TDD) FOR EVERY FUNCTION AND SUBROUTINE.
+- IF THERE ARE NO TESTS YET ADD TEST FOR EACH FUNCTION OR SUBROUTINE TO COMPARE TO REFERENCE STB C IMPLEMENTATION
 - You must place variable declarations on top of the subroutine or function.
 - Fortran has no unsigned integers, so be careful with types and sizes.
 - Fortran uses 1-based indexing per default (can be specified in declaration), so be careful with array indices.
-- AND IF THERE ARE NO TESTS YET ADD TEST FOR EACH FUNCTION OR SUBROUTINE TO COMPARE TO REFERENCE STB C IMPLEMENTATION
 
 ## 📁 Source File Locations
 

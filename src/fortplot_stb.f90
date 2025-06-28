@@ -15,7 +15,7 @@ module fortplot_stb
     public :: ttf_table_entry_t, ttf_header_t, ttf_head_table_t
     public :: ttf_hhea_table_t, ttf_maxp_table_t, ttf_cmap_table_t
     public :: ttf_cmap_subtable_t, ttc_header_t
-    public :: stb_fontinfo_pure_t, stb_init_font_pure, stb_cleanup_font_pure
+    public :: stb_fontinfo_pure_t, stb_init_font_pure, stb_init_font_pure_with_index, stb_cleanup_font_pure
     public :: stb_get_codepoint_bitmap_pure, stb_free_bitmap_pure
     public :: stb_get_codepoint_hmetrics_pure, stb_get_font_vmetrics_pure
     public :: stb_scale_for_pixel_height_pure, stb_get_codepoint_bitmap_box_pure
@@ -42,15 +42,30 @@ module fortplot_stb
 contains
 
     function stb_init_font_pure(font_info, font_file_path) result(success)
-        !! Initialize font from file path
+        !! Initialize font from file path (uses font index 0 for TTC files)
         type(stb_fontinfo_pure_t), intent(inout) :: font_info
         character(len=*), intent(in) :: font_file_path
         logical :: success
+
+        ! Call the main implementation with font index 0
+        success = stb_init_font_pure_with_index(font_info, font_file_path, 0)
+
+    end function stb_init_font_pure
+
+    function stb_init_font_pure_with_index(font_info, font_file_path, font_index) result(success)
+        !! Initialize font from file path with specific font index for TTC files
+        type(stb_fontinfo_pure_t), intent(inout) :: font_info
+        character(len=*), intent(in) :: font_file_path
+        integer, intent(in) :: font_index
+        logical :: success
+        integer :: font_offset
 
         ! Initialize structure
         font_info%initialized = .false.
         font_info%font_file_path = font_file_path
         font_info%num_glyphs = 0
+        font_info%font_index = font_index
+        font_info%font_offset = 0
         success = .false.
 
         ! Read font file
@@ -59,15 +74,52 @@ contains
             return
         end if
 
-        ! Parse TTF header
-        if (.not. parse_ttf_header(font_info%font_data, font_info%header)) then
-            return
-        end if
+        ! Check if this is a TTC file and handle accordingly
+        if (is_ttc_file(font_info%font_data)) then
+            font_info%is_ttc = .true.
+            
+            ! Parse TTC header
+            if (.not. parse_ttc_header(font_info%font_data, font_info%ttc_header)) then
+                return
+            end if
+            
+            ! Get font offset for the requested index
+            font_offset = get_ttc_font_offset(font_info%ttc_header, font_index)
+            if (font_offset <= 0) then
+                return  ! Invalid font index
+            end if
+            
+            font_info%font_offset = font_offset
+            
+            ! Parse TTF header at the font offset
+            if (.not. parse_ttf_header_at_offset(font_info%font_data, font_offset, &
+                                               font_info%header)) then
+                return
+            end if
+            
+            ! Parse table directory at the font offset
+            if (.not. parse_table_directory_at_offset(font_info%font_data, font_offset, &
+                                                    font_info%header, font_info%tables)) then
+                return
+            end if
+        else
+            font_info%is_ttc = .false.
+            
+            ! For TTF files, font_index must be 0
+            if (font_index /= 0) then
+                return
+            end if
+            
+            ! Parse TTF header
+            if (.not. parse_ttf_header(font_info%font_data, font_info%header)) then
+                return
+            end if
 
-        ! Parse table directory
-        if (.not. parse_table_directory(font_info%font_data, font_info%header, &
-                                      font_info%tables)) then
-            return
+            ! Parse table directory
+            if (.not. parse_table_directory(font_info%font_data, font_info%header, &
+                                          font_info%tables)) then
+                return
+            end if
         end if
 
         ! Basic validation - must have required tables
@@ -107,7 +159,7 @@ contains
         font_info%initialized = .true.
         success = .true.
 
-    end function stb_init_font_pure
+    end function stb_init_font_pure_with_index
 
     subroutine stb_cleanup_font_pure(font_info)
         !! Clean up font resources
