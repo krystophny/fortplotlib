@@ -46,6 +46,7 @@ contains
         real(wp) :: stb_scale, pure_scale
         integer :: stb_ascent, stb_descent, stb_line_gap
         integer :: pure_ascent, pure_descent, pure_line_gap
+        integer :: stb_glyph_a, pure_glyph_a
         integer :: i
 
         write(*,*) "Testing basic comparison..."
@@ -98,6 +99,14 @@ contains
             ! Test glyph-level functions
             call test_glyph_functions(stb_font)
 
+            ! Test glyph index mapping comparison (Level 3) 
+            if (pure_success) then
+                stb_glyph_a = stb_find_glyph_index(stb_font, iachar('A'))
+                pure_glyph_a = stb_find_glyph_index_pure(pure_font, iachar('A'))
+                write(*,'(A,I0,A,I0)') "    Glyph 'A' comparison - STB: ", stb_glyph_a, &
+                                       " Pure: ", pure_glyph_a
+            end if
+
             call stb_cleanup_font(stb_font)
         else
             write(*,*) "  ⚠ No font available - skipping detailed tests"
@@ -110,6 +119,14 @@ contains
                 pure_descent == stb_descent .and. &
                 pure_line_gap == stb_line_gap) then
                 write(*,*) "  ✓ Pure metrics match STB - implementation correct"
+                
+                ! Check glyph index mapping (Level 3)
+                if (stb_success .and. pure_glyph_a /= stb_glyph_a) then
+                    write(*,*) "  ✗ Pure glyph mapping incorrect - need cmap implementation"
+                    failed_tests = failed_tests + 1
+                else if (stb_success) then
+                    write(*,*) "  ✓ Pure glyph mapping matches STB"
+                end if
             else
                 write(*,*) "  ✗ Pure metrics don't match STB - needs font table parsing"
                 failed_tests = failed_tests + 1
