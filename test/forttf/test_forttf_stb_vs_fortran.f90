@@ -21,7 +21,7 @@ program test_stb_vs_fortran
             integer(c_int), intent(out) :: num_contours_out, total_points_out
         end subroutine
         
-        subroutine stb_test_build_edges_exact(pts, wcount, windings, &
+        subroutine stb_test_build_edges_from_fortran_points(pts, wcount, windings, &
                     scale_x, scale_y, shift_x, shift_y, invert, &
                     edges_out, num_edges_out) bind(c)
             import :: c_ptr, c_int, c_float
@@ -229,8 +229,8 @@ contains
         fortran_num_edges = size(fortran_edges)
         
         ! Test STB C edge building
-        call stb_test_build_edges_exact(c_loc(fortran_points(1)), c_loc(fortran_contour_lengths(1)), &
-                                      fortran_num_contours, &
+        call stb_test_build_edges_from_fortran_points(c_loc(fortran_points(1)), &
+                                      c_loc(fortran_contour_lengths(1)), fortran_num_contours, &
                                       real(scale_x, c_float), real(scale_y, c_float), &
                                       real(shift_x, c_float), real(shift_y, c_float), &
                                       merge(1, 0, invert), &
