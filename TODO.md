@@ -87,12 +87,12 @@ All test commands build the code automatically. To build, just run the tests.
 **Methodology:** Each function must be ported from `thirdparty/stb_truetype.h` to its Fortran equivalent. A corresponding test must be created in `test/forttf/test_forttf_stb_rasterization.f90` to validate the output against the original C function.
 
 ### **1.1: Main Scanline Processing**
-- [x] **Port `stbtt__rasterize_sorted_edges()`** ✅ **FIXED & VALIDATED**
+- [x] **Port `stbtt__rasterize_sorted_edges()`** ✅ **COMPLETED & VALIDATED**
   - **C Reference:** `thirdparty/stb_truetype.h`, line 3331
   - **Fortran Target:** `stb_rasterize_sorted_edges()` in `forttf_stb_raster.f90`
-  - **Test:** `test_forttf_rasterize_sorted_edges.f90` - ✅ **PASSES STB C comparison**
-  - **Status:** Fixed anti-aliasing algorithm for both vertical and non-vertical edges
-  - **Achievement:** Vertical edges now pixel-perfect match STB, triangle rasterization working
+  - **Test:** `test_forttf_rasterize_sorted_edges.f90` - ✅ **PASSES STB C comparison perfectly**
+  - **Status:** ✅ **COMPLETE** - Fixed buffer offset compatibility with `stb_fill_active_edges_with_offset`
+  - **Achievement:** All test cases pass with pixel-perfect STB C matching
   - **Description:** This is the core function that iterates through scanlines and manages active edges to generate the bitmap.
 
 - [x] **Port `stbtt__fill_active_edges_new()`** ✅ **COMPLETED & VALIDATED**

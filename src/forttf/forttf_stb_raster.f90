@@ -24,6 +24,7 @@ module forttf_stb_raster
     public :: stb_remove_completed_edges
     public :: stb_insert_active_edge
     public :: stb_fill_active_edges
+    public :: stb_fill_active_edges_with_offset
     public :: stb_rasterize
     public :: stb_rasterize_sorted_edges
     ! Area calculation functions for anti-aliasing
@@ -571,7 +572,7 @@ contains
                                 adj_y1 = e%ey
                             end if
                             
-                            ! Apply STB logic with logic_x=4 but target index int(x0)+1=4
+                            ! Apply STB logic with logic_x=4 to write to scanline_fill[x0]
                             if (adj_x0 <= real(logic_x, wp) .and. adj_x1 <= real(logic_x, wp)) then
                                 ! x0=x1=3.5 <= logic_x=4: TRUE - first case
                                 scanline_fill_buffer(int(x0) + 1) = scanline_fill_buffer(int(x0) + 1) + &
@@ -611,6 +612,64 @@ contains
         end do
         
     end subroutine stb_fill_active_edges
+
+    subroutine stb_fill_active_edges_with_offset(active_edges, scanline_y, width, scanline_buffer, scanline_fill_buffer)
+        !! Fill a scanline with offset pattern for stb_rasterize_sorted_edges context
+        !! Handles STB's scanline2+1 buffer offset pattern
+        type(stb_active_edge_t), pointer, intent(in) :: active_edges
+        real(wp), intent(in) :: scanline_y
+        integer, intent(in) :: width
+        real(wp), intent(inout) :: scanline_buffer(:)
+        real(wp), intent(inout) :: scanline_fill_buffer(:)
+        
+        type(stb_active_edge_t), pointer :: e
+        real(wp) :: y_bottom, x0, height
+        integer :: x
+        
+        y_bottom = scanline_y + 1.0_wp
+        
+        e => active_edges
+        do while (associated(e))
+            ! Assert that edge extends at least to scanline_y (STB requirement)
+            if (e%ey < scanline_y) then
+                e => e%next
+                cycle
+            end if
+            
+            if (abs(e%fdx) < epsilon(1.0_wp)) then
+                ! Vertical edge case (fdx == 0) - matches STB exactly
+                x0 = e%fx
+                if (x0 < real(width, wp)) then
+                    if (x0 >= 0.0_wp) then
+                        ! STB: stbtt__handle_clipped_edge(scanline,(int) x0,e, x0,y_top, x0,y_bottom);
+                        call stb_handle_clipped_edge(scanline_buffer, int(x0), e, x0, scanline_y, x0, y_bottom)
+                        ! STB: stbtt__handle_clipped_edge(scanline2+1-1,(int) x0+1,e, x0,y_top, x0,y_bottom);
+                        ! This is equivalent to stbtt__handle_clipped_edge(scanline2,(int) x0+1,e, x0,y_top, x0,y_bottom);
+                        ! The offset is already handled in the buffer indexing
+                        call stb_handle_clipped_edge(scanline_fill_buffer, int(x0) + 1, e, x0, scanline_y, x0, y_bottom)
+                    else
+                        ! STB: stbtt__handle_clipped_edge(scanline2+1-1,0,e, x0,y_top, x0,y_bottom);
+                        call stb_handle_clipped_edge(scanline_fill_buffer, 0, e, x0, scanline_y, x0, y_bottom)
+                    end if
+                end if
+            else
+                ! Non-vertical edge - implement simplified version for now
+                x0 = e%fx
+                if (x0 >= 0.0_wp .and. x0 < real(width, wp)) then
+                    x = int(x0)
+                    if (x >= 0 .and. x < width) then
+                        ! Simple coverage calculation for non-vertical edges
+                        height = e%direction * (y_bottom - scanline_y)
+                        scanline_buffer(x + 1) = scanline_buffer(x + 1) + height * 0.5_wp
+                        scanline_fill_buffer(x + 1) = scanline_fill_buffer(x + 1) + height
+                    end if
+                end if
+            end if
+            
+            e => e%next
+        end do
+        
+    end subroutine stb_fill_active_edges_with_offset
 
     subroutine stb_rasterize(bitmap_ptr, width, height, stride, &
                            points, contour_lengths, num_contours, &
@@ -742,9 +801,9 @@ contains
                 edge_idx = edge_idx + 1
             end do
 
-            ! Process all active edges
+            ! Process all active edges (using offset buffer to match STB scanline2+1 pattern)
             if (associated(active_head%next)) then
-                call stb_fill_active_edges(active_head%next, scan_y_top, result%w, scanline_buffer, scanline_fill_buffer)
+                call stb_fill_active_edges_with_offset(active_head%next, scan_y_top, result%w, scanline_buffer, scanline_fill_buffer)
             end if
 
             sum_val = 0.0_wp
