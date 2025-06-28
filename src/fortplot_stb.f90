@@ -15,6 +15,9 @@ module fortplot_stb
     public :: stb_get_number_of_fonts_pure, stb_get_font_offset_for_index_pure
     public :: stb_scale_for_mapping_em_to_pixels_pure, stb_get_font_bounding_box_pure
     public :: stb_get_codepoint_box_pure, stb_get_codepoint_kern_advance_pure
+    public :: stb_get_font_vmetrics_os2_pure, stb_get_glyph_hmetrics_pure
+    public :: stb_get_glyph_box_pure, stb_get_glyph_kern_advance_pure
+    public :: stb_get_kerning_table_length_pure, stb_get_kerning_table_pure
     public :: STB_PURE_SUCCESS, STB_PURE_ERROR, STB_PURE_NOT_IMPLEMENTED
     
     ! Constants
@@ -309,5 +312,123 @@ contains
         ! TODO: Implement kern table parsing
         
     end function stb_get_codepoint_kern_advance_pure
+
+    subroutine stb_get_font_vmetrics_os2_pure(font_info, typoAscent, typoDescent, &
+                                             typoLineGap)
+        !! Get OS/2 table vertical metrics (STUB)
+        type(stb_fontinfo_pure_t), intent(in) :: font_info
+        integer, intent(out) :: typoAscent, typoDescent, typoLineGap
+        
+        if (.not. font_info%initialized) then
+            typoAscent = 0
+            typoDescent = 0
+            typoLineGap = 0
+            return
+        end if
+        
+        ! STUB: Return placeholder values
+        typoAscent = 0
+        typoDescent = 0
+        typoLineGap = 0
+        
+        ! TODO: Implement using OS/2 table
+        
+    end subroutine stb_get_font_vmetrics_os2_pure
+    
+    subroutine stb_get_glyph_hmetrics_pure(font_info, glyph_index, advanceWidth, &
+                                          leftSideBearing)
+        !! Get horizontal glyph metrics by glyph index (STUB)
+        type(stb_fontinfo_pure_t), intent(in) :: font_info
+        integer, intent(in) :: glyph_index
+        integer, intent(out) :: advanceWidth, leftSideBearing
+        
+        if (.not. font_info%initialized) then
+            advanceWidth = 0
+            leftSideBearing = 0
+            return
+        end if
+        
+        ! STUB: Return placeholder values
+        advanceWidth = 0
+        leftSideBearing = 0
+        
+        ! TODO: Implement using hmtx table and glyph index
+        
+    end subroutine stb_get_glyph_hmetrics_pure
+    
+    subroutine stb_get_glyph_box_pure(font_info, glyph_index, x0, y0, x1, y1)
+        !! Get glyph bounding box by glyph index (STUB)
+        type(stb_fontinfo_pure_t), intent(in) :: font_info
+        integer, intent(in) :: glyph_index
+        integer, intent(out) :: x0, y0, x1, y1
+        
+        if (.not. font_info%initialized) then
+            x0 = 0; y0 = 0; x1 = 0; y1 = 0
+            return
+        end if
+        
+        ! STUB: Return placeholder values
+        x0 = 0; y0 = 0; x1 = 0; y1 = 0
+        
+        ! TODO: Implement glyph outline parsing and bounding box calculation
+        
+    end subroutine stb_get_glyph_box_pure
+    
+    function stb_get_glyph_kern_advance_pure(font_info, glyph1, glyph2) &
+             result(kern_advance)
+        !! Get kerning advance between two glyphs by glyph indices (STUB)
+        type(stb_fontinfo_pure_t), intent(in) :: font_info
+        integer, intent(in) :: glyph1, glyph2
+        integer :: kern_advance
+        
+        if (.not. font_info%initialized) then
+            kern_advance = 0
+            return
+        end if
+        
+        ! STUB: Return no kerning
+        kern_advance = 0
+        
+        ! TODO: Implement kern table parsing for glyph indices
+        
+    end function stb_get_glyph_kern_advance_pure
+    
+    function stb_get_kerning_table_length_pure(font_info) result(table_length)
+        !! Get length of kerning table (STUB)
+        type(stb_fontinfo_pure_t), intent(in) :: font_info
+        integer :: table_length
+        
+        if (.not. font_info%initialized) then
+            table_length = 0
+            return
+        end if
+        
+        ! STUB: Return no kerning table
+        table_length = 0
+        
+        ! TODO: Implement kern table parsing
+        
+    end function stb_get_kerning_table_length_pure
+    
+    function stb_get_kerning_table_pure(font_info, table, table_length) &
+             result(count)
+        !! Get kerning table entries (STUB)
+        type(stb_fontinfo_pure_t), intent(in) :: font_info
+        type(c_ptr), intent(in) :: table
+        integer, intent(in) :: table_length
+        integer :: count
+        
+        if (.not. font_info%initialized .or. .not. c_associated(table) &
+            .or. table_length <= 0) then
+            count = 0
+            return
+        end if
+        
+        ! STUB: Return no entries
+        count = 0
+        
+        ! TODO: Implement kern table extraction
+        
+    end function stb_get_kerning_table_pure
 
 end module fortplot_stb

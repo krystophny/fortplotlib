@@ -95,6 +95,9 @@ contains
             ! Test additional functions
             call test_new_functions(stb_font)
             
+            ! Test glyph-level functions
+            call test_glyph_functions(stb_font)
+            
             call stb_cleanup_font(stb_font)
         else
             write(*,*) "  ⚠ No font available - skipping detailed tests"
@@ -143,5 +146,54 @@ contains
         write(*,*) "  ✓ New functions tested successfully"
         
     end subroutine test_new_functions
+    
+    subroutine test_glyph_functions(stb_font)
+        !! Test newly added glyph-level functions
+        type(stb_fontinfo_t), intent(in) :: stb_font
+        integer :: glyph_index, glyph_advance, glyph_bearing
+        integer :: glyph_x0, glyph_y0, glyph_x1, glyph_y1
+        integer :: glyph_kern, table_length
+        integer :: typoAscent, typoDescent, typoLineGap
+        
+        write(*,*) "  Testing glyph-level functions..."
+        
+        ! Get glyph index for 'A'
+        glyph_index = stb_find_glyph_index(stb_font, iachar('A'))
+        write(*,'(A,I0)') "    Glyph index for 'A': ", glyph_index
+        
+        if (glyph_index > 0) then
+            ! Test glyph metrics
+            call stb_get_glyph_hmetrics(stb_font, glyph_index, glyph_advance, &
+                                       glyph_bearing)
+            write(*,'(A,I0,A,I0)') "    Glyph metrics: ", glyph_advance, &
+                                   "/", glyph_bearing
+            
+            ! Test glyph bounding box
+            call stb_get_glyph_box(stb_font, glyph_index, glyph_x0, glyph_y0, &
+                                  glyph_x1, glyph_y1)
+            write(*,'(A,4I6)') "    Glyph bbox: ", glyph_x0, glyph_y0, &
+                               glyph_x1, glyph_y1
+            
+            ! Test glyph kerning
+            glyph_kern = stb_get_glyph_kern_advance(stb_font, glyph_index, &
+                                                   glyph_index)
+            write(*,'(A,I0)') "    Glyph self-kern: ", glyph_kern
+        else
+            write(*,*) "    ⚠ No glyph found for 'A'"
+        end if
+        
+        ! Test OS/2 metrics
+        call stb_get_font_vmetrics_os2(stb_font, typoAscent, typoDescent, &
+                                      typoLineGap)
+        write(*,'(A,I0,A,I0,A,I0)') "    OS/2 metrics: ", typoAscent, "/", &
+                                     typoDescent, "/", typoLineGap
+        
+        ! Test kerning table
+        table_length = stb_get_kerning_table_length(stb_font)
+        write(*,'(A,I0)') "    Kerning table length: ", table_length
+        
+        write(*,*) "  ✓ Glyph functions tested successfully"
+        
+    end subroutine test_glyph_functions
 
 end program test_stb_comparison

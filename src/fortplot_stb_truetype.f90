@@ -14,6 +14,9 @@ module fortplot_stb_truetype
     public :: stb_get_number_of_fonts, stb_get_font_offset_for_index
     public :: stb_scale_for_mapping_em_to_pixels, stb_get_font_bounding_box
     public :: stb_get_codepoint_box, stb_get_codepoint_kern_advance
+    public :: stb_get_font_vmetrics_os2, stb_get_glyph_hmetrics, stb_get_glyph_box
+    public :: stb_get_glyph_kern_advance, stb_get_kerning_table_length
+    public :: stb_get_kerning_table
     public :: STB_SUCCESS, STB_ERROR
     
     ! Constants
@@ -169,6 +172,57 @@ module fortplot_stb_truetype
             integer(c_int), value :: ch1, ch2
             integer(c_int) :: stb_wrapper_get_codepoint_kern_advance
         end function stb_wrapper_get_codepoint_kern_advance
+        
+        ! Extended font metrics
+        subroutine stb_wrapper_get_font_vmetrics_os2(font_info, typoAscent, &
+                   typoDescent, typoLineGap) &
+                   bind(C, name="stb_wrapper_get_font_vmetrics_os2")
+            import :: c_int, stb_fontinfo_t
+            type(stb_fontinfo_t), intent(in) :: font_info
+            integer(c_int), intent(out) :: typoAscent, typoDescent, typoLineGap
+        end subroutine stb_wrapper_get_font_vmetrics_os2
+        
+        ! Glyph-level functions
+        subroutine stb_wrapper_get_glyph_hmetrics(font_info, glyph_index, &
+                   advanceWidth, leftSideBearing) &
+                   bind(C, name="stb_wrapper_get_glyph_hmetrics")
+            import :: c_int, stb_fontinfo_t
+            type(stb_fontinfo_t), intent(in) :: font_info
+            integer(c_int), value :: glyph_index
+            integer(c_int), intent(out) :: advanceWidth, leftSideBearing
+        end subroutine stb_wrapper_get_glyph_hmetrics
+        
+        subroutine stb_wrapper_get_glyph_box(font_info, glyph_index, x0, y0, &
+                   x1, y1) bind(C, name="stb_wrapper_get_glyph_box")
+            import :: c_int, stb_fontinfo_t
+            type(stb_fontinfo_t), intent(in) :: font_info
+            integer(c_int), value :: glyph_index
+            integer(c_int), intent(out) :: x0, y0, x1, y1
+        end subroutine stb_wrapper_get_glyph_box
+        
+        function stb_wrapper_get_glyph_kern_advance(font_info, glyph1, glyph2) &
+                 bind(C, name="stb_wrapper_get_glyph_kern_advance")
+            import :: c_int, stb_fontinfo_t
+            type(stb_fontinfo_t), intent(in) :: font_info
+            integer(c_int), value :: glyph1, glyph2
+            integer(c_int) :: stb_wrapper_get_glyph_kern_advance
+        end function stb_wrapper_get_glyph_kern_advance
+        
+        function stb_wrapper_get_kerning_table_length(font_info) &
+                 bind(C, name="stb_wrapper_get_kerning_table_length")
+            import :: c_int, stb_fontinfo_t
+            type(stb_fontinfo_t), intent(in) :: font_info
+            integer(c_int) :: stb_wrapper_get_kerning_table_length
+        end function stb_wrapper_get_kerning_table_length
+        
+        function stb_wrapper_get_kerning_table(font_info, table, table_length) &
+                 bind(C, name="stb_wrapper_get_kerning_table")
+            import :: c_int, c_ptr, stb_fontinfo_t
+            type(stb_fontinfo_t), intent(in) :: font_info
+            type(c_ptr), value :: table
+            integer(c_int), value :: table_length
+            integer(c_int) :: stb_wrapper_get_kerning_table
+        end function stb_wrapper_get_kerning_table
         
     end interface
     
@@ -453,5 +507,119 @@ contains
                                                               int(ch1, c_int), int(ch2, c_int)))
         
     end function stb_get_codepoint_kern_advance
+
+    subroutine stb_get_font_vmetrics_os2(font_info, typoAscent, typoDescent, &
+                                        typoLineGap)
+        !! Get OS/2 table vertical metrics
+        type(stb_fontinfo_t), intent(in) :: font_info
+        integer, intent(out) :: typoAscent, typoDescent, typoLineGap
+        integer(c_int) :: c_typoAscent, c_typoDescent, c_typoLineGap
+        
+        if (.not. c_associated(font_info%private_data)) then
+            typoAscent = 0
+            typoDescent = 0
+            typoLineGap = 0
+            return
+        end if
+        
+        call stb_wrapper_get_font_vmetrics_os2(font_info, c_typoAscent, &
+                                              c_typoDescent, c_typoLineGap)
+        
+        typoAscent = int(c_typoAscent)
+        typoDescent = int(c_typoDescent)
+        typoLineGap = int(c_typoLineGap)
+        
+    end subroutine stb_get_font_vmetrics_os2
+    
+    subroutine stb_get_glyph_hmetrics(font_info, glyph_index, advanceWidth, &
+                                     leftSideBearing)
+        !! Get horizontal glyph metrics by glyph index
+        type(stb_fontinfo_t), intent(in) :: font_info
+        integer, intent(in) :: glyph_index
+        integer, intent(out) :: advanceWidth, leftSideBearing
+        integer(c_int) :: c_advance, c_bearing
+        
+        if (.not. c_associated(font_info%private_data)) then
+            advanceWidth = 0
+            leftSideBearing = 0
+            return
+        end if
+        
+        call stb_wrapper_get_glyph_hmetrics(font_info, int(glyph_index, c_int), &
+                                           c_advance, c_bearing)
+        
+        advanceWidth = int(c_advance)
+        leftSideBearing = int(c_bearing)
+        
+    end subroutine stb_get_glyph_hmetrics
+    
+    subroutine stb_get_glyph_box(font_info, glyph_index, x0, y0, x1, y1)
+        !! Get glyph bounding box by glyph index
+        type(stb_fontinfo_t), intent(in) :: font_info
+        integer, intent(in) :: glyph_index
+        integer, intent(out) :: x0, y0, x1, y1
+        integer(c_int) :: c_x0, c_y0, c_x1, c_y1
+        
+        if (.not. c_associated(font_info%private_data)) then
+            x0 = 0; y0 = 0; x1 = 0; y1 = 0
+            return
+        end if
+        
+        call stb_wrapper_get_glyph_box(font_info, int(glyph_index, c_int), &
+                                      c_x0, c_y0, c_x1, c_y1)
+        
+        x0 = int(c_x0); y0 = int(c_y0)
+        x1 = int(c_x1); y1 = int(c_y1)
+        
+    end subroutine stb_get_glyph_box
+    
+    function stb_get_glyph_kern_advance(font_info, glyph1, glyph2) &
+             result(kern_advance)
+        !! Get kerning advance between two glyphs by glyph indices
+        type(stb_fontinfo_t), intent(in) :: font_info
+        integer, intent(in) :: glyph1, glyph2
+        integer :: kern_advance
+        
+        if (.not. c_associated(font_info%private_data)) then
+            kern_advance = 0
+            return
+        end if
+        
+        kern_advance = int(stb_wrapper_get_glyph_kern_advance(font_info, &
+                                                             int(glyph1, c_int), int(glyph2, c_int)))
+        
+    end function stb_get_glyph_kern_advance
+    
+    function stb_get_kerning_table_length(font_info) result(table_length)
+        !! Get length of kerning table
+        type(stb_fontinfo_t), intent(in) :: font_info
+        integer :: table_length
+        
+        if (.not. c_associated(font_info%private_data)) then
+            table_length = 0
+            return
+        end if
+        
+        table_length = int(stb_wrapper_get_kerning_table_length(font_info))
+        
+    end function stb_get_kerning_table_length
+    
+    function stb_get_kerning_table(font_info, table, table_length) result(count)
+        !! Get kerning table entries
+        type(stb_fontinfo_t), intent(in) :: font_info
+        type(c_ptr), intent(in) :: table
+        integer, intent(in) :: table_length
+        integer :: count
+        
+        if (.not. c_associated(font_info%private_data) .or. &
+            .not. c_associated(table) .or. table_length <= 0) then
+            count = 0
+            return
+        end if
+        
+        count = int(stb_wrapper_get_kerning_table(font_info, table, &
+                                                 int(table_length, c_int)))
+        
+    end function stb_get_kerning_table
 
 end module fortplot_stb_truetype

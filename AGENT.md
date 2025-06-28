@@ -8,6 +8,7 @@ These are not suggestions - they are strict requirements that MUST be followed i
 1. Test-Driven Development
 2. SOLID, KISS and DRY
 3. Single responsibility principle
+4. **Maximum line length: 88 characters** - ENFORCED
 
 **⚠️ COMMUNICATION REQUIREMENTS ⚠️**
 - Keep responses minimal and direct

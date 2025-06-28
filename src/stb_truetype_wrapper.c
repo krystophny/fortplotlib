@@ -330,3 +330,88 @@ int stb_wrapper_get_codepoint_kern_advance(const stb_fontinfo_wrapper_t *wrapper
     stb_font_context_t *context = (stb_font_context_t*)wrapper->private_data;
     return stbtt_GetCodepointKernAdvance(&context->font_info, ch1, ch2);
 }
+
+/*
+ * Get OS/2 table vertical metrics
+ */
+void stb_wrapper_get_font_vmetrics_os2(const stb_fontinfo_wrapper_t *wrapper, 
+                                       int *typoAscent, int *typoDescent, int *typoLineGap) {
+    if (!wrapper || !wrapper->private_data || !typoAscent || !typoDescent || !typoLineGap) {
+        if (typoAscent) *typoAscent = 0;
+        if (typoDescent) *typoDescent = 0;
+        if (typoLineGap) *typoLineGap = 0;
+        return;
+    }
+    
+    stb_font_context_t *context = (stb_font_context_t*)wrapper->private_data;
+    stbtt_GetFontVMetricsOS2(&context->font_info, typoAscent, typoDescent, typoLineGap);
+}
+
+/*
+ * Get horizontal glyph metrics by glyph index
+ */
+void stb_wrapper_get_glyph_hmetrics(const stb_fontinfo_wrapper_t *wrapper, int glyph_index,
+                                   int *advanceWidth, int *leftSideBearing) {
+    if (!wrapper || !wrapper->private_data || !advanceWidth || !leftSideBearing) {
+        if (advanceWidth) *advanceWidth = 0;
+        if (leftSideBearing) *leftSideBearing = 0;
+        return;
+    }
+    
+    stb_font_context_t *context = (stb_font_context_t*)wrapper->private_data;
+    stbtt_GetGlyphHMetrics(&context->font_info, glyph_index, advanceWidth, leftSideBearing);
+}
+
+/*
+ * Get glyph bounding box by glyph index
+ */
+void stb_wrapper_get_glyph_box(const stb_fontinfo_wrapper_t *wrapper, int glyph_index,
+                              int *x0, int *y0, int *x1, int *y1) {
+    if (!wrapper || !wrapper->private_data || !x0 || !y0 || !x1 || !y1) {
+        if (x0) *x0 = 0;
+        if (y0) *y0 = 0;
+        if (x1) *x1 = 0;
+        if (y1) *y1 = 0;
+        return;
+    }
+    
+    stb_font_context_t *context = (stb_font_context_t*)wrapper->private_data;
+    stbtt_GetGlyphBox(&context->font_info, glyph_index, x0, y0, x1, y1);
+}
+
+/*
+ * Get kerning advance between two glyphs by glyph indices
+ */
+int stb_wrapper_get_glyph_kern_advance(const stb_fontinfo_wrapper_t *wrapper, int glyph1, int glyph2) {
+    if (!wrapper || !wrapper->private_data) {
+        return 0;
+    }
+    
+    stb_font_context_t *context = (stb_font_context_t*)wrapper->private_data;
+    return stbtt_GetGlyphKernAdvance(&context->font_info, glyph1, glyph2);
+}
+
+/*
+ * Get length of kerning table
+ */
+int stb_wrapper_get_kerning_table_length(const stb_fontinfo_wrapper_t *wrapper) {
+    if (!wrapper || !wrapper->private_data) {
+        return 0;
+    }
+    
+    stb_font_context_t *context = (stb_font_context_t*)wrapper->private_data;
+    return stbtt_GetKerningTableLength(&context->font_info);
+}
+
+/*
+ * Get kerning table entries
+ */
+int stb_wrapper_get_kerning_table(const stb_fontinfo_wrapper_t *wrapper, 
+                                 void *table, int table_length) {
+    if (!wrapper || !wrapper->private_data || !table || table_length <= 0) {
+        return 0;
+    }
+    
+    stb_font_context_t *context = (stb_font_context_t*)wrapper->private_data;
+    return stbtt_GetKerningTable(&context->font_info, (stbtt_kerningentry*)table, table_length);
+}
