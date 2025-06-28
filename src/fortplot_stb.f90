@@ -77,26 +77,26 @@ contains
         ! Check if this is a TTC file and handle accordingly
         if (is_ttc_file(font_info%font_data)) then
             font_info%is_ttc = .true.
-            
+
             ! Parse TTC header
             if (.not. parse_ttc_header(font_info%font_data, font_info%ttc_header)) then
                 return
             end if
-            
+
             ! Get font offset for the requested index
             font_offset = get_ttc_font_offset(font_info%ttc_header, font_index)
             if (font_offset <= 0) then
                 return  ! Invalid font index
             end if
-            
+
             font_info%font_offset = font_offset
-            
+
             ! Parse TTF header at the font offset
             if (.not. parse_ttf_header_at_offset(font_info%font_data, font_offset, &
                                                font_info%header)) then
                 return
             end if
-            
+
             ! Parse table directory at the font offset
             if (.not. parse_table_directory_at_offset(font_info%font_data, font_offset, &
                                                     font_info%header, font_info%tables)) then
@@ -104,12 +104,12 @@ contains
             end if
         else
             font_info%is_ttc = .false.
-            
+
             ! For TTF files, font_index must be 0
             if (font_index /= 0) then
                 return
             end if
-            
+
             ! Parse TTF header
             if (.not. parse_ttf_header(font_info%font_data, font_info%header)) then
                 return

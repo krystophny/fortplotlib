@@ -182,7 +182,7 @@ contains
 
         write(*,'(A,I0,A,I0)') "   📊 Number of fonts: STB=", stb_num_fonts, &
                                ", Pure=", pure_num_fonts
-        
+
         if (stb_num_fonts /= pure_num_fonts) then
             write(*,*) "    ❌ Number of fonts mismatch!"
             deallocate(font_data)
@@ -198,7 +198,7 @@ contains
 
             write(*,'(A,I0,A,I0,A,I0)') "   📍 Font ", i, " offset: STB=", &
                                         stb_offset, ", Pure=", pure_offset
-            
+
             if (stb_offset /= pure_offset) then
                 write(*,'(A,I0,A)') "    ❌ Font ", i, " offset mismatch!"
                 deallocate(font_data)
@@ -210,7 +210,7 @@ contains
         ! Test invalid index (should return -1)
         stb_offset = stb_get_font_offset_for_index(font_ptr, stb_num_fonts)
         pure_offset = stb_get_font_offset_for_index_pure(font_ptr, stb_num_fonts)
-        
+
         if (stb_offset /= pure_offset .or. stb_offset /= -1) then
             write(*,*) "    ❌ Invalid index handling mismatch!"
             deallocate(font_data)
