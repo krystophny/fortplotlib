@@ -3,7 +3,7 @@
 This TODO list tracks the remaining steps to achieve a pure Fortran replacement for the STB TrueType C library, with feature parity and test-driven development.
 Tests build code automatically. Just run
 
-`fpm test --target test_stb_comparison 2>&1` to run all tests and build the code.
+`fpm test --target test_stb_comparison 2>&1` to run all tests and build the code. Important: the command is `fpm`, NOT `fmp`!
 
 ## !! Important Notes
 - YOU MUST USE RED-GREEN TEST-DRIVEN DEVELOPMENT (TDD) FOR EVERY FUNCTION AND SUBROUTINE.
@@ -11,6 +11,7 @@ Tests build code automatically. Just run
 - You must place variable declarations on top of the subroutine or function.
 - Fortran has no unsigned integers, so be careful with types and sizes.
 - Fortran uses 1-based indexing per default (can be specified in declaration), so be careful with array indices.
+
 
 ## 📁 Source File Locations
 
