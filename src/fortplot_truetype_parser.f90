@@ -17,6 +17,7 @@ module fortplot_truetype_parser
     public :: ttf_hhea_table_t, ttf_maxp_table_t, ttf_cmap_table_t
     public :: ttf_cmap_subtable_t, ttc_header_t, stb_fontinfo_pure_t
     public :: ttf_kern_entry_t, ttf_kern_table_t
+    ! public :: ttf_loca_table_t, ttf_glyf_header_t
 
     ! Public functions
     public :: read_truetype_file, parse_ttf_header, parse_table_directory
@@ -28,6 +29,7 @@ module fortplot_truetype_parser
     public :: parse_head_table, parse_hhea_table, parse_maxp_table
     public :: parse_cmap_table, parse_cmap_format4, find_table_offset, find_table_index
     public :: parse_kern_table_if_available
+    ! public :: parse_loca_table, parse_glyf_header
 
 contains
 
@@ -842,5 +844,9 @@ contains
         font_info%kern_parsed = .true.
 
     end subroutine parse_kern_table_if_available
+
+    ! TODO: Implement loca and glyf parsing functions
+    ! function parse_loca_table(...
+    ! function parse_glyf_header(...
 
 end module fortplot_truetype_parser

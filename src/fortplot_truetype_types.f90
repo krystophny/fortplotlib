@@ -12,6 +12,7 @@ module fortplot_truetype_types
     public :: ttf_hhea_table_t, ttf_maxp_table_t, ttf_cmap_table_t
     public :: ttf_cmap_subtable_t, ttc_header_t, stb_fontinfo_pure_t
     public :: ttf_kern_entry_t, ttf_kern_table_t
+    public :: ttf_loca_table_t, ttf_glyf_header_t
 
     ! TrueType table directory entry
     type :: ttf_table_entry_t
@@ -184,5 +185,21 @@ module fortplot_truetype_types
         ! Future: Glyph outline data
         ! Future: Character mapping tables
     end type stb_fontinfo_pure_t
+
+    ! Loca table - glyph location index
+    type :: ttf_loca_table_t
+        integer, allocatable :: offsets(:)  ! Glyph offsets into glyf table
+        logical :: is_long_format = .false.  ! True for 32-bit offsets, false for 16-bit
+    end type ttf_loca_table_t
+
+    ! Glyph header (simple or composite)
+    type :: ttf_glyf_header_t
+        integer :: num_contours = 0    ! Negative for composite glyphs
+        integer :: x_min = 0
+        integer :: y_min = 0
+        integer :: x_max = 0
+        integer :: y_max = 0
+        ! Glyph data follows (simple or composite)
+    end type ttf_glyf_header_t
 
 end module fortplot_truetype_types
