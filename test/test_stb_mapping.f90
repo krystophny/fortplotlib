@@ -37,7 +37,7 @@ contains
             stb_glyph = stb_find_glyph_index(stb_font, test_chars(i))
             pure_glyph = stb_find_glyph_index_pure(pure_font, test_chars(i))
 
-            write(*,'(A,I0,A,I0,A,I0)') "    Char ", test_chars(i), &
+            write(*,'(A,I0,A,A,A,I0,A,I0)') "    Char ", test_chars(i), &
                     " ('", char(test_chars(i)), "'): STB=", stb_glyph, &
                     ", Pure=", pure_glyph
 

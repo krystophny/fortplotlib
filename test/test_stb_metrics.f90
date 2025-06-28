@@ -184,8 +184,9 @@ contains
         write(*,*) "  Testing OS/2 metrics functions (TDD)..."
 
         ! Test OS/2 table vertical metrics
-        stb_success = stb_get_font_vmetrics_os2(stb_font, stb_typo_ascent, stb_typo_descent, stb_typo_line_gap)
+        call stb_get_font_vmetrics_os2(stb_font, stb_typo_ascent, stb_typo_descent, stb_typo_line_gap)
         pure_success = stb_get_font_vmetrics_os2_pure(pure_font, pure_typo_ascent, pure_typo_descent, pure_typo_line_gap)
+        stb_success = 1  ! STB subroutine doesn't return success code
 
         write(*,'(A,3I6,A,I0,A,3I6)') "    OS/2 metrics: STB=(", stb_typo_ascent, stb_typo_descent, stb_typo_line_gap, &
                                      "), Pure=", pure_success, " (", pure_typo_ascent, pure_typo_descent, pure_typo_line_gap, ")"

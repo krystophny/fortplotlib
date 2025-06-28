@@ -90,33 +90,16 @@ contains
     function init_both_fonts(font_path, stb_font, pure_font, stb_success, pure_success) result(success)
         !! Initialize both STB and Pure Fortran fonts
         character(len=*), intent(in) :: font_path
-        type(stb_fontinfo), intent(out) :: stb_font
+        type(stb_fontinfo_t), intent(out) :: stb_font
         type(stb_fontinfo_pure_t), intent(out) :: pure_font
         logical, intent(out) :: stb_success, pure_success
         logical :: success
 
-        integer(c_int8_t), allocatable, target :: font_data(:)
-        integer :: data_size
-        type(c_ptr) :: font_ptr
-        logical :: file_success
+        ! Initialize STB font directly from file path
+        stb_success = stb_init_font(stb_font, font_path)
 
-        ! Read font file
-        file_success = read_truetype_file(font_path, font_data, data_size)
-        if (.not. file_success) then
-            success = .false.
-            stb_success = .false.
-            pure_success = .false.
-            return
-        end if
-
-        ! Convert to C pointer for STB
-        font_ptr = c_loc(font_data(1))
-
-        ! Initialize STB font
-        stb_success = stb_init_font(stb_font, font_ptr, 0)
-
-        ! Initialize Pure Fortran font
-        pure_success = (stb_init_font_pure(pure_font, font_data, 0) == 1)
+        ! Initialize Pure Fortran font directly from file path
+        pure_success = stb_init_font_pure(pure_font, font_path)
 
         success = stb_success .and. pure_success
 
