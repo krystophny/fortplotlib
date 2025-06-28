@@ -34,24 +34,73 @@ Tests build code automatically. Just run
 - ✅ Basic metrics, font info, character mapping fully working
 - ✅ Bounding boxes, scale factors, glyph indexing working
 - ✅ Bitmap rendering and subpixel rendering working
-- 🎯 Next: Implement remaining advanced features (detailed metrics, kerning tables)
+- 🎯 **Next Priority**: Complete Phase 2 & 3 modularization before continuing with Level 10
+- 🎯 After modularization: Implement remaining advanced features (detailed metrics, kerning tables)
 
 **Test Command:** `fpm test --target test_stb_comparison`
 
 ---
 
-## 🆕 Modularization Note (June 2025)
+## 🆕 Modularization Strategy (June 2025)
 
+### Phase 1: Core Modules (✅ Complete)
 All TrueType/TTC types and parsing logic are now in dedicated modules:
 - `src/fortplot_truetype_types.f90` — All type definitions
 - `src/fortplot_truetype_parser.f90` — All parsing and binary helpers
 - `src/fortplot_stb.f90` — Main API, reusing the above modules (DRY)
 
+### Phase 2: STB API Modularization (🎯 Next Priority)
+Break down the large `src/fortplot_stb.f90` into focused modules following SRP:
+- `src/fortplot_stb_core.f90` — Core font initialization and cleanup
+- `src/fortplot_stb_metrics.f90` — All metrics functions (horizontal, vertical, OS/2, kerning)
+- `src/fortplot_stb_mapping.f90` — Character-to-glyph mapping and lookup functions
+- `src/fortplot_stb_bitmap.f90` — Bitmap rendering and rasterization functions
+- `src/fortplot_stb.f90` — Main public API, importing and re-exporting all modules
+
+### Phase 3: Test Modularization (🎯 Next Priority)
+Break down the large `test/test_stb_comparison.f90` into focused test modules:
+- `test/test_utils.f90` — Common test utilities (font discovery, initialization helpers)
+- `test/test_stb_core.f90` — Core font initialization and TTC tests
+- `test/test_stb_metrics.f90` — All metrics comparison tests
+- `test/test_stb_mapping.f90` — Character mapping and glyph lookup tests
+- `test/test_stb_bitmap.f90` — Bitmap rendering comparison tests
+- `test/test_stb_comparison.f90` — Main test program orchestrating all test modules
+
+### Benefits of Modularization:
+- **Single Responsibility Principle (SRP)**: Each module has one clear purpose
+- **DRY**: Shared functionality in dedicated modules
+- **Maintainability**: Easier to find and modify specific functionality
+- **Testing**: Focused test modules for each functional area
+- **Build Performance**: Faster incremental compilation
+
 ---
 
 ## 📝 Remaining TODOs
 
-### Level 5: TTC (TrueType Collection) Support
+### 🔧 IMMEDIATE: Complete Modularization (Phase 2 & 3)
+
+**Phase 2: STB API Modularization**
+- [ ] Create `src/fortplot_stb_core.f90` (font init/cleanup, TTC support)
+- [ ] Create `src/fortplot_stb_metrics.f90` (horizontal, vertical, OS/2, kerning metrics)
+- [ ] Create `src/fortplot_stb_mapping.f90` (character-to-glyph mapping and lookup)
+- [ ] Create `src/fortplot_stb_bitmap.f90` (bitmap rendering functions - stubs for now)
+- [ ] Refactor `src/fortplot_stb.f90` to be a thin API layer importing/re-exporting modules
+- [ ] Ensure all tests pass after modularization
+
+**Phase 3: Test Modularization**
+- [ ] Create `test/test_utils.f90` (font discovery, initialization helpers)
+- [ ] Create `test/test_stb_core.f90` (core font and TTC tests)
+- [ ] Create `test/test_stb_metrics.f90` (metrics comparison tests)
+- [ ] Create `test/test_stb_mapping.f90` (character mapping tests)
+- [ ] Create `test/test_stb_bitmap.f90` (bitmap rendering tests)
+- [ ] Refactor `test/test_stb_comparison.f90` to orchestrate modular test suites
+- [ ] Ensure all tests pass and provide same coverage as before
+
+---
+
+## 📝 Future Development TODOs (After Modularization)
+
+### Level 5: TTC (TrueType Collection) Support (✅ Complete)
 **Parser functions (already implemented):**
 - ✅ `is_ttc_file()` - Detect TTC file format ('ttcf' signature)
 - ✅ `parse_ttc_header()` - Parse TTC header (version, numFonts, offsets)
@@ -63,25 +112,25 @@ All TrueType/TTC types and parsing logic are now in dedicated modules:
 - ✅ Updated `stb_init_font_pure()` to handle TTC files and font index parameter
 - ✅ All tests in `test_stb_comparison.f90` pass for both TTF and TTC fonts
 
-### Level 6: Basic Metrics and Horizontal Layout
+### Level 6: Basic Metrics and Horizontal Layout (✅ Complete)
 - ✅ `stb_get_codepoint_hmetrics_pure()` - Get horizontal character metrics
 - ✅ `stb_scale_for_mapping_em_to_pixels_pure()` - Calculate scale factor for desired em size
 - ✅ Parse `hmtx` table for glyph advance widths and left side bearings
 - ✅ RED-GREEN TDD tests added and passing for all metrics functions
 
-### Level 7: Bounding Boxes and Font Metrics
+### Level 7: Bounding Boxes and Font Metrics (✅ Complete)
 - ✅ `stb_get_font_bounding_box_pure()` - Get font bounding box
 - ✅ `stb_get_codepoint_box_pure()` - Get character bounding box
 - ✅ `stb_get_glyph_box_pure()` - Get glyph bounding box by glyph index
 - ✅ `stb_get_glyph_hmetrics_pure()` - Get horizontal glyph metrics by glyph index (implemented in Level 6)
 - ✅ RED-GREEN TDD tests added and passing for all bounding box functions
 
-### Level 8: OS/2 Metrics
+### Level 8: OS/2 Metrics (✅ Complete)
 - ✅ `stb_get_font_vmetrics_os2_pure()` - Get OS/2 table vertical metrics
 - ✅ Parse `OS/2` table for extended font metrics
 - ✅ RED-GREEN TDD tests added and passing for OS/2 metrics functions
 
-### Level 9: Kerning Support
+### Level 9: Kerning Support (✅ Complete)
 - ✅ `stb_get_codepoint_kern_advance_pure()` - Get kerning advance between two characters
 - ✅ `stb_get_glyph_kern_advance_pure()` - Get kerning advance between two glyphs
 - ✅ `stb_get_kerning_table_length_pure()` - Get length of kerning table
