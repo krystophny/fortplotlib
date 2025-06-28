@@ -2,7 +2,10 @@
 
 This TODO list tracks the remaining steps to achieve a pure Fortran replacement for the STB TrueType C library, with feature parity and test-driven development.
 
-**Test Commands (modular tests run automatically via fpm):**
+**Build and Test Commands (modular tests run automatically via fpm):**
+
+Test commands do build automatically! Don't build in addition.
+
 - `fpm test --target test_forttf_metrics` — Run metrics comparison tests
 - `fpm test --target test_forttf_mapping` — Run character mapping tests  
 - `fpm test --target test_forttf_bitmap` — Run bitmap rendering tests

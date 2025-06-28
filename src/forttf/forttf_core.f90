@@ -4,7 +4,9 @@ module forttf_core
     use iso_c_binding
     use, intrinsic :: iso_fortran_env, only: wp => real64
     use forttf_types
-    use forttf_parser
+    use forttf_file_io
+    use forttf_table_parser
+    use forttf_glyph_parser
     implicit none
 
     private
@@ -129,6 +131,15 @@ contains
             return
         end if
         font_info%cmap_parsed = .true.
+
+        ! Parse loca table for glyph location information
+        if (parse_loca_table(font_info%font_data, font_info%tables, &
+                           font_info%head_table, font_info%loca_table)) then
+            font_info%loca_parsed = .true.
+        end if
+
+        ! Check if glyf table is available for bitmap rendering
+        font_info%glyf_table_available = has_table(font_info%tables, 'glyf')
 
         font_info%initialized = .true.
         success = .true.

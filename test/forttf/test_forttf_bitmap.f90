@@ -32,6 +32,7 @@ contains
         end if
         
         ! Run all test subroutines
+        call test_glyf_loca_parsing(stb_font, pure_font)
         call test_bitmap_boxes(stb_font, pure_font)
         call test_bitmap_rendering(stb_font, pure_font)
         call test_subpixel_rendering(stb_font, pure_font)
@@ -47,6 +48,102 @@ contains
             error stop 1
         end if
     end subroutine run_all_bitmap_tests
+
+    subroutine test_glyf_loca_parsing(stb_font, pure_font)
+        !! Test glyf and loca table parsing (TDD for Level 10)
+        type(stb_fontinfo_t), intent(in) :: stb_font
+        type(stb_fontinfo_pure_t), intent(in) :: pure_font
+
+        write(*,*) "  Testing glyf and loca table parsing (TDD)..."
+
+        ! Test 1: Check if loca table was successfully parsed
+        if (pure_font%loca_parsed) then
+            write(*,*) "    ✅ Loca table parsing implemented"
+        else
+            write(*,*) "    ❌ Loca table parsing not yet implemented"
+        end if
+
+        ! Test 2: Check if glyf table is available
+        if (pure_font%glyf_table_available) then
+            write(*,*) "    ✅ Glyf table detected as available"
+        else
+            write(*,*) "    ❌ Glyf table not available (may be missing in this font)"
+        end if
+
+        ! Test 3: Check loca table format detection
+        if (pure_font%loca_parsed) then
+            if (pure_font%loca_table%is_long_format) then
+                write(*,*) "    ✅ Loca table detected as long format (32-bit offsets)"
+            else
+                write(*,*) "    ✅ Loca table detected as short format (16-bit offsets)"
+            end if
+
+            ! Test 4: Check loca offsets are allocated and reasonable
+            if (allocated(pure_font%loca_table%offsets)) then
+                if (size(pure_font%loca_table%offsets) > pure_font%num_glyphs) then
+                    write(*,'(A,I0,A,I0,A)') "    ✅ Loca offsets allocated: ", &
+                           size(pure_font%loca_table%offsets), " entries for ", &
+                           pure_font%num_glyphs, " glyphs"
+                else
+                    write(*,'(A,I0,A,I0,A)') "    ❌ Loca offsets insufficient: ", &
+                           size(pure_font%loca_table%offsets), " entries for ", &
+                           pure_font%num_glyphs, " glyphs"
+                end if
+            else
+                write(*,*) "    ❌ Loca offsets not allocated"
+            end if
+        end if
+
+        ! Test 5: Try to parse a specific glyph header if glyf table is available
+        if (pure_font%glyf_table_available .and. pure_font%loca_parsed) then
+            call test_glyph_header_parsing(pure_font)
+        else
+            write(*,*) "    ⚠️  Skipping glyph header parsing (glyf/loca not available)"
+        end if
+
+    end subroutine test_glyf_loca_parsing
+
+    subroutine test_glyph_header_parsing(pure_font)
+        !! Test parsing of individual glyph headers
+        use forttf_parser, only: parse_glyf_header, find_table
+        type(stb_fontinfo_pure_t), intent(in) :: pure_font
+        type(ttf_glyf_header_t) :: glyf_header
+        integer :: glyf_table_idx, glyf_offset, glyph_offset
+        logical :: success
+        integer :: test_glyph_index
+
+        test_glyph_index = 1  ! Test first glyph (usually .notdef)
+
+        ! Find glyf table
+        glyf_table_idx = find_table(pure_font%tables, 'glyf')
+        if (glyf_table_idx == 0) then
+            write(*,*) "    ❌ Could not find glyf table"
+            return
+        end if
+
+        glyf_offset = pure_font%tables(glyf_table_idx)%offset
+
+        ! Get offset for test glyph
+        if (test_glyph_index <= 0 .or. test_glyph_index > size(pure_font%loca_table%offsets) - 1) then
+            write(*,*) "    ❌ Invalid test glyph index"
+            return
+        end if
+
+        glyph_offset = pure_font%loca_table%offsets(test_glyph_index)
+
+        ! Try to parse glyph header
+        success = parse_glyf_header(pure_font%font_data, glyf_offset, glyph_offset, glyf_header)
+
+        if (success) then
+            write(*,'(A,I0,A,I0,A,4I6,A)') "    ✅ Glyph ", test_glyph_index - 1, &
+                   " header parsed: contours=", glyf_header%num_contours, &
+                   ", bbox=(", glyf_header%x_min, glyf_header%y_min, &
+                   glyf_header%x_max, glyf_header%y_max, ")"
+        else
+            write(*,'(A,I0,A)') "    ❌ Failed to parse glyph ", test_glyph_index - 1, " header"
+        end if
+
+    end subroutine test_glyph_header_parsing
 
     subroutine test_bitmap_boxes(stb_font, pure_font)
         !! Test bitmap bounding box calculations (TDD)

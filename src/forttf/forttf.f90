@@ -5,7 +5,6 @@ module forttf
     use iso_c_binding
     use, intrinsic :: iso_fortran_env, only: wp => real64
     use forttf_types
-    use forttf_parser
     use forttf_core
     use forttf_metrics
     use forttf_mapping

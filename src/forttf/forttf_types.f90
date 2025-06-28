@@ -150,6 +150,22 @@ module forttf_types
         type(ttf_kern_entry_t), allocatable :: entries(:)
     end type ttf_kern_table_t
 
+    ! Loca table - glyph location index
+    type :: ttf_loca_table_t
+        integer, allocatable :: offsets(:)  ! Glyph offsets into glyf table
+        logical :: is_long_format = .false.  ! True for 32-bit offsets, false for 16-bit
+    end type ttf_loca_table_t
+
+    ! Glyph header (simple or composite)
+    type :: ttf_glyf_header_t
+        integer :: num_contours = 0    ! Negative for composite glyphs
+        integer :: x_min = 0
+        integer :: y_min = 0
+        integer :: x_max = 0
+        integer :: y_max = 0
+        ! Glyph data follows (simple or composite)
+    end type ttf_glyf_header_t
+
     ! Main font information structure (pure Fortran implementation)
     type :: stb_fontinfo_pure_t
         logical :: initialized = .false.
@@ -176,30 +192,16 @@ module forttf_types
         type(ttf_maxp_table_t) :: maxp_table
         type(ttf_cmap_table_t) :: cmap_table
         type(ttf_kern_table_t) :: kern_table
+        type(ttf_loca_table_t) :: loca_table
         logical :: head_parsed = .false.
         logical :: hhea_parsed = .false.
         logical :: maxp_parsed = .false.
         logical :: cmap_parsed = .false.
         logical :: kern_parsed = .false.
+        logical :: loca_parsed = .false.
 
-        ! Future: Glyph outline data
-        ! Future: Character mapping tables
+        ! Glyph outline data parsing capability
+        logical :: glyf_table_available = .false.
     end type stb_fontinfo_pure_t
-
-    ! Loca table - glyph location index
-    type :: ttf_loca_table_t
-        integer, allocatable :: offsets(:)  ! Glyph offsets into glyf table
-        logical :: is_long_format = .false.  ! True for 32-bit offsets, false for 16-bit
-    end type ttf_loca_table_t
-
-    ! Glyph header (simple or composite)
-    type :: ttf_glyf_header_t
-        integer :: num_contours = 0    ! Negative for composite glyphs
-        integer :: x_min = 0
-        integer :: y_min = 0
-        integer :: x_max = 0
-        integer :: y_max = 0
-        ! Glyph data follows (simple or composite)
-    end type ttf_glyf_header_t
 
 end module forttf_types
