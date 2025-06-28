@@ -327,6 +327,9 @@ scale = real(pixel_height, wp) / real(head_table%units_per_em, wp)
 - **⚠️ Endianness handling** - TrueType is big-endian, ensure proper byte order
   - Use `read_be_uint32()`, `read_be_uint16()` functions consistently
   - Test on both little-endian (Intel) and big-endian systems if possible
+- **⚠️ Command typos** - Use correct `fpm` command, NOT `fmp`
+  - Correct: `fpm test --target test_stb_comparison`
+  - Incorrect: `fmp test --target test_stb_comparison` (will give "command not found")
 
 ### General Development
 - Follow SOLID principles and 88-character line limit from `CLAUDE.md`

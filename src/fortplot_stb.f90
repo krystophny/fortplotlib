@@ -356,7 +356,8 @@ contains
                     if (subtable%id_range_offset(i) == 0) then
                         ! Direct mapping using delta
                         glyph_index = codepoint + subtable%id_delta(i)
-                        if (glyph_index < 0) glyph_index = glyph_index + 65536  ! Handle overflow
+                        ! Handle 16-bit modulo arithmetic properly
+                        glyph_index = iand(glyph_index, 65535)  ! Keep only lower 16 bits
                     else
                         ! Indirect mapping through glyph array (not implemented yet)
                         glyph_index = 0
@@ -1109,7 +1110,7 @@ contains
         ! Read idDelta array
         id_delta_offset = start_code_offset + subtable%seg_count * 2
         do i = 1, subtable%seg_count
-            subtable%id_delta(i) = read_be_uint16(font_data, id_delta_offset + (i-1) * 2)
+            subtable%id_delta(i) = read_be_int16(font_data, id_delta_offset + (i-1) * 2)
         end do
 
         ! Read idRangeOffset array
