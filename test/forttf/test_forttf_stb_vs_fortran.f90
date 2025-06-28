@@ -199,7 +199,7 @@ contains
         real(wp), parameter :: flatness = 0.35_wp
         real(wp), parameter :: scale_x = 0.5_wp, scale_y = 0.5_wp
         real(wp), parameter :: shift_x = 0.0_wp, shift_y = 0.0_wp
-        logical, parameter :: invert = .true.
+        logical, parameter :: invert = .false.
         
         ! STB C results
         type(c_ptr) :: stb_edges_ptr
@@ -216,8 +216,8 @@ contains
             return
         end if
         
-        ! Get glyph shape for letter 'A' (ascii 65)
-        num_vertices = stb_get_glyph_shape_pure(font_info, 65, vertices)
+        ! Get glyph shape for glyph 36 (same as complete pipeline test)
+        num_vertices = stb_get_glyph_shape_pure(font_info, 36, vertices)
         
         ! Flatten curves
         fortran_points = stb_flatten_curves(vertices, num_vertices, flatness, &

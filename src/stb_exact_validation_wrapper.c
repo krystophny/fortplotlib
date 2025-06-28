@@ -70,6 +70,92 @@ void stb_test_flatten_curves_exact(fortran_vertex_t *fortran_vertices, int num_v
 }
 
 /*
+ * Debug wrapper for stbtt_FlattenCurves - same as test version but different name
+ */
+void stb_debug_flatten_curves(fortran_vertex_t *fortran_vertices, int num_verts, float flatness,
+                             stbtt__point **points_out, int **contour_lengths_out, 
+                             int *num_contours_out, int *total_points_out) {
+    // Convert Fortran vertices to STB format
+    stbtt_vertex *stb_vertices = convert_fortran_to_stb_vertices(fortran_vertices, num_verts);
+    if (!stb_vertices) {
+        *points_out = NULL;
+        *contour_lengths_out = NULL;
+        *num_contours_out = 0;
+        *total_points_out = 0;
+        return;
+    }
+    
+    stbtt__point *points = stbtt_FlattenCurves(stb_vertices, num_verts, flatness, 
+                                              contour_lengths_out, num_contours_out, NULL);
+    *points_out = points;
+    
+    // Count total points
+    *total_points_out = 0;
+    for (int i = 0; i < *num_contours_out; i++) {
+        *total_points_out += (*contour_lengths_out)[i];
+    }
+    
+    free(stb_vertices);
+}
+
+/*
+ * Forward declarations
+ */
+void stb_test_build_edges_exact(stbtt__point *pts, int *wcount, int windings,
+                               float scale_x, float scale_y, float shift_x, float shift_y, 
+                               int invert, stbtt__edge **edges_out, int *num_edges_out);
+
+/*
+ * Fortran double-precision point structure (must match forttf_types.f90)
+ */
+typedef struct {
+    double x, y;
+} fortran_point_t;
+
+/*
+ * Convert Fortran double-precision points to STB single-precision points
+ */
+static stbtt__point* convert_fortran_points_to_stb(fortran_point_t *fortran_points, int num_points) {
+    stbtt__point *stb_points = malloc(num_points * sizeof(stbtt__point));
+    if (!stb_points) return NULL;
+    
+    for (int i = 0; i < num_points; i++) {
+        stb_points[i].x = (float)fortran_points[i].x;
+        stb_points[i].y = (float)fortran_points[i].y;
+    }
+    
+    return stb_points;
+}
+
+/*
+ * Test wrapper for edge building from Fortran double-precision points
+ */
+void stb_test_build_edges_from_fortran_points(fortran_point_t *fortran_pts, int *wcount, int windings,
+                                             float scale_x, float scale_y, float shift_x, float shift_y, 
+                                             int invert, stbtt__edge **edges_out, int *num_edges_out) {
+    // Count total points
+    int total_points = 0;
+    for (int i = 0; i < windings; i++) {
+        total_points += wcount[i];
+    }
+    
+    // Convert Fortran points to STB format
+    stbtt__point *stb_pts = convert_fortran_points_to_stb(fortran_pts, total_points);
+    if (!stb_pts) {
+        *edges_out = NULL;
+        *num_edges_out = 0;
+        return;
+    }
+    
+    // Call the existing STB edge building function
+    stb_test_build_edges_exact(stb_pts, wcount, windings, scale_x, scale_y, shift_x, shift_y, 
+                              invert, edges_out, num_edges_out);
+    
+    // Clean up converted points
+    free(stb_pts);
+}
+
+/*
  * Test wrapper for edge building from stbtt__rasterize 
  */
 void stb_test_build_edges_exact(stbtt__point *pts, int *wcount, int windings,
@@ -78,19 +164,30 @@ void stb_test_build_edges_exact(stbtt__point *pts, int *wcount, int windings,
     float y_scale_inv = invert ? -scale_y : scale_y;
     int vsubsample = 1;  // STBTT_RASTERIZER_VERSION == 2
     
+    printf("STB C: Input parameters: scale=(%.6f,%.6f) shift=(%.6f,%.6f) invert=%d\n", 
+           scale_x, scale_y, shift_x, shift_y, invert);
+    
     // Count edges needed (skip horizontal)
     int n = 0;
     int m = 0;
+    printf("STB C: Counting edges...\n");
     for (int i = 0; i < windings; ++i) {
         stbtt__point *p = pts + m;
         m += wcount[i];
         int j = wcount[i] - 1;
+        printf("  Contour %d: length=%d\n", i+1, wcount[i]);
         for (int k = 0; k < wcount[i]; j = k++) {
+            printf("    Candidate k=%d j=%d: (%.2f,%.2f) -> (%.2f,%.2f)\n", 
+                   k, j, p[j].x, p[j].y, p[k].x, p[k].y);
             if (p[j].y != p[k].y) {  // Skip horizontal edges
                 n++;
+                printf("      ADDED: Edge %d\n", n);
+            } else {
+                printf("      SKIPPED: Horizontal edge (dy = %.6f)\n", p[k].y - p[j].y);
             }
         }
     }
+    printf("  Total edges after filtering: %d\n", n);
     
     *num_edges_out = n;
     if (n == 0) {
