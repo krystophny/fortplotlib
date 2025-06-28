@@ -30,8 +30,8 @@ This TODO list tracks the remaining steps to achieve a pure Fortran replacement 
     - `fortplot_stb_metrics.f90` (all metrics functionality)
     - `fortplot_stb_mapping.f90` (character mapping)
     - `fortplot_stb_bitmap.f90` (bitmap rendering)
-    - `fortplot_truetype_types.f90` (type definitions)
-    - `fortplot_truetype_parser.f90` (parsing logic)
+    - `fortplot_stb_types.f90` (type definitions)
+    - `fortplot_stb_parser.f90` (parsing logic)
 - `test/` — Focused test modules: `test_stb_metrics.f90`, `test_stb_mapping.f90`, `test_stb_bitmap.f90`
 - `DONE.md` — Completed tasks and implementations
 
@@ -40,6 +40,7 @@ This TODO list tracks the remaining steps to achieve a pure Fortran replacement 
 ## 🚦 Current Status (June 28, 2025)
 
 - ✅ **Modularization Complete**: Phase 1, 2, and 3 successfully completed (see DONE.md)
+- ✅ **Naming Consistency**: All modules now use consistent `fortplot_stb_*` naming scheme
 - ✅ **Core Implementation**: Font initialization, metrics, mapping fully working
 - ✅ **Test Architecture**: Focused modular test suite with comprehensive coverage
 - 🎯 **Next Priority**: Implement kerning table parsing (Level 9.5)
@@ -57,8 +58,8 @@ This TODO list tracks the remaining steps to achieve a pure Fortran replacement 
 ### Level 9.5: Kerning Implementation (🎯 Immediate Next Priority)
 Current status: Kerning functions exist and have proper interfaces but return 0 (need actual kern table parsing)
 
-- [ ] Implement `kern` table parsing in `fortplot_truetype_parser.f90`
-  - [ ] Add `ttf_kern_table_t` type to `fortplot_truetype_types.f90`
+- [ ] Implement `kern` table parsing in `fortplot_stb_parser.f90`
+  - [ ] Add `ttf_kern_table_t` type to `fortplot_stb_types.f90`
   - [ ] Implement `parse_kern_table()` function
   - [ ] Add kerning table validation and format support
 - [ ] Update `stb_get_codepoint_kern_advance_pure()` to use parsed kerning data
@@ -71,7 +72,7 @@ Current status: Kerning functions exist and have proper interfaces but return 0 
 Current status: Bounding box functions implemented, actual rendering functions are stubs
 
 - [ ] Parse `glyf` and `loca` tables for glyph outline data
-  - [ ] Add glyph table types to `fortplot_truetype_types.f90`
+  - [ ] Add glyph table types to `fortplot_stb_types.f90`
   - [ ] Implement `parse_glyf_table()` and `parse_loca_table()` functions
 - [ ] Implement glyph outline rasterization and anti-aliasing
 - [ ] Complete bitmap rendering functions:

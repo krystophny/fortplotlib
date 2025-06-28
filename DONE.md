@@ -4,8 +4,8 @@ This document tracks all completed tasks from the Pure Fortran TrueType implemen
 
 ## ✅ Phase 1: Core Modules (Complete - June 2025)
 All TrueType/TTC types and parsing logic implemented in dedicated modules:
-- `src/fortplot_truetype_types.f90` — All type definitions
-- `src/fortplot_truetype_parser.f90` — All parsing and binary helpers
+- `src/fortplot_stb_types.f90` — All type definitions
+- `src/fortplot_stb_parser.f90` — All parsing and binary helpers
 - `src/fortplot_stb.f90` — Main API, reusing the above modules (DRY)
 
 ## ✅ Phase 2: STB API Modularization (Complete - June 2025)

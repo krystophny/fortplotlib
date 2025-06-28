@@ -3,8 +3,8 @@ module fortplot_stb_core
     !! This module handles font initialization, cleanup, and TTC support
     use iso_c_binding
     use, intrinsic :: iso_fortran_env, only: wp => real64
-    use fortplot_truetype_types
-    use fortplot_truetype_parser
+    use fortplot_stb_types
+    use fortplot_stb_parser
     implicit none
 
     private

@@ -3,7 +3,7 @@ module test_utils
     !! Provides font discovery, initialization helpers, and common test data
     use fortplot_stb_truetype
     use fortplot_stb
-    use fortplot_truetype_parser, only: read_truetype_file
+    use fortplot_stb_parser, only: read_truetype_file
     use iso_c_binding
     use, intrinsic :: iso_fortran_env, only: wp => real64
     implicit none

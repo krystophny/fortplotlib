@@ -4,8 +4,8 @@ module fortplot_stb
     !! Currently returns placeholder/error values - implementation is planned for future development
     use iso_c_binding
     use, intrinsic :: iso_fortran_env, only: wp => real64
-    use fortplot_truetype_types
-    use fortplot_truetype_parser
+    use fortplot_stb_types
+    use fortplot_stb_parser
     use fortplot_stb_core
     use fortplot_stb_metrics
     use fortplot_stb_mapping
