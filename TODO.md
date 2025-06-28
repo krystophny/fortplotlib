@@ -5,6 +5,11 @@ Tests build code automatically. Just run
 
 `fpm test --target test_stb_comparison` to run all tests and build the code.
 
+## !! Important Notes
+- You must place variable declarations on top of the subroutine or function.
+- Fortran has no unsigned integers, so be careful with types and sizes.
+- Fortran uses 1-based indexing per default (can be specified in declaration), so be careful with array indices.
+
 ## 📁 Source File Locations
 
 - `thirdparty/` — Original C reference: `stb_truetype.h`
