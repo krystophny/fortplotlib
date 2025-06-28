@@ -67,49 +67,73 @@ All test commands build the code automatically! If you want to build, just test!
 
 ---
 
-### 🎯 Level 12: Backend Switch to Pure Fortran (Immediate Next Priority)
+### ❌ Level 12: Backend Switch to Pure Fortran - CRITICAL ISSUE DISCOVERED!
 
-**Status: READY** - All required STB functions are implemented and tested. Time to switch!
+**Status: BROKEN** - Backend switch completed BUT bitmap rendering is producing placeholder shapes instead of actual text!
 
-**Objective**: Replace the STB C library backend in `fortplot_text.f90` with the pure Fortran implementation.
+**CRITICAL PROBLEM DISCOVERED (June 28, 2025):**
+The pure Fortran bitmap implementation in `forttf_bitmap.f90` is currently generating placeholder shapes (gray circles/rectangles) instead of actual glyph bitmaps. This was missed by our tests because:
+
+1. **Test Gap**: Bitmap tests only verified dimensions, NOT actual bitmap content
+2. **Missing Implementation**: `render_glyph_to_bitmap()` creates placeholder shapes, not real text
+3. **Real Impact**: Plots now show gray circles instead of text labels
+
+**IMMEDIATE ACTION REQUIRED:**
+
+### 🚨 Level 12A: Fix Bitmap Rendering Implementation (URGENT)
+
+**Objective**: Implement actual glyph outline parsing and rasterization to replace placeholder shapes.
+
+**Missing Components:**
+1. **Glyph Outline Parsing**: Parse TrueType glyph outline data from `glyf` table
+2. **Curve Rasterization**: Convert Bézier curves and lines to bitmap pixels
+3. **Antialiasing**: Implement proper antialiased rendering like STB
+4. **Hinting Support**: Basic glyph hinting for better readability
 
 **Implementation Strategy:**
 
-**Phase 12.1: Preparation**
-- [ ] Create backup of current `fortplot_text.f90` as `fortplot_text_stb.f90.backup`
-- [ ] Audit all STB function calls in `fortplot_text.f90` (7 functions confirmed)
-- [ ] Verify pure Fortran equivalents exist and work (✅ Already confirmed)
+**Phase 12A.1: TrueType Outline Parsing**
+- [ ] Study STB's `stbtt__GetGlyphShapeTT()` function in `stb_truetype.h`
+- [ ] Implement glyph coordinate parsing from `glyf` table
+- [ ] Parse simple glyph contours (MoveTo, LineTo, QuadTo operations)
+- [ ] Handle composite glyphs (glyph references)
+- [ ] **TEST**: Compare parsed coordinates with STB reference
 
-**Phase 12.2: Backend Switch**
-- [ ] Update `use fortplot_stb_truetype` → `use forttf` in `fortplot_text.f90`
-- [ ] Replace function calls:
-  - [ ] `stb_init_font()` → `stb_init_font_pure()`
-  - [ ] `stb_scale_for_pixel_height()` → `stb_scale_for_pixel_height_pure()`
-  - [ ] `stb_cleanup_font()` → `stb_cleanup_font_pure()`
-  - [ ] `stb_get_codepoint_hmetrics()` → `stb_get_codepoint_hmetrics_pure()`
-  - [ ] `stb_get_font_vmetrics()` → `stb_get_font_vmetrics_pure()`
-  - [ ] `stb_get_codepoint_bitmap()` → `stb_get_codepoint_bitmap_pure()`
-  - [ ] `stb_free_bitmap()` → `stb_free_bitmap_pure()`
-- [ ] Update type declarations: `stb_fontinfo_t` → `stb_fontinfo_pure_t`
+**Phase 12A.2: Rasterization Engine**
+- [ ] Study STB's `stbtt__rasterize()` function
+- [ ] Implement scanline rasterization algorithm
+- [ ] Convert outline curves to pixel coverage
+- [ ] Implement proper antialiasing (coverage calculation)
+- [ ] **TEST**: Compare rasterized bitmaps pixel-by-pixel with STB
 
-**Phase 12.3: Testing and Validation**
-- [ ] Run comprehensive text rendering tests
-- [ ] Compare output with STB version (pixel-perfect matching expected)
-- [ ] Verify memory management (no leaks)
-- [ ] Test all font loading scenarios
-- [ ] Performance testing and optimization
+**Phase 12A.3: Enhanced Testing**
+- [ ] Add bitmap content comparison tests (not just dimensions)
+- [ ] Test actual glyph shapes: 'A', 'B', '0', '1', etc.
+- [ ] Verify antialiasing quality matches STB
+- [ ] Test complex glyphs with curves
+- [ ] **TEST**: Visual comparison plots - STB vs Pure Fortran
 
-**Phase 12.4: Cleanup**
-- [ ] Remove STB C library dependency from build system
-- [ ] Remove C wrapper files: `stb_truetype_wrapper.c`, `fortplot_stb_truetype.f90`
-- [ ] Update documentation to reflect pure Fortran implementation
-- [ ] Clean up build configuration
+**Phase 12A.4: Integration and Validation**
+- [ ] Replace placeholder `render_glyph_to_bitmap()` with real implementation
+- [ ] Test full text rendering pipeline
+- [ ] Verify plot labels render correctly
+- [ ] Performance optimization
+- [ ] Memory leak testing
 
-**Expected Benefits:**
-- ✅ 100% pure Fortran implementation (no C dependencies)
-- ✅ Better portability and compiler compatibility
-- ✅ Easier debugging and maintenance
-- ✅ Same performance and accuracy as STB
+**Temporary Workaround Options:**
+1. **Revert to STB**: Switch back to STB C library until bitmap rendering is fixed
+2. **Hybrid Approach**: Use pure Fortran for metrics, STB for bitmaps temporarily
+3. **Simple Text**: Use basic ASCII bitmap fonts as fallback
+
+**Testing Requirements Going Forward:**
+- [ ] **Content-based tests**: Compare actual bitmap pixels, not just dimensions
+- [ ] **Visual validation**: Generate test images showing rendered text
+- [ ] **Character coverage**: Test full ASCII + Unicode subset
+- [ ] **Edge cases**: Empty glyphs, composite glyphs, malformed fonts
+
+### 🎯 Level 12B: Backend Switch (DEFERRED until 12A complete)
+
+**Status: ON HOLD** - Cannot proceed until bitmap rendering is properly implemented.
 
 ---
 
