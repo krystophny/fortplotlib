@@ -9,6 +9,20 @@ module fortplot_stb_bitmap
     use fortplot_stb_metrics
     implicit none
 
+    ! C memory management interface
+    interface
+        function c_malloc(size) bind(C, name="malloc")
+            import :: c_ptr, c_size_t
+            integer(c_size_t), value :: size
+            type(c_ptr) :: c_malloc
+        end function c_malloc
+
+        subroutine c_free(ptr) bind(C, name="free")
+            import :: c_ptr
+            type(c_ptr), value :: ptr
+        end subroutine c_free
+    end interface
+
     private
 
     ! Public interface
@@ -85,12 +99,16 @@ contains
         xoff = ix0
         yoff = iy0
 
-        ! Return null pointer for now (no actual rendering yet)
-        bitmap_ptr = c_null_ptr
+        ! Check if bitmap has valid dimensions
+        if (width <= 0 .or. height <= 0) then
+            bitmap_ptr = c_null_ptr
+            width = 0; height = 0; xoff = 0; yoff = 0
+            return
+        end if
 
-        ! TODO: Implement actual bitmap rendering
-        ! TODO: Parse glyf table for outline data
-        ! TODO: Implement curve-to-bitmap conversion with antialiasing
+        ! Allocate bitmap memory and create a simple filled rectangle
+        ! This is a basic implementation - real TrueType rendering would rasterize curves
+        call create_simple_bitmap(width, height, bitmap_ptr)
 
     end function stb_get_codepoint_bitmap_pure
 
@@ -111,12 +129,13 @@ contains
     end subroutine stb_make_codepoint_bitmap_pure
 
     subroutine stb_free_bitmap_pure(bitmap_ptr)
-        !! Free bitmap allocated by stb_get_codepoint_bitmap_pure (STUB)
+        !! Free bitmap allocated by stb_get_codepoint_bitmap_pure
         type(c_ptr), intent(in) :: bitmap_ptr
 
-        ! STUB: Do nothing as we don't allocate real bitmaps yet
-
-        ! TODO: Implement bitmap memory freeing
+        ! Free C-allocated bitmap memory
+        if (c_associated(bitmap_ptr)) then
+            call c_free(bitmap_ptr)
+        end if
 
     end subroutine stb_free_bitmap_pure
 
@@ -317,5 +336,45 @@ contains
         ! TODO: Implement subpixel positioned character bitmap bounding box
 
     end subroutine stb_get_codepoint_bitmap_box_subpixel_pure
+
+    subroutine create_simple_bitmap(width, height, bitmap_ptr)
+        !! Create a simple filled rectangle bitmap using C malloc for compatibility
+        integer, intent(in) :: width, height
+        type(c_ptr), intent(out) :: bitmap_ptr
+
+        integer :: total_pixels, i, j, pixel_idx
+        integer :: border_width
+        integer(c_int8_t), pointer :: bitmap_array(:)
+
+        total_pixels = width * height
+        
+        ! Allocate bitmap buffer using C malloc for compatibility with STB interface
+        bitmap_ptr = c_malloc(int(total_pixels, c_size_t))
+        if (.not. c_associated(bitmap_ptr)) then
+            return  ! Allocation failed
+        end if
+
+        ! Convert C pointer to Fortran pointer for easier manipulation
+        call c_f_pointer(bitmap_ptr, bitmap_array, [total_pixels])
+
+        ! Create a simple filled rectangle with border
+        ! This simulates a basic glyph shape for testing
+        border_width = max(1, min(width, height) / 8)  ! 1/8 of smallest dimension
+
+        do j = 0, height - 1
+            do i = 0, width - 1
+                pixel_idx = j * width + i + 1  ! 1-based indexing for Fortran
+
+                ! Create a border pattern to simulate a character
+                if (i < border_width .or. i >= width - border_width .or. &
+                    j < border_width .or. j >= height - border_width) then
+                    bitmap_array(pixel_idx) = 127_c_int8_t  ! Solid pixel (max for signed)
+                else
+                    bitmap_array(pixel_idx) = 0_c_int8_t    ! Transparent pixel
+                end if
+            end do
+        end do
+
+    end subroutine create_simple_bitmap
 
 end module fortplot_stb_bitmap
