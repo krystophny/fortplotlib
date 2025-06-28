@@ -39,7 +39,7 @@ This TODO list outlines the systematic Test-Driven Dev#### ✅ Level 3: Characte
 - ✅ **Fixed integer overflow:** Proper signed/unsigned handling in cmap parsing
 - ✅ **Font scaling WORKING:** Scale factors match STB exactly (0.006250)
 - ✅ **Algorithm insight:** STB uses ascender-descender for scaling, not units_per_em
-- ⚠️ **TTC format limitation:** .ttc files not yet supported (only .ttf files work)
+- ⚠️ **TTC format limitation:** Pure implementation only supports .ttf files (STB supports .ttc perfectly)
 
 **READY FOR LEVEL 5:** Advanced metrics and kerning implementation
 
