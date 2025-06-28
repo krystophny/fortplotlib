@@ -3,6 +3,7 @@ program test_stb_comparison
     !! Tests multiple fonts and characters on macOS and Linux systems
     use fortplot_stb_truetype
     use fortplot_stb
+    use fortplot_truetype_parser, only: read_truetype_file
     use iso_c_binding
     use, intrinsic :: iso_fortran_env, only: wp => real64
     implicit none
@@ -136,6 +137,9 @@ contains
             write(*,'(A,I0,A,A)') "🔍 Testing font ", font_idx, ": ", &
                                   trim(fonts(font_idx))
 
+            ! Test TTC functions for this font
+            call test_ttc_functions(fonts(font_idx))
+
             call test_single_font_comprehensive(fonts(font_idx), characters, font_passed)
 
             if (font_passed) then
@@ -153,6 +157,72 @@ contains
                                  fonts_tested, " fonts passed all tests"
 
     end subroutine test_multi_font_comparison
+
+    subroutine test_ttc_functions(font_path)
+        !! Test TTC-related functions by comparing Pure Fortran to STB reference
+        character(len=*), intent(in) :: font_path
+        integer :: stb_num_fonts, pure_num_fonts
+        integer :: stb_offset, pure_offset
+        integer :: i
+        integer(c_int8_t), allocatable, target :: font_data(:)
+        integer :: data_size
+        type(c_ptr) :: font_ptr
+        logical :: success
+
+        ! Read font file for testing
+        success = read_truetype_file(font_path, font_data, data_size)
+        if (.not. success) return
+
+        ! Convert to C pointer for STB functions
+        font_ptr = c_loc(font_data(1))
+
+        ! Test 1: stb_get_number_of_fonts comparison
+        stb_num_fonts = stb_get_number_of_fonts(font_ptr, data_size)
+        pure_num_fonts = stb_get_number_of_fonts_pure(font_ptr, data_size)
+
+        write(*,'(A,I0,A,I0)') "   📊 Number of fonts: STB=", stb_num_fonts, &
+                               ", Pure=", pure_num_fonts
+        
+        if (stb_num_fonts /= pure_num_fonts) then
+            write(*,*) "    ❌ Number of fonts mismatch!"
+            deallocate(font_data)
+            return
+        else
+            write(*,*) "    ✅ Number of fonts match"
+        end if
+
+        ! Test 2: stb_get_font_offset_for_index comparison for each font
+        do i = 0, stb_num_fonts - 1
+            stb_offset = stb_get_font_offset_for_index(font_ptr, i)
+            pure_offset = stb_get_font_offset_for_index_pure(font_ptr, i)
+
+            write(*,'(A,I0,A,I0,A,I0)') "   📍 Font ", i, " offset: STB=", &
+                                        stb_offset, ", Pure=", pure_offset
+            
+            if (stb_offset /= pure_offset) then
+                write(*,'(A,I0,A)') "    ❌ Font ", i, " offset mismatch!"
+                deallocate(font_data)
+                return
+            end if
+        end do
+        write(*,*) "    ✅ All font offsets match"
+
+        ! Test invalid index (should return -1)
+        stb_offset = stb_get_font_offset_for_index(font_ptr, stb_num_fonts)
+        pure_offset = stb_get_font_offset_for_index_pure(font_ptr, stb_num_fonts)
+        
+        if (stb_offset /= pure_offset .or. stb_offset /= -1) then
+            write(*,*) "    ❌ Invalid index handling mismatch!"
+            deallocate(font_data)
+            return
+        else
+            write(*,*) "    ✅ Invalid index handling matches"
+        end if
+
+        deallocate(font_data)
+        write(*,*) "   ✅ TTC functions test PASSED"
+
+    end subroutine test_ttc_functions
 
     subroutine test_single_font_comprehensive(font_path, characters, success)
         !! Test a single font comprehensively with multiple characters
