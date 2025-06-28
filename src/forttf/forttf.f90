@@ -9,6 +9,7 @@ module forttf
     use forttf_metrics
     use forttf_mapping
     use forttf_bitmap
+    use forttf_outline
     implicit none
 
     private
@@ -20,6 +21,8 @@ module forttf
     public :: ttf_cmap_subtable_t, ttc_header_t
     public :: ttf_kern_entry_t, ttf_kern_table_t
     public :: ttf_loca_table_t, ttf_glyf_header_t
+    public :: ttf_vertex_t
+    public :: TTF_VERTEX_MOVE, TTF_VERTEX_LINE, TTF_VERTEX_CURVE, TTF_VERTEX_CUBIC
     public :: stb_fontinfo_pure_t, stb_init_font_pure, stb_init_font_pure_with_index, stb_cleanup_font_pure
     public :: stb_get_codepoint_bitmap_pure, stb_free_bitmap_pure
     public :: stb_get_codepoint_hmetrics_pure, stb_get_font_vmetrics_pure
@@ -37,6 +40,7 @@ module forttf
     public :: stb_make_codepoint_bitmap_subpixel_pure
     public :: stb_get_glyph_bitmap_box_subpixel_pure
     public :: stb_get_codepoint_bitmap_box_subpixel_pure
+    public :: stb_get_glyph_shape_pure, stb_get_codepoint_shape_pure, stb_free_shape_pure
     public :: STB_PURE_SUCCESS, STB_PURE_ERROR, STB_PURE_NOT_IMPLEMENTED
 
     ! Constants

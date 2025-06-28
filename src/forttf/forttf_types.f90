@@ -13,6 +13,8 @@ module forttf_types
     public :: ttf_cmap_subtable_t, ttc_header_t, stb_fontinfo_pure_t
     public :: ttf_kern_entry_t, ttf_kern_table_t
     public :: ttf_loca_table_t, ttf_glyf_header_t
+    public :: ttf_vertex_t
+    public :: TTF_VERTEX_MOVE, TTF_VERTEX_LINE, TTF_VERTEX_CURVE, TTF_VERTEX_CUBIC
 
     ! TrueType table directory entry
     type :: ttf_table_entry_t
@@ -203,5 +205,19 @@ module forttf_types
         ! Glyph outline data parsing capability
         logical :: glyf_table_available = .false.
     end type stb_fontinfo_pure_t
+
+    ! Vertex type constants (matching STB)
+    integer, parameter :: TTF_VERTEX_MOVE = 1
+    integer, parameter :: TTF_VERTEX_LINE = 2
+    integer, parameter :: TTF_VERTEX_CURVE = 3
+    integer, parameter :: TTF_VERTEX_CUBIC = 4
+
+    ! TrueType glyph vertex for outline paths
+    type :: ttf_vertex_t
+        integer :: x = 0, y = 0                 ! Primary coordinates
+        integer :: cx = 0, cy = 0               ! Control point 1 (for quadratic/cubic curves)
+        integer :: cx1 = 0, cy1 = 0             ! Control point 2 (for cubic curves)
+        integer :: type = 0                     ! Vertex type (MOVE, LINE, CURVE, CUBIC)
+    end type ttf_vertex_t
 
 end module forttf_types

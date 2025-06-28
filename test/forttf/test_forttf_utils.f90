@@ -14,6 +14,7 @@ module test_forttf_utils
     public :: discover_system_fonts
     public :: print_font_list
     public :: init_both_fonts
+    public :: find_and_init_test_font
     public :: test_chars
 
     ! Common test data
@@ -104,5 +105,41 @@ contains
         success = stb_success .and. pure_success
 
     end function init_both_fonts
+
+    function find_and_init_test_font(stb_font, pure_font, stb_success, pure_success, font_path) result(success)
+        !! Find and initialize a working test font from common system locations
+        type(stb_fontinfo_t), intent(out) :: stb_font
+        type(stb_fontinfo_pure_t), intent(out) :: pure_font
+        logical, intent(out) :: stb_success, pure_success
+        character(len=256), intent(out) :: font_path
+        logical :: success
+        
+        character(len=256), allocatable :: available_fonts(:)
+        integer :: font_count, i
+        
+        ! Discover available fonts
+        call discover_system_fonts(available_fonts, font_count)
+        
+        success = .false.
+        stb_success = .false.
+        pure_success = .false.
+        
+        if (font_count == 0) then
+            font_path = "No fonts found"
+            return
+        end if
+        
+        ! Try fonts until we find one that works
+        do i = 1, font_count
+            font_path = available_fonts(i)
+            if (init_both_fonts(font_path, stb_font, pure_font, stb_success, pure_success)) then
+                success = .true.
+                return
+            end if
+        end do
+        
+        font_path = "All fonts failed to load"
+        
+    end function find_and_init_test_font
 
 end module test_forttf_utils
