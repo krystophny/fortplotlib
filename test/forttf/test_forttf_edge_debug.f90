@@ -8,14 +8,14 @@ program test_forttf_edge_debug
     use, intrinsic :: iso_fortran_env, only: wp => real64
     implicit none
 
-    ! C interface for STB debug wrapper with proper conversion
+    ! C interface for STB debug wrapper with STB points
     interface
-        subroutine stb_test_build_edges_from_fortran_points(pts, num_points, wcount, windings, &
-                    scale_x, scale_y, shift_x, shift_y, invert, &
+        subroutine stb_test_build_edges_exact(pts, wcount, windings, &
+                    scale_x, scale_y, shift_x, shift_y, invert_flag, &
                     edges_out, num_edges_out) bind(c)
             import :: c_ptr, c_int, c_float
             type(c_ptr), value :: pts, wcount
-            integer(c_int), value :: num_points, windings, invert
+            integer(c_int), value :: windings, invert_flag
             real(c_float), value :: scale_x, scale_y, shift_x, shift_y
             type(c_ptr), intent(out) :: edges_out
             integer(c_int), intent(out) :: num_edges_out
@@ -67,8 +67,8 @@ program test_forttf_edge_debug
     write(*,*) "=== 🔧 Edge Building Debug Analysis ==="
     write(*,*)
 
-    ! Test character 'A' (complex shape)
-    glyph_index = 65
+    ! Test character '$' (the one showing edge count mismatch)
+    glyph_index = 36
     write(*,'(A,I0)') "Testing character index: ", glyph_index
 
     ! Get shape vertices
@@ -88,13 +88,13 @@ program test_forttf_edge_debug
     
     write(*,'(A,I0,A,I0,A)') "✓ STB flattened to ", total_points, " points in ", stb_num_contours, " contours"
 
-    ! Build edges using STB with proper conversion
-    call stb_test_build_edges_from_fortran_points(stb_points_ptr, total_points, stb_contour_lengths_ptr, &
-                                                 int(stb_num_contours, c_int), &
-                                                 real(scale_x, c_float), real(scale_y, c_float), &
-                                                 real(shift_x, c_float), real(shift_y, c_float), &
-                                                 merge(1, 0, invert), &
-                                                 stb_edges_ptr, num_stb_edges)
+    ! Build edges using STB with STB points (no conversion needed)
+    call stb_test_build_edges_exact(stb_points_ptr, stb_contour_lengths_ptr, &
+                                   int(stb_num_contours, c_int), &
+                                   real(scale_x, c_float), real(scale_y, c_float), &
+                                   real(shift_x, c_float), real(shift_y, c_float), &
+                                   merge(1, 0, invert), &
+                                   stb_edges_ptr, num_stb_edges)
 
     write(*,'(A,I0,A)') "✓ STB built ", num_stb_edges, " edges"
 
