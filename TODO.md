@@ -1,275 +1,296 @@
-# STB TrueType Fortran Interface Implementation TODO
+# Pure Fortran TrueType Implementation TODO
 
-This TODO list tracks the implementation of Fortran ISO C wrappers for all stb_truetype.h functions documented in `ttf.md`, and the creation of a new `fortplot_stb` module for potential pure Fortran implementation.
+This TODO list outlines the systematic Test-Driven Development (TDD) approach to implement a pure Fortran TrueType font parser and renderer, replacing the STB TrueType dependency. The implementation follows a bottom-up approach, starting with the lowest-level functions and building up to complete font rendering.
 
-## Status: Current Implementation
+## 🎯 **Project Goal**
 
-### ✅ Already Implemented in `fortplot_stb_truetype.f90`
+Replace STB TrueType C library with a pure Fortran implementation that:
+- Passes all existing comparison tests in `test_stb_comparison.f90`
+- Provides identical API to current `fortplot_stb_truetype.f90`
+- Achieves feature parity with the 23 implemented STB functions
+- Maintains or improves performance for typical use cases
 
-**Core Font Functions:**
-- [x] `stbtt_GetFontOffsetForIndex()` → `stb_wrapper_load_font_from_file()`
-- [x] `stbtt_InitFont()` → `stb_wrapper_init_font()` + `stb_init_font()`
-- [x] `stbtt_ScaleForPixelHeight()` → `stb_wrapper_scale_for_pixel_height()` + `stb_scale_for_pixel_height()`
+## 📋 **TDD Methodology - MANDATORY**
 
-**Font Metrics Functions:**
-- [x] `stbtt_GetFontVMetrics()` → `stb_wrapper_get_font_vmetrics()` + `stb_get_font_vmetrics()`
-- [x] `stbtt_GetCodepointHMetrics()` → `stb_wrapper_get_codepoint_hmetrics()` + `stb_get_codepoint_hmetrics()`
+**⚠️ CRITICAL: EVERY function MUST follow RED-GREEN-REFACTOR cycle ⚠️**
 
-**Bitmap Rendering Functions:**
-- [x] `stbtt_GetCodepointBitmap()` → `stb_wrapper_get_codepoint_bitmap()` + `stb_get_codepoint_bitmap()`
-- [x] `stbtt_FreeBitmap()` → `stb_wrapper_free_bitmap()` + `stb_free_bitmap()`
+1. **RED**: Modify existing comparison test to expect pure Fortran success
+2. **GREEN**: Implement minimal code to make the test pass
+3. **REFACTOR**: Clean up implementation while keeping tests green
+4. **REPEAT**: Move to next function in dependency order
 
-**Additional Functions (Available but unused):**
-- [x] `stbtt_FindGlyphIndex()` → `stb_wrapper_find_glyph_index()` + `stb_find_glyph_index()`
-- [x] `stbtt_GetCodepointBitmapBox()` → `stb_wrapper_get_codepoint_bitmap_box()` + `stb_get_codepoint_bitmap_box()`
-- [x] `stbtt_MakeCodepointBitmap()` → `stb_wrapper_make_codepoint_bitmap()` + `stb_make_codepoint_bitmap()`
+**Test Strategy:**
+- Use existing `test_stb_comparison.f90` as validation framework
+- Each function must pass side-by-side comparison with STB implementation
+- Bitmap outputs must be pixel-perfect matches (where possible)
+- Font metrics must match STB values exactly
 
-## TODO: Missing Fortran ISO C Wrappers
+## 🏗️ **Implementation Phases - Bottom-Up Approach**
 
-### ✅ COMPLETED: Basic Functions Added to `fortplot_stb_truetype.f90`
+### Phase 1: Foundation - Binary File I/O and Basic Parsing
 
-**Additional Core Functions:**
-- [x] `stbtt_GetNumberOfFonts()` → Added `stb_get_number_of_fonts()`
-- [x] `stbtt_GetFontOffsetForIndex()` → Added `stb_get_font_offset_for_index()`
+#### ✅ Prerequisites
+- [x] TDD test framework exists (`test_stb_comparison.f90`)
+- [x] Pure Fortran stub module exists (`fortplot_stb.f90`)
+- [x] STB reference implementation working for comparison
 
-**Extended Font Metrics:**
-- [x] `stbtt_ScaleForMappingEmToPixels()` → Added `stb_scale_for_mapping_em_to_pixels()`
-- [x] `stbtt_GetFontBoundingBox()` → Added `stb_get_font_bounding_box()`
+#### 🔲 Level 1: Binary File Operations
+**Goal:** Read TrueType files and parse basic headers
 
-**Glyph-level Functions:**
-- [x] `stbtt_GetCodepointBox()` → Added `stb_get_codepoint_box()`
+**Functions to implement (dependency order):**
+1. [ ] `read_truetype_file()` - Read entire font file into memory
+2. [ ] `parse_ttf_header()` - Parse TTF/OTF file header (sfnt version, table count)
+3. [ ] `parse_table_directory()` - Parse table directory entries
+4. [ ] `find_table()` - Locate specific tables by tag ('head', 'hhea', etc.)
 
-**Kerning Functions:**
-- [x] `stbtt_GetCodepointKernAdvance()` → Added `stb_get_codepoint_kern_advance()`
+**Test Strategy:**
+- Start with `stb_get_number_of_fonts_pure()` - simplest validation
+- Test with DejaVu Sans font file (known good reference)
+- Verify table count matches expected values
 
-### ✅ COMPLETED: Glyph-level and Advanced Bitmap Functions
+**TDD Steps:**
+```fortran
+! 1. RED: Modify test to expect pure implementation success
+pure_success = stb_init_font_pure(pure_font, trim(font_paths(i)))
+if (.not. pure_success) then
+    failed_tests = failed_tests + 1  ! Should now fail - we expect success
+end if
 
-**Extended Font Metrics:**
-- [x] `stbtt_GetFontVMetricsOS2()` → Added `stb_get_font_vmetrics_os2()`
+! 2. GREEN: Implement minimal file reading
+! 3. REFACTOR: Clean up and optimize
+```
 
-**Glyph-level Functions:**
-- [x] `stbtt_GetGlyphHMetrics()` → Added `stb_get_glyph_hmetrics()`
-- [x] `stbtt_GetGlyphBox()` → Added `stb_get_glyph_box()`
-- [x] `stbtt_GetGlyphKernAdvance()` → Added `stb_get_glyph_kern_advance()`
-- [x] `stbtt_GetKerningTableLength()` → Added `stb_get_kerning_table_length()`
-- [x] `stbtt_GetKerningTable()` → Added `stb_get_kerning_table()`
+#### 🔲 Level 2: Essential Table Parsing
+**Goal:** Parse critical font tables needed for basic operations
 
-**Advanced Bitmap Functions:**
-- [x] `stbtt_GetGlyphBitmap()` → Added `stb_get_glyph_bitmap()`
-- [x] `stbtt_GetCodepointBitmapSubpixel()` → Added `stb_get_codepoint_bitmap_subpixel()`
-- [x] `stbtt_MakeGlyphBitmap()` → Added `stb_make_glyph_bitmap()`
-- [x] `stbtt_GetGlyphBitmapBox()` → Added `stb_get_glyph_bitmap_box()`
+**Tables to implement (dependency order):**
+1. [ ] `head` table parser - Font header (units per em, bounding box)
+2. [ ] `hhea` table parser - Horizontal header (ascent, descent, line gap)
+3. [ ] `hmtx` table parser - Horizontal metrics (advance widths, bearings)
+4. [ ] `maxp` table parser - Maximum profile (glyph count validation)
 
-### ✅ COMPLETED: Advanced Subpixel Bitmap Functions
+**Test Strategy:**
+- Target `stb_get_font_vmetrics_pure()` first
+- Compare ascent/descent/line_gap values with STB: `1901/-483/0`
+- Verify units_per_em for scaling calculations
 
-**Advanced Subpixel Variants:**
-- [x] `stbtt_GetGlyphBitmapSubpixel()` → Added `stb_get_glyph_bitmap_subpixel()`
-- [x] `stbtt_MakeGlyphBitmapSubpixel()` → Added `stb_make_glyph_bitmap_subpixel()`
-- [x] `stbtt_MakeCodepointBitmapSubpixel()` → Added `stb_make_codepoint_bitmap_subpixel()`
-- [x] `stbtt_GetGlyphBitmapBoxSubpixel()` → Added `stb_get_glyph_bitmap_box_subpixel()`
-- [x] `stbtt_GetCodepointBitmapBoxSubpixel()` → Added `stb_get_codepoint_bitmap_box_subpixel()`
+### Phase 2: Character Mapping and Glyph Lookup
 
-### ✅ COMPLETED: Prefiltered Rendering Functions
+#### 🔲 Level 3: Character Mapping
+**Goal:** Map Unicode codepoints to glyph indices
 
-**Prefiltered Rendering:**
-- [x] `stbtt_MakeCodepointBitmapSubpixelPrefilter()` → Added `stb_make_codepoint_bitmap_subpixel_prefilter()`
-- [x] `stbtt_MakeGlyphBitmapSubpixelPrefilter()` → Added `stb_make_glyph_bitmap_subpixel_prefilter()`
+**Functions to implement:**
+1. [ ] `cmap` table parser - Character to glyph mapping
+2. [ ] `find_glyph_index_pure()` - Unicode codepoint → glyph index lookup
+3. [ ] Support for multiple cmap subtables (platform/encoding pairs)
+4. [ ] Handle common formats: format 0, 4, 12
 
-### 🔲 REMAINING Functions (Optional - Complex High-Level APIs)
+**Test Strategy:**
+- Target `stb_find_glyph_index_pure()` 
+- Test character 'A' (should return glyph index 36 for DejaVu Sans)
+- Verify mapping consistency across character set
 
-**Font Baking (High-level API):**
-- [ ] `stbtt_BakeFontBitmap()` → Add `stb_bake_font_bitmap()`
-- [ ] `stbtt_GetBakedQuad()` → Add `stb_get_baked_quad()`
-- [ ] `stbtt_GetScaledFontVMetrics()` → Add `stb_get_scaled_font_vmetrics()`
+**TDD Focus:**
+```fortran
+glyph_index = stb_find_glyph_index_pure(pure_font, iachar('A'))
+! Should return 36 to match STB implementation
+```
 
-**Font Packing (Advanced):**
-- [ ] `stbtt_PackBegin()` → Add `stb_pack_begin()`
-- [ ] `stbtt_PackEnd()` → Add `stb_pack_end()`
-- [ ] `stbtt_PackFontRange()` → Add `stb_pack_font_range()`
-- [ ] `stbtt_PackFontRanges()` → Add `stb_pack_font_ranges()`
-- [ ] `stbtt_PackSetOversampling()` → Add `stb_pack_set_oversampling()`
-- [ ] `stbtt_PackSetSkipMissingCodepoints()` → Add `stb_pack_set_skip_missing_codepoints()`
-- [ ] `stbtt_GetPackedQuad()` → Add `stb_get_packed_quad()`
+### Phase 3: Font Metrics and Scaling
 
-## TODO: C Wrapper Extensions
+#### 🔲 Level 4: Scaling and Metrics
+**Goal:** Calculate font scaling and provide accurate metrics
 
-### ✅ COMPLETED: Basic Functions Added to `stb_truetype_wrapper.c`
+**Functions to implement:**
+1. [ ] `stb_scale_for_pixel_height_pure()` - Calculate scale factor
+2. [ ] `stb_scale_for_mapping_em_to_pixels_pure()` - EM-based scaling  
+3. [ ] `stb_get_font_bounding_box_pure()` - Overall font bounding box
+4. [ ] `stb_get_glyph_hmetrics_pure()` - Glyph advance width and bearing
 
-**Added C wrapper functions:**
-- [x] `stb_wrapper_get_number_of_fonts()` → Wraps `stbtt_GetNumberOfFonts()`
-- [x] `stb_wrapper_get_font_offset_for_index()` → Wraps `stbtt_GetFontOffsetForIndex()`
-- [x] `stb_wrapper_scale_for_mapping_em_to_pixels()` → Wraps `stbtt_ScaleForMappingEmToPixels()`
-- [x] `stb_wrapper_get_font_bounding_box()` → Wraps `stbtt_GetFontBoundingBox()`
-- [x] `stb_wrapper_get_codepoint_box()` → Wraps `stbtt_GetCodepointBox()`
-- [x] `stb_wrapper_get_codepoint_kern_advance()` → Wraps `stbtt_GetCodepointKernAdvance()`
+**Test Strategy:**
+- Target exact scale factor match: `0.006711` for 16px DejaVu Sans
+- Verify font bounding box: `(-2090, -948, 3673, 2524)`
+- Test glyph 'A' metrics: advance `1401`, bearing `16`
 
-### 🔲 REMAINING Functions to Add to `stb_truetype_wrapper.c`
+**Critical Calculations:**
+```fortran
+! Scale factor = desired_pixel_height / units_per_em
+scale = real(pixel_height, wp) / real(head_table%units_per_em, wp)
+```
 
-For each remaining Fortran function above, add corresponding C wrapper functions following the existing pattern:
-- [ ] Implement remaining `stb_wrapper_*` functions for missing STB functions
-- [ ] Follow existing memory management patterns
-- [ ] Maintain Fortran-compatible interfaces
-- [ ] Add proper error handling for each wrapper
+### Phase 4: Advanced Metrics and Kerning
 
-## TODO: New Module `fortplot_stb.f90`
+#### 🔲 Level 5: Extended Metrics
+**Goal:** Support OS/2 metrics and bounding boxes
 
-### ✅ COMPLETED: Pure Fortran Implementation Module Created
+**Functions to implement:**
+1. [ ] `OS/2` table parser - Extended font metrics
+2. [ ] `stb_get_font_vmetrics_os2_pure()` - OS/2 vertical metrics
+3. [ ] `stb_get_codepoint_box_pure()` - Character bounding box
+4. [ ] `stb_get_glyph_box_pure()` - Glyph bounding box
 
-**Purpose:** Create a future pure Fortran port that can replace stb_truetype.h dependency
+**Test Strategy:**
+- OS/2 metrics should match: `1556/-492/410`
+- Character 'A' bbox: `(16, 0, 1384, 1493)`
 
-**Module Structure:**
-- [x] Created `src/fortplot_stb.f90` module skeleton
-- [x] Defined equivalent data structures to `stbtt_fontinfo` (`stb_fontinfo_pure_t`)
-- [x] Defined module interfaces matching `fortplot_stb_truetype.f90` API
-- [x] Added module documentation explaining it's for future pure Fortran port
+#### 🔲 Level 6: Kerning Support
+**Goal:** Implement kerning calculations
 
-**Implementation Strategy:**
-- [x] Started with stub implementations that return error/placeholder values
-- [x] Documented which functions need TrueType parsing vs. bitmap rendering
-- [x] Identified external dependencies (file I/O, memory management, math functions)
-- [x] Planned incremental implementation approach
+**Functions to implement:**
+1. [ ] `kern` table parser - Kerning pairs
+2. [ ] `stb_get_codepoint_kern_advance_pure()` - Character pair kerning
+3. [ ] `stb_get_glyph_kern_advance_pure()` - Glyph pair kerning
+4. [ ] `stb_get_kerning_table_length_pure()` - Kerning table access
 
-### 🔲 FUTURE: Actual Pure Fortran Implementation
+**Test Strategy:**
+- A-V kerning should return `-131` units
+- Kerning table length should be `2727` entries
 
-**Next Steps for Pure Fortran Port:**
-- [ ] Implement TrueType file format parsing (tables: head, hhea, hmtx, cmap, glyf, loca)
-- [ ] Implement glyph outline parsing and curve processing
-- [ ] Implement bitmap rasterization with antialiasing
-- [ ] Add proper error handling and memory management
-- [ ] Performance optimization and testing
+### Phase 5: Glyph Outline Processing
 
-## TODO: Test Infrastructure
+#### 🔲 Level 7: Glyph Outline Parsing
+**Goal:** Parse and process TrueType glyph outlines
 
-### ✅ COMPLETED: Test Infrastructure for STB vs Pure Fortran Comparison
+**Functions to implement:**
+1. [ ] `glyf` table parser - Glyph outline data
+2. [ ] `loca` table parser - Glyph location offsets  
+3. [ ] Parse simple glyph outlines (straight lines and curves)
+4. [ ] Parse composite glyph outlines (references to other glyphs)
+5. [ ] Convert outline coordinates to scaled pixel coordinates
 
-**Purpose:** Verify compatibility between stb_truetype wrapper and future pure Fortran implementation
+**Test Strategy:**
+- Focus on simple glyphs first (like 'A')
+- Verify outline point coordinates after scaling
+- Test composite glyph decomposition
 
-**Test Structure:**
-- [x] Created `test/test_stb_comparison.f90` test program
-- [x] Created test infrastructure for comparing STB and pure implementations:
-  - [x] Font initialization comparison
-  - [x] Scale calculation comparison
-  - [x] Font metrics comparison
-  - [x] Character metrics comparison
-  - [x] Glyph index lookup comparison
-  - [x] Bounding box calculation comparison
-  - [x] Bitmap rendering comparison
-  - [x] Kerning calculation comparison
-  - [x] Additional functions testing
+**Critical Components:**
+- Quadratic Bézier curve handling
+- Coordinate scaling and transformation
+- On-curve vs off-curve point processing
 
-**Test Implementation:**
-- [x] Each test calls both STB wrapper and pure Fortran implementation
-- [x] Compares outputs for identical inputs (font metrics, etc.)
-- [x] Reports differences and compatibility issues
-- [x] Tests with multiple font paths (DejaVu, Helvetica, etc.)
-- [x] Currently verifies that STB works and pure implementation fails as expected (stubs)
+### Phase 6: Bitmap Rasterization
 
-**Test Results:**
-- [x] ✅ All tests pass - STB implementation works, pure implementation correctly returns stub values
-- [x] ✅ New functions tested successfully (EM scaling, font/character bounding boxes, kerning)
-- [x] ✅ Test can be run with `make test ARGS="test_stb_comparison"`
+#### 🔲 Level 8: Basic Bitmap Rendering
+**Goal:** Rasterize glyph outlines to bitmap format
 
-### 🔲 FUTURE: Enhanced Test Infrastructure
+**Functions to implement:**
+1. [ ] `stb_get_codepoint_bitmap_pure()` - Render character to bitmap
+2. [ ] `stb_get_glyph_bitmap_pure()` - Render glyph to bitmap
+3. [ ] `stb_make_codepoint_bitmap_pure()` - Render into user buffer
+4. [ ] `stb_make_glyph_bitmap_pure()` - Render glyph into user buffer
 
-**Test Data Requirements:**
-- [ ] Include small test font file in repository for consistent testing
-- [ ] Define standard test characters and sizes for reproducible results
-- [ ] Create reference output files for regression testing
-- [ ] Add performance comparison benchmarks when pure implementation is completed
+**Test Strategy:**
+- Character 'A' bitmap should be `138x150` pixels at test scale
+- Bitmap should visually match STB output
+- Memory allocation/deallocation must work correctly
 
-## Implementation Priority
+**Rasterization Algorithm:**
+1. Scan-line based rasterization
+2. Curve tessellation for quadratic Béziers  
+3. Anti-aliasing using coverage calculation
+4. Proper handling of winding rules
 
-1. ✅ **COMPLETED - High Priority:** Basic font metric functions implemented
-2. **Medium Priority:** Add remaining kerning and advanced bitmap functions  
-3. **Low Priority:** Font baking and packing (complex, rarely used)
-4. **Future:** Pure Fortran implementation in `fortplot_stb.f90`
+#### 🔲 Level 9: Bounding Box Calculations
+**Goal:** Calculate precise bitmap bounding boxes
 
-## Summary of Completed Work
+**Functions to implement:**
+1. [ ] `stb_get_codepoint_bitmap_box_pure()` - Character bitmap bounds
+2. [ ] `stb_get_glyph_bitmap_box_pure()` - Glyph bitmap bounds
 
-### ✅ Implemented Functions (23 new functions - COMPLETE CORE INTERFACE)
+**Test Strategy:**
+- Bitmap bounding boxes must match STB exactly
+- Test various scales and characters
 
-**Phase 1 - Basic Extensions (6 functions):**
-1. **`stb_get_number_of_fonts()`** - Get font count in file
-2. **`stb_get_font_offset_for_index()`** - Get font offset for multi-font files
-3. **`stb_scale_for_mapping_em_to_pixels()`** - Calculate EM-based scaling
-4. **`stb_get_font_bounding_box()`** - Get overall font bounding box
-5. **`stb_get_codepoint_box()`** - Get character bounding box
-6. **`stb_get_codepoint_kern_advance()`** - Get kerning between characters
+### Phase 7: Subpixel Positioning
 
-**Phase 2 - Glyph-level Functions (6 functions):**
-7. **`stb_get_font_vmetrics_os2()`** - Get OS/2 table metrics
-8. **`stb_get_glyph_hmetrics()`** - Get glyph horizontal metrics by index
-9. **`stb_get_glyph_box()`** - Get glyph bounding box by index
-10. **`stb_get_glyph_kern_advance()`** - Get kerning between glyph indices
-11. **`stb_get_kerning_table_length()`** - Get length of kerning table
-12. **`stb_get_kerning_table()`** - Get kerning table entries
+#### 🔲 Level 10: Subpixel Precision
+**Goal:** Support fractional positioning for high-quality rendering
 
-**Phase 3 - Advanced Bitmap Functions (4 functions):**
-13. **`stb_get_glyph_bitmap()`** - Render glyph bitmap by index
-14. **`stb_get_glyph_bitmap_box()`** - Get glyph bitmap bounding box
-15. **`stb_get_codepoint_bitmap_subpixel()`** - Render subpixel positioned bitmap
-16. **`stb_make_glyph_bitmap()`** - Render glyph into user buffer
+**Functions to implement:**
+1. [ ] `stb_get_codepoint_bitmap_subpixel_pure()` - Subpixel positioned character
+2. [ ] `stb_get_glyph_bitmap_subpixel_pure()` - Subpixel positioned glyph
+3. [ ] `stb_make_codepoint_bitmap_subpixel_pure()` - Subpixel into buffer
+4. [ ] `stb_make_glyph_bitmap_subpixel_pure()` - Subpixel glyph into buffer
+5. [ ] `stb_get_*_bitmap_box_subpixel_pure()` - Subpixel bounding boxes
 
-**Phase 4 - Subpixel Bitmap Functions (5 functions):**
-17. **`stb_get_glyph_bitmap_subpixel()`** - Render subpixel positioned glyph bitmap
-18. **`stb_make_glyph_bitmap_subpixel()`** - Render subpixel glyph into user buffer
-19. **`stb_make_codepoint_bitmap_subpixel()`** - Render subpixel char into user buffer
-20. **`stb_get_glyph_bitmap_box_subpixel()`** - Get subpixel glyph bitmap bounding box
-21. **`stb_get_codepoint_bitmap_box_subpixel()`** - Get subpixel char bitmap bounding box
+**Test Strategy:**
+- Test with shift values `(0.25, 0.75)` from existing tests
+- Compare bitmap dimensions: should get `110x120` for test case
+- Verify subpixel positioning affects rendering quality
 
-**Phase 5 - Prefiltered Rendering Functions (2 functions):**
-22. **`stb_make_codepoint_bitmap_subpixel_prefilter()`** - Advanced prefiltered character rendering
-23. **`stb_make_glyph_bitmap_subpixel_prefilter()`** - Advanced prefiltered glyph rendering
+### Phase 8: Advanced Rendering (Optional)
 
-### ✅ Infrastructure Completed - FINAL
-- **Fortran Module**: Extended `fortplot_stb_truetype.f90` with 23 new wrapper functions
-- **C Wrapper Layer**: Added 23 corresponding C functions in `stb_truetype_wrapper.c`
-- **Pure Fortran Stubs**: Created `fortplot_stb.f90` with 25+ stub implementations for future port
-- **Test Infrastructure**: Created `test_stb_comparison.f90` to compare STB vs pure implementations
-  - Tests basic functions, glyph-level functions, bitmap functions, subpixel functions, and prefiltered functions
-  - Comprehensive test coverage for all implemented functionality
-  - Real font file testing with actual metrics and bitmap rendering
-  - Subpixel function testing with shift values (0.25, 0.75)
-  - Side-by-side comparison framework ready for pure Fortran development
-- **Documentation**: Complete documentation in `ttf.md` and `TODO.md` with comprehensive progress tracking
+#### 🔲 Level 11: Prefiltered Rendering
+**Goal:** High-quality rendering with oversampling
 
-### ✅ Testing Results - Comprehensive Verification
+**Functions to implement:**
+1. [ ] `stb_make_codepoint_bitmap_subpixel_prefilter_pure()` - Advanced character rendering
+2. [ ] `stb_make_glyph_bitmap_subpixel_prefilter_pure()` - Advanced glyph rendering
 
-**STB TrueType Implementation (REAL - WORKING):**
-- ✅ All 21 functions successfully load and process actual font files
-- ✅ Real font metrics: DejaVu Sans returns `1901/-483/0` (ascent/descent/gap)
-- ✅ Real scale factors: `0.006711` for 16px height with DejaVu Sans
-- ✅ Real bitmap rendering: 138x150 pixel bitmap for character 'A'
-- ✅ Real kerning data: A-V kerning returns `-131` units
-- ✅ Real glyph operations: Character 'A' = glyph index 36
-- ✅ Real subpixel positioning: Different bitmap sizes with shift values
-- ✅ Memory management: All bitmap allocations/deallocations work correctly
+**Test Strategy:**
+- Compare output quality with STB prefiltered functions
+- Test various oversampling settings
 
-**Pure Fortran Stubs (PLACEHOLDERS - READY FOR DEVELOPMENT):**
-- ✅ All 25 stub functions compile and run without errors
-- ✅ Correct API signatures matching STB implementation exactly
-- ✅ Graceful failure: All functions return appropriate placeholder values
-- ✅ Stub metrics: Returns `0/0/0` for font metrics (expected placeholder)
-- ✅ Stub scale: Returns `0.000000` for scaling (expected placeholder)
-- ✅ Stub bitmaps: Returns NULL pointers (expected placeholder)
-- ✅ Test framework: "Pure implementation failed as expected (stub)" ✓
+## 🧪 **Testing Strategy**
 
-**Test Framework Validation:**
-- ✅ Side-by-side STB vs Pure comparison working perfectly
-- ✅ Real font file testing with multiple paths (DejaVu, Helvetica)
-- ✅ All test categories pass: basic, glyph-level, bitmap, subpixel functions
-- ✅ 100% test success rate with comprehensive function coverage
-- ✅ Ready for future pure Fortran development and performance comparison
+### Test Evolution Approach
+1. **Start with failing tests** - Modify `test_stb_comparison.f90` to expect pure success
+2. **Implement incrementally** - Each function should make specific tests pass
+3. **Maintain regression tests** - Previous functions must continue working
+4. **Add specific validation** - Create focused tests for each new capability
 
-**Infrastructure Verification:**
-- ✅ No regressions in existing text rendering functionality
-- ✅ Line length limit (88 chars) enforced and added to `CLAUDE.md`
-- ✅ Memory-safe operations with proper error handling
-- ✅ Complete three-layer architecture: Fortran → C Wrapper → STB TrueType
+### Validation Criteria
+- **Exact metric matches** - Font metrics must match STB values precisely
+- **Visual bitmap comparison** - Rendered bitmaps should be visually identical
+- **Memory safety** - No memory leaks or segmentation faults
+- **Performance baseline** - Should not be significantly slower than STB
 
-## Notes
+### Test Data
+- **Primary**: DejaVu Sans (known good font with existing test values)
+- **Secondary**: Helvetica (test cross-platform compatibility)
+- **Edge cases**: Various font formats and sizes
 
-- All new wrapper functions follow TDD principles from `CLAUDE.md`
-- Each function has corresponding test coverage in comparison tests
-- Maintains backward compatibility with existing `fortplot_text.f90` usage
-- Ready for implementation of remaining functions or pure Fortran port development
+## 📚 **Documentation Requirements**
+
+### Implementation Documentation
+- [ ] Document TrueType file format understanding
+- [ ] Algorithm documentation for rasterization
+- [ ] Performance analysis and optimization notes
+- [ ] Memory management strategy
+
+### API Documentation  
+- [ ] Update function documentation in `fortplot_stb.f90`
+- [ ] Add usage examples for complex functions
+- [ ] Document differences from STB (if any)
+
+## 🎯 **Success Criteria**
+
+### Minimum Viable Implementation
+- [ ] All 23 STB functions have working pure Fortran equivalents
+- [ ] `test_stb_comparison.f90` passes with pure implementation enabled
+- [ ] No regressions in existing `fortplot_text.f90` functionality
+- [ ] Basic font rendering produces correct output
+
+### Optimal Implementation
+- [ ] Performance within 2x of STB for typical use cases
+- [ ] Support for additional TrueType features not in STB
+- [ ] Comprehensive error handling and validation
+- [ ] Extensible architecture for future enhancements
+
+## 🚀 **Implementation Priority**
+
+**Phase 1-3 (Essential):** File I/O through font metrics - enables basic text rendering
+**Phase 4-5 (Important):** Kerning and outline processing - enables quality typography  
+**Phase 6-7 (Critical):** Bitmap rendering - core functionality replacement
+**Phase 8 (Optional):** Advanced features - quality improvements
+
+## 📝 **Development Notes**
+
+- Follow SOLID principles and 88-character line limit from `CLAUDE.md`
+- Use Test-Driven Development religiously - no implementation without failing tests
+- Start simple - get basic functionality working before optimizing
+- Reference STB implementation for algorithm guidance but don't copy code
+- Document design decisions and trade-offs
+- Plan for incremental testing and validation
+
+**Ready to begin TDD implementation of pure Fortran TrueType parser and renderer.**
