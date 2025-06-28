@@ -1,6 +1,6 @@
 program test_stb_comparison
-    !! Test program to compare STB TrueType wrapper with pure Fortran implementation
-    !! Verifies compatibility and performance between implementations
+    !! Enhanced test program to compare STB TrueType wrapper with pure Fortran implementation
+    !! Tests multiple fonts and characters on macOS and Linux systems
     use fortplot_stb_truetype
     use fortplot_stb
     use iso_c_binding
@@ -10,14 +10,31 @@ program test_stb_comparison
     logical :: overall_success
     integer :: failed_tests, total_tests
 
+    ! Font and character test data
+    character(len=256), allocatable :: available_fonts(:)
+    character(len=1), parameter :: test_chars(10) = ['A', 'B', 'M', 'W', 'g', 'j', '!', '?', '1', '@']
+    integer :: num_fonts
+
     failed_tests = 0
     total_tests = 0
 
-    write(*,*) "=== STB TrueType vs Pure Fortran Comparison Tests ==="
+    write(*,*) "=== Enhanced STB TrueType vs Pure Fortran Comparison Tests ==="
     write(*,*) ""
 
-    ! Test basic functionality
-    call test_basic_comparison()
+    ! Discover available fonts
+    call discover_system_fonts(available_fonts, num_fonts)
+
+    if (num_fonts == 0) then
+        write(*,*) "❌ No fonts found! Cannot run tests."
+        error stop 1
+    end if
+
+    write(*,'(A,I0,A)') "📚 Found ", num_fonts, " available fonts"
+    call print_font_list(available_fonts, num_fonts)
+    write(*,*) ""
+
+    ! Test with multiple fonts and characters
+    call test_multi_font_comparison(available_fonts, num_fonts, test_chars)
 
     ! Summary
     write(*,*) ""
@@ -26,9 +43,9 @@ program test_stb_comparison
 
     overall_success = (failed_tests == 0)
     if (overall_success) then
-        write(*,*) "All tests PASSED"
+        write(*,*) "✅ All tests PASSED"
     else
-        write(*,*) "Some tests FAILED"
+        write(*,*) "❌ Some tests FAILED"
     end if
 
     if (.not. overall_success) then
@@ -37,109 +54,265 @@ program test_stb_comparison
 
 contains
 
-    subroutine test_basic_comparison()
-        !! Test basic functionality comparison between STB and pure implementations
+    subroutine discover_system_fonts(fonts, count)
+        !! Discover available TrueType fonts on macOS and Linux systems
+        character(len=256), allocatable, intent(out) :: fonts(:)
+        integer, intent(out) :: count
+
+        character(len=256) :: potential_fonts(20)
+        logical :: font_exists
+        integer :: i, found_count
+
+        ! Common fonts on macOS and Linux
+        potential_fonts(1) = "/System/Library/Fonts/Monaco.ttf"                    ! macOS monospace
+        potential_fonts(2) = "/System/Library/Fonts/Helvetica.ttc"                 ! macOS sans-serif
+        potential_fonts(3) = "/System/Library/Fonts/Times.ttc"                     ! macOS serif
+        potential_fonts(4) = "/System/Library/Fonts/Arial.ttf"                     ! macOS common
+        potential_fonts(5) = "/usr/share/fonts/TTF/DejaVuSans.ttf"                ! Linux DejaVu
+        potential_fonts(6) = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"    ! Linux DejaVu alt
+        potential_fonts(7) = "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf"           ! Linux DejaVu Bold
+        potential_fonts(8) = "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf" ! Linux Liberation
+        potential_fonts(9) = "/usr/share/fonts/TTF/LiberationSans-Regular.ttf"    ! Linux Liberation alt
+        potential_fonts(10) = "/usr/share/fonts/noto/NotoSans-Regular.ttf"        ! Linux Noto
+        potential_fonts(11) = "/usr/share/fonts/google-noto/NotoSans-Regular.ttf" ! Linux Noto alt
+        potential_fonts(12) = "/usr/share/fonts/ubuntu/Ubuntu-R.ttf"              ! Ubuntu font
+        potential_fonts(13) = "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf"     ! Ubuntu alt
+        potential_fonts(14) = "/usr/share/fonts/corefonts/arial.ttf"              ! Linux Arial
+        potential_fonts(15) = "/usr/share/fonts/truetype/msttcorefonts/arial.ttf" ! Linux Arial alt
+        potential_fonts(16) = "/opt/homebrew/share/fonts/source-code-pro/SourceCodePro-Regular.ttf" ! Homebrew
+        potential_fonts(17) = "/usr/local/share/fonts/SourceCodePro-Regular.ttf"  ! Local fonts
+        potential_fonts(18) = "/System/Library/Fonts/Menlo.ttc"                   ! macOS Menlo
+        potential_fonts(19) = "/System/Library/Fonts/SF-Pro.ttc"                  ! macOS SF Pro
+        potential_fonts(20) = "/System/Library/Fonts/Avenir.ttc"                  ! macOS Avenir
+
+        ! Count existing fonts first
+        found_count = 0
+        do i = 1, size(potential_fonts)
+            inquire(file=trim(potential_fonts(i)), exist=font_exists)
+            if (font_exists) found_count = found_count + 1
+        end do
+
+        ! Allocate and populate found fonts
+        allocate(fonts(found_count))
+        count = 0
+        do i = 1, size(potential_fonts)
+            inquire(file=trim(potential_fonts(i)), exist=font_exists)
+            if (font_exists) then
+                count = count + 1
+                fonts(count) = potential_fonts(i)
+            end if
+        end do
+
+    end subroutine discover_system_fonts
+
+    subroutine print_font_list(fonts, count)
+        !! Print list of discovered fonts
+        character(len=256), intent(in) :: fonts(:)
+        integer, intent(in) :: count
+        integer :: i
+
+        do i = 1, min(count, 5)  ! Show first 5 fonts
+            write(*,'(A,I0,A,A)') "   ", i, ": ", trim(fonts(i))
+        end do
+        if (count > 5) then
+            write(*,'(A,I0,A)') "   ... and ", count - 5, " more fonts"
+        end if
+
+    end subroutine print_font_list
+
+    subroutine test_multi_font_comparison(fonts, num_fonts, characters)
+        !! Test multiple fonts and characters for comprehensive validation
+        character(len=256), intent(in) :: fonts(:)
+        integer, intent(in) :: num_fonts
+        character(len=1), intent(in) :: characters(:)
+
+        integer :: font_idx, fonts_tested, fonts_passed
+        logical :: font_passed
+
+        fonts_tested = min(num_fonts, 3)  ! Test up to 3 fonts for now
+        fonts_passed = 0
+
+        do font_idx = 1, fonts_tested
+            write(*,'(A,I0,A,A)') "🔍 Testing font ", font_idx, ": ", &
+                                  trim(fonts(font_idx))
+
+            call test_single_font_comprehensive(fonts(font_idx), characters, font_passed)
+
+            if (font_passed) then
+                fonts_passed = fonts_passed + 1
+                write(*,'(A,I0,A)') "  ✅ Font ", font_idx, " PASSED all tests"
+            else
+                write(*,'(A,I0,A)') "  ❌ Font ", font_idx, " FAILED some tests"
+                failed_tests = failed_tests + 1
+            end if
+            write(*,*) ""
+        end do
+
+        total_tests = total_tests + fonts_tested
+        write(*,'(A,I0,A,I0,A)') "✅ Summary: ", fonts_passed, " out of ", &
+                                 fonts_tested, " fonts passed all tests"
+
+    end subroutine test_multi_font_comparison
+
+    subroutine test_single_font_comprehensive(font_path, characters, success)
+        !! Test a single font comprehensively with multiple characters
+        character(len=*), intent(in) :: font_path
+        character(len=1), intent(in) :: characters(:)
+        logical, intent(out) :: success
+
         type(stb_fontinfo_t) :: stb_font
         type(stb_fontinfo_pure_t) :: pure_font
         logical :: stb_success, pure_success
-        character(len=256) :: font_paths(3)
+
+        success = .false.
+
+        ! Initialize both implementations
+        if (.not. init_both_fonts(font_path, stb_font, pure_font, stb_success, pure_success)) then
+            return
+        end if
+
+        write(*,*) "    ✓ Both implementations initialized successfully"
+
+        ! Test core functionality
+        if (.not. test_font_metrics(stb_font, pure_font)) then
+            call cleanup_fonts(stb_font, pure_font, stb_success, pure_success)
+            return
+        end if
+
+        if (.not. test_character_mapping(stb_font, pure_font, characters)) then
+            call cleanup_fonts(stb_font, pure_font, stb_success, pure_success)
+            return
+        end if
+
+        ! Test additional STB functions (bitmap rendering, etc.)
+        call test_stb_extended_functions(stb_font)
+
+        call cleanup_fonts(stb_font, pure_font, stb_success, pure_success)
+        success = .true.
+
+    end subroutine test_single_font_comprehensive
+
+    function init_both_fonts(font_path, stb_font, pure_font, stb_success, pure_success) result(success)
+        !! Initialize both STB and pure implementations for a font
+        character(len=*), intent(in) :: font_path
+        type(stb_fontinfo_t), intent(out) :: stb_font
+        type(stb_fontinfo_pure_t), intent(out) :: pure_font
+        logical, intent(out) :: stb_success, pure_success
+        logical :: success
+
+        stb_success = stb_init_font(stb_font, font_path)
+        pure_success = stb_init_font_pure(pure_font, font_path)
+
+        if (.not. stb_success) then
+            write(*,*) "    ⚠️  STB font initialization failed"
+            success = .false.
+            return
+        end if
+
+        if (.not. pure_success) then
+            write(*,*) "    ⚠️  Pure font initialization failed"
+            success = .false.
+            return
+        end if
+
+        success = .true.
+
+    end function init_both_fonts
+
+    function test_font_metrics(stb_font, pure_font) result(success)
+        !! Test that font metrics match between implementations
+        type(stb_fontinfo_t), intent(in) :: stb_font
+        type(stb_fontinfo_pure_t), intent(in) :: pure_font
+        logical :: success
+
         real(wp) :: stb_scale, pure_scale
         integer :: stb_ascent, stb_descent, stb_line_gap
         integer :: pure_ascent, pure_descent, pure_line_gap
-        integer :: stb_glyph_a, pure_glyph_a
-        integer :: i
+        logical :: scales_match, metrics_match
+        real(wp), parameter :: scale_tolerance = 1.0e-6_wp
 
-        write(*,*) "Testing basic comparison..."
+        ! Test scale calculation
+        stb_scale = stb_scale_for_pixel_height(stb_font, 16.0_wp)
+        pure_scale = stb_scale_for_pixel_height_pure(pure_font, 16.0_wp)
 
-        total_tests = total_tests + 1
+        ! Test font metrics
+        call stb_get_font_vmetrics(stb_font, stb_ascent, stb_descent, stb_line_gap)
+        call stb_get_font_vmetrics_pure(pure_font, pure_ascent, pure_descent, pure_line_gap)
 
-        ! Try multiple font paths - prioritize Monaco for macOS
-        font_paths(1) = "/System/Library/Fonts/Monaco.ttf"
-        font_paths(2) = "/usr/share/fonts/TTF/DejaVuSans.ttf"
-        font_paths(3) = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+        scales_match = abs(stb_scale - pure_scale) < scale_tolerance
+        metrics_match = (stb_ascent == pure_ascent) .and. &
+                       (stb_descent == pure_descent) .and. &
+                       (stb_line_gap == pure_line_gap)
 
-        stb_success = .false.
-        pure_success = .false.
-
-        ! Test STB implementation
-        do i = 1, 3
-            stb_success = stb_init_font(stb_font, trim(font_paths(i)))
-            if (stb_success) exit
-        end do
-
-        ! Test pure implementation (should fail - it's a stub)
-        do i = 1, 3
-            pure_success = stb_init_font_pure(pure_font, trim(font_paths(i)))
-            if (pure_success) exit
-        end do
-
-        if (stb_success) then
-            write(*,*) "  ✓ STB font initialization: SUCCESS"
-
-            ! Test scale calculation
-            stb_scale = stb_scale_for_pixel_height(stb_font, 16.0_wp)
-            pure_scale = stb_scale_for_pixel_height_pure(pure_font, 16.0_wp)
-
-            write(*,'(A,F8.6,A,F8.6)') "  ✓ Scale factors - STB: ", stb_scale, &
-                                       " Pure: ", pure_scale
-
-            ! Test font metrics
-            call stb_get_font_vmetrics(stb_font, stb_ascent, stb_descent, stb_line_gap)
-            call stb_get_font_vmetrics_pure(pure_font, pure_ascent, pure_descent, &
-                                           pure_line_gap)
-
-            write(*,'(A,I0,A,I0,A,I0)') "  ✓ STB metrics: ", stb_ascent, "/", &
-                                        stb_descent, "/", stb_line_gap
-            write(*,'(A,I0,A,I0,A,I0)') "  ✓ Pure metrics: ", pure_ascent, "/", &
-                                        pure_descent, "/", pure_line_gap
-
-            ! Test additional functions
-            call test_new_functions(stb_font)
-
-            ! Test glyph-level functions
-            call test_glyph_functions(stb_font)
-
-            ! Test glyph index mapping comparison (Level 3)
-            if (pure_success) then
-                stb_glyph_a = stb_find_glyph_index(stb_font, iachar('A'))
-                pure_glyph_a = stb_find_glyph_index_pure(pure_font, iachar('A'))
-                write(*,'(A,I0,A,I0)') "    Glyph 'A' comparison - STB: ", stb_glyph_a, &
-                                       " Pure: ", pure_glyph_a
-            end if
-
-            call stb_cleanup_font(stb_font)
+        if (scales_match .and. metrics_match) then
+            write(*,'(A,F8.6)') "    ✓ Metrics and scale factors match (scale: ", stb_scale, ")"
+            success = .true.
         else
-            write(*,*) "  ⚠ No font available - skipping detailed tests"
+            write(*,'(A,F8.6,A,F8.6)') "    ❌ Scale mismatch - STB: ", stb_scale, " Pure: ", pure_scale
+            write(*,'(A,3I0,A,3I0)') "    ❌ Metrics - STB: ", stb_ascent, stb_descent, stb_line_gap, &
+                                     " Pure: ", pure_ascent, pure_descent, pure_line_gap
+            success = .false.
         end if
 
-        if (pure_success) then
-            ! Test that metrics match STB implementation
-            if (stb_success .and. &
-                pure_ascent == stb_ascent .and. &
-                pure_descent == stb_descent .and. &
-                pure_line_gap == stb_line_gap) then
-                write(*,*) "  ✓ Pure metrics match STB - implementation correct"
+    end function test_font_metrics
 
-                ! Check glyph index mapping (Level 3)
-                if (stb_success .and. pure_glyph_a /= stb_glyph_a) then
-                    write(*,*) "  ✗ Pure glyph mapping incorrect - need cmap implementation"
-                    failed_tests = failed_tests + 1
-                else if (stb_success) then
-                    write(*,*) "  ✓ Pure glyph mapping matches STB"
-                end if
+    function test_character_mapping(stb_font, pure_font, characters) result(success)
+        !! Test character to glyph index mapping for multiple characters
+        type(stb_fontinfo_t), intent(in) :: stb_font
+        type(stb_fontinfo_pure_t), intent(in) :: pure_font
+        character(len=1), intent(in) :: characters(:)
+        logical :: success
+
+        integer :: char_idx, stb_glyph, pure_glyph, chars_passed
+
+        chars_passed = 0
+        write(*,'(A)', advance='no') "    🔤 Testing character mapping: "
+
+        do char_idx = 1, size(characters)
+            stb_glyph = stb_find_glyph_index(stb_font, iachar(characters(char_idx)))
+            pure_glyph = stb_find_glyph_index_pure(pure_font, iachar(characters(char_idx)))
+
+            if (stb_glyph == pure_glyph) then
+                write(*,'(A,A)', advance='no') characters(char_idx), "✓ "
+                chars_passed = chars_passed + 1
             else
-                write(*,*) "  ✗ Pure metrics don't match STB - needs font table parsing"
-                failed_tests = failed_tests + 1
+                write(*,'(A,A)', advance='no') characters(char_idx), "❌ "
             end if
-            call stb_cleanup_font_pure(pure_font)
+        end do
+        write(*,*) ""
+
+        success = (chars_passed == size(characters))
+
+        if (success) then
+            write(*,'(A,I0,A,I0,A)') "    ✅ All ", chars_passed, " out of ", &
+                                     size(characters), " characters match"
         else
-            write(*,*) "  ✗ Pure implementation failed - needs implementation"
-            failed_tests = failed_tests + 1
+            write(*,'(A,I0,A,I0,A)') "    ❌ Only ", chars_passed, " out of ", &
+                                     size(characters), " characters match"
         end if
 
-        write(*,*) "  ✓ Basic comparison test completed"
+    end function test_character_mapping
 
-    end subroutine test_basic_comparison
+    subroutine test_stb_extended_functions(stb_font)
+        !! Test extended STB functions (bitmap rendering, etc.)
+        type(stb_fontinfo_t), intent(in) :: stb_font
+
+        ! Test these functions to ensure STB wrapper is working
+        call test_new_functions(stb_font)
+        call test_glyph_functions(stb_font)
+
+    end subroutine test_stb_extended_functions
+
+    subroutine cleanup_fonts(stb_font, pure_font, stb_success, pure_success)
+        !! Clean up font resources
+        type(stb_fontinfo_t), intent(inout) :: stb_font
+        type(stb_fontinfo_pure_t), intent(inout) :: pure_font
+        logical, intent(in) :: stb_success, pure_success
+
+        if (stb_success) call stb_cleanup_font(stb_font)
+        if (pure_success) call stb_cleanup_font_pure(pure_font)
+
+    end subroutine cleanup_fonts
 
     subroutine test_new_functions(stb_font)
         !! Test newly added functions
