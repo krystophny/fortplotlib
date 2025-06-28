@@ -22,6 +22,9 @@ module forttf_stb_raster
     public :: stb_new_active_edge
     public :: stb_update_active_edges
     public :: stb_remove_completed_edges
+    public :: stb_insert_active_edge
+    public :: stb_fill_active_edges
+    public :: stb_rasterize
 
 contains
 
@@ -488,5 +491,138 @@ contains
         end do
         
     end subroutine stb_remove_completed_edges
+
+    subroutine stb_insert_active_edge(active_head, edge)
+        !! Insert a new edge into the sorted active edge list
+        type(stb_active_edge_t), intent(inout), target :: active_head
+        type(stb_active_edge_t), intent(inout), target :: edge
+        type(stb_active_edge_t), pointer :: current
+
+        current => active_head
+        do while (associated(current%next))
+            if (edge%fx < current%next%fx) then
+                exit
+            end if
+            current => current%next
+        end do
+
+        edge%next => current%next
+        current%next => edge
+
+    end subroutine stb_insert_active_edge
+
+    subroutine stb_fill_active_edges(active_edges, scanline_y, width, scanline_buffer)
+        !! Fill a scanline based on the current active edges (matches stbtt__fill_active_edges_new)
+        type(stb_active_edge_t), pointer, intent(in) :: active_edges
+        real(wp), intent(in) :: scanline_y
+        integer, intent(in) :: width
+        real(wp), intent(inout) :: scanline_buffer(:)
+        
+        type(stb_active_edge_t), pointer :: e0, e1
+        real(wp) :: x0, x1, fill_amount
+        integer :: i, x_start, x_end
+        
+        e0 => active_edges
+        do while (associated(e0))
+            e1 => e0%next
+            if (.not. associated(e1)) exit
+
+            ! Calculate intersection points for this scanline
+            x0 = e0%fx
+            x1 = e1%fx
+
+            ! Fill pixels between the edges
+            if (x1 > x0) then
+                x_start = floor(x0)
+                x_end = ceiling(x1)
+
+                if (x_start < x_end) then
+                    do i = max(0, x_start), min(width - 1, x_end - 1)
+                        fill_amount = max(0.0_wp, min(1.0_wp, x1 - real(i, wp))) - max(0.0_wp, min(1.0_wp, x0 - real(i, wp)))
+                        if (fill_amount > 0.0_wp) then
+                           scanline_buffer(i + 1) = scanline_buffer(i + 1) + e0%direction * fill_amount
+                        end if
+                    end do
+                end if
+            end if
+            
+            e0 => e1%next
+        end do
+        
+    end subroutine stb_fill_active_edges
+
+    subroutine stb_rasterize(bitmap_ptr, width, height, stride, &
+                           points, contour_lengths, num_contours, &
+                           scale_x, scale_y, shift_x, shift_y, xoff, yoff, invert)
+        !! Main rasterization function (matches stbtt__rasterize_sorted_edges)
+        type(c_ptr), intent(in) :: bitmap_ptr
+        integer, intent(in) :: width, height, stride
+        type(stb_point_t), intent(in) :: points(:)
+        integer, intent(in) :: contour_lengths(:), num_contours
+        real(wp), intent(in) :: scale_x, scale_y, shift_x, shift_y
+        integer, intent(in) :: xoff, yoff
+        logical, intent(in) :: invert
+
+        type(stb_edge_t), allocatable :: edges(:)
+        integer :: num_edges, y, edge_idx
+        type(stb_active_edge_t), target :: active_head
+        type(stb_active_edge_t), pointer :: new_edge_ptr
+        real(wp), allocatable :: scanline_buffer(:)
+        integer(c_int8_t), pointer :: bitmap_array(:,:)
+        integer :: i, pixel_val
+
+        ! Build and sort edges
+        edges = stb_build_edges(points, contour_lengths, num_contours, &
+                                scale_x, scale_y, shift_x, shift_y, invert)
+        num_edges = size(edges)
+        if (num_edges == 0) return
+        call stb_sort_edges(edges, num_edges)
+
+        ! Initialize active edge list (dummy head)
+        active_head = stb_active_edge_t(0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, 0.0_wp, null())
+        
+        allocate(scanline_buffer(width))
+        call c_f_pointer(bitmap_ptr, bitmap_array, [stride, height])
+
+        edge_idx = 1
+        do y = 0, height - 1
+            scanline_buffer = 0.0_wp
+            
+            ! Add new edges that start on this scanline
+            do while (edge_idx <= num_edges .and. edges(edge_idx)%y0 <= real(y, wp) + 0.5_wp)
+                if (edges(edge_idx)%y1 > real(y, wp) + 0.5_wp) then
+                    allocate(new_edge_ptr)
+                    new_edge_ptr%this = stb_new_active_edge(edges(edge_idx), xoff, real(y, wp) + 0.5_wp)
+                    call stb_insert_active_edge(active_head, new_edge_ptr)
+                end if
+                edge_idx = edge_idx + 1
+            end do
+
+            ! Fill scanline from active edges
+            if (associated(active_head%next)) then
+                call stb_fill_active_edges(active_head%next, real(y, wp) + 0.5_wp, width, scanline_buffer)
+            end if
+
+            ! Write scanline to bitmap
+            do i = 1, width
+                pixel_val = int(abs(scanline_buffer(i)) * 255.0_wp)
+                bitmap_array(i, y + 1) = min(255, pixel_val)
+            end do
+
+            ! Update active edges for next scanline
+            call stb_update_active_edges(active_head, 1.0_wp)
+            call stb_remove_completed_edges(active_head, real(y, wp) + 1.5_wp)
+        end do
+
+        deallocate(edges, scanline_buffer)
+        ! Deallocate active edge list
+        new_edge_ptr => active_head%next
+        do while(associated(new_edge_ptr))
+            active_head%next => new_edge_ptr%next
+            deallocate(new_edge_ptr)
+            new_edge_ptr => active_head%next
+        end do
+
+    end subroutine stb_rasterize
 
 end module forttf_stb_raster
