@@ -223,6 +223,12 @@ When implementing new features or improving existing ones:
   - Fortran requires this strict ordering
 - **cd COMMAND IS FORBIDDEN** - Never use `cd` in bash commands. Use absolute paths instead. - **MANDATORY**
 
+# Fortran specifics to keep in mind
+- Fortran has no unsigned integers, so be careful with types and sizes.
+- Fortran uses 1-based indexing per default (can be specified in declaration), so be careful with array indices.
+- Fortran always evaluates all branches of logical expressions - no short-circuiting.
+
+
 # important-instruction-reminders
 Do what has been asked; nothing more, nothing less.
 NEVER create files unless they're absolutely necessary for achieving your goal.
