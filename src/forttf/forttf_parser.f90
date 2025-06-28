@@ -423,9 +423,9 @@ contains
         end if
 
         ! Read first subtable header
-        if (offset + 1 > data_size) return
-        subtable_length = read_be_uint16(data, offset)
-        offset = offset + 2
+        if (offset + 3 > data_size) return
+        subtable_length = read_be_uint32(data, offset)  ! 32-bit subtable length
+        offset = offset + 4
 
         if (offset + 1 > data_size) return
         coverage = read_be_uint16(data, offset)
@@ -834,7 +834,7 @@ contains
             kern_offset = font_info%tables(kern_table_idx)%offset  ! Already 1-based
             kern_length = font_info%tables(kern_table_idx)%length
 
-            ! Re-enable kern table parsing
+            ! Parse kern table
             success = parse_kern_table(font_info%font_data, kern_offset, &
                                      kern_length, font_info%kern_table)
         else

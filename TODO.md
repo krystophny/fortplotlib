@@ -9,11 +9,13 @@ This TODO list tracks the remaining steps to achieve a pure Fortran replacement 
 - `fpm test --target test_forttf_*` — Run all tests (builds code automatically)
 
 ## !! Important Notes
+- Port original C reference `thirdparty/stb_truetype.h` and use it to check your logics.
 - YOU MUST USE RED-GREEN TEST-DRIVEN DEVELOPMENT (TDD) FOR EVERY FUNCTION AND SUBROUTINE.
 - IF THERE ARE NO TESTS YET ADD TEST FOR EACH FUNCTION OR SUBROUTINE TO COMPARE TO REFERENCE STB C IMPLEMENTATION
 - UPDATE TODO.md AS YOU PROGRESS TO REFLECT CURRENT STATUS AND NEXT STEPS
 - COMMIT AND PUSH AFTER EACH GREEN TEST PASSES
 - MODULARIZE AS YOU GO, KEEPING CODE DRY (Don't Repeat Yourself) MODULES WITH A SINGLE RESPONSIBILITY PRINCIPLE (SRP)
+- Prefer systematic unit tests to ad-hoc debug output.
 - You must place variable declarations on top of the subroutine or function.
 - Fortran has no unsigned integers, so be careful with types and sizes.
 - Fortran uses 1-based indexing per default (can be specified in declaration), so be careful with array indices.
@@ -41,26 +43,34 @@ This TODO list tracks the remaining steps to achieve a pure Fortran replacement 
 - ✅ **Modularization Complete**: Phase 1, 2, and 3 successfully completed (see DONE.md)
 - ✅ **Naming Consistency**: All modules now use consistent `forttf_*` naming scheme
 - ✅ **Core Implementation**: Font initialization, metrics, mapping fully working
+- ✅ **Kerning Implementation**: Level 9.5 COMPLETE! All kerning functions working with perfect STB compatibility
 - ✅ **Test Architecture**: Focused modular test suite with comprehensive coverage
-- 🎯 **Next Priority**: Implement kerning table parsing (Level 9.5)
-- 🔄 **Following**: Complete bitmap rendering implementation (Level 10)
+- 🎯 **Next Priority**: Complete bitmap rendering implementation (Level 10)
+- 🔄 **Following**: Implement subpixel rendering (Level 11)
 
 ## 📝 Remaining TODOs
 
-### Level 9.5: Kerning Implementation (🎯 Immediate Next Priority)
-Current status: Kerning functions exist and have proper interfaces but return 0 (need actual kern table parsing)
+### ✅ Level 9.5: Kerning Implementation - COMPLETED! 
+**Status: COMPLETE** - All kerning functions now work perfectly and match STB results exactly!
 
-- [ ] Implement `kern` table parsing in `forttf_parser.f90`
-  - [ ] Add `ttf_kern_table_t` type to `forttf_types.f90`
-  - [ ] Implement `parse_kern_table()` function
-  - [ ] Add kerning table validation and format support
-- [ ] Update `stb_get_codepoint_kern_advance_pure()` to use parsed kerning data
-- [ ] Update `stb_get_glyph_kern_advance_pure()` to use parsed kerning data  
-- [ ] Update `stb_get_kerning_table_pure()` to return actual kerning pairs
-- [ ] Implement proper kerning table search and lookup algorithms
-- [ ] Update tests to validate kerning functionality works correctly
+- ✅ Implement `kern` table parsing in `forttf_parser.f90`
+  - ✅ Add `ttf_kern_table_t` type to `forttf_types.f90`
+  - ✅ Implement `parse_kern_table()` function
+  - ✅ Add kerning table validation and format support
+- ✅ Update `stb_get_codepoint_kern_advance_pure()` to use parsed kerning data
+- ✅ Update `stb_get_glyph_kern_advance_pure()` to use parsed kerning data  
+- ✅ Update `stb_get_kerning_table_pure()` to return actual kerning pairs
+- ✅ Implement proper kerning table search and lookup algorithms
+- ✅ Update tests to validate kerning functionality works correctly
 
-### Level 10: Bitmap Rendering - Basic (🎯 Next Priority After Kerning)
+**Test Results:**
+- ✅ A-V kerning: -102 (perfect match)
+- ✅ A-W kerning: -83 (perfect match)  
+- ✅ T-o kerning: -159 (perfect match)
+- ✅ V-A kerning: -139 (perfect match)
+- ✅ Kerning table length: 1367 pairs (perfect match)
+
+### Level 10: Bitmap Rendering - Basic (🎯 Immediate Next Priority)
 Current status: Bounding box functions implemented, actual rendering functions are stubs
 
 - [ ] Parse `glyf` and `loca` tables for glyph outline data
