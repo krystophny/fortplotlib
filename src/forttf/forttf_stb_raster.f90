@@ -525,35 +525,41 @@ contains
         real(wp), intent(inout) :: scanline_buffer(:)
         real(wp), intent(inout) :: scanline_fill_buffer(:)
         
-        type(stb_active_edge_t), pointer :: e0, e1
-        real(wp) :: x0, x1, fill_amount
-        integer :: i, x_start, x_end
+        type(stb_active_edge_t), pointer :: e
+        real(wp) :: y_bottom, x0
+        integer :: x
         
-        e0 => active_edges
-        do while (associated(e0))
-            e1 => e0%next
-            if (.not. associated(e1)) exit
-
-            ! Calculate intersection points for this scanline
-            x0 = e0%fx
-            x1 = e1%fx
-
-            ! Fill pixels between the edges
-            if (x1 > x0) then
-                x_start = floor(x0)
-                x_end = ceiling(x1)
-
-                if (x_start < x_end) then
-                    do i = max(0, x_start), min(width - 1, x_end - 1)
-                        fill_amount = max(0.0_wp, min(1.0_wp, x1 - real(i, wp))) - max(0.0_wp, min(1.0_wp, x0 - real(i, wp)))
-                        if (fill_amount > 0.0_wp) then
-                           scanline_buffer(i + 1) = scanline_buffer(i + 1) + e0%direction * fill_amount
-                        end if
-                    end do
+        ! Simple vertical edge handling for now (will expand later)
+        y_bottom = scanline_y + 1.0_wp
+        
+        e => active_edges
+        do while (associated(e))
+            ! Handle each edge individually (STB approach)
+            if (abs(e%fdx) < epsilon(1.0_wp)) then
+                ! Vertical edge case (fdx == 0)
+                x0 = e%fx
+                if (x0 >= 0.0_wp .and. x0 < real(width, wp)) then
+                    x = int(x0)
+                    if (x >= 0 .and. x < width) then
+                        ! For vertical edges, use handle_clipped_edge for scanline
+                        call stb_handle_clipped_edge(scanline_buffer, x, e, x0, scanline_y, x0, y_bottom)
+                        ! For scanline_fill, use full directional contribution (STB behavior)
+                        scanline_fill_buffer(x + 1) = scanline_fill_buffer(x + 1) + e%direction * (y_bottom - scanline_y)
+                    end if
+                end if
+            else
+                ! Non-vertical edge - simplified for now
+                x0 = e%fx
+                if (x0 >= 0.0_wp .and. x0 < real(width, wp)) then
+                    x = int(x0)
+                    if (x >= 0 .and. x < width) then
+                        scanline_buffer(x + 1) = scanline_buffer(x + 1) + e%direction * 0.5_wp
+                        scanline_fill_buffer(x + 1) = scanline_fill_buffer(x + 1) + e%direction
+                    end if
                 end if
             end if
             
-            e0 => e1%next
+            e => e%next
         end do
         
     end subroutine stb_fill_active_edges

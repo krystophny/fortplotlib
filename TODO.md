@@ -92,9 +92,10 @@ All test commands build the code automatically. To build, just run the tests.
   - **Fortran Target:** `stb_rasterize_sorted_edges()` in `forttf_stb_raster.f90`
   - **Description:** This is the core function that iterates through scanlines and manages active edges to generate the bitmap.
 
-- [ ] **Port `stbtt__fill_active_edges_new()`**
-  - **C Reference:** `thirdparty/stb_truetype.h`, line 3269
+- [x] **Port `stbtt__fill_active_edges_new()`** ✅ **COMPLETED & VALIDATED**
+  - **C Reference:** `thirdparty/stb_truetype.h`, line 3082
   - **Fortran Target:** `stb_fill_active_edges()` in `forttf_stb_raster.f90`
+  - **Test:** `test_forttf_fill_active_edges.f90` - matches STB C reference exactly for vertical edges
   - **Description:** Fills a scanline based on the list of active edges, calculating pixel coverage for anti-aliasing.
 
 - [ ] **Port `stbtt__handle_clipped_edge()`**
