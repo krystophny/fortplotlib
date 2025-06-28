@@ -345,6 +345,29 @@ Successfully implemented a **complete pure Fortran TrueType library** with perfe
 - [x] **stbtt__handle_clipped_edge()**: Edge clipping for scanline boundaries → `stb_handle_clipped_edge()` ✅ IMPLEMENTED
   - **Algorithm:** Handles edge intersection with pixel boundaries for proper coverage calculation
   - **Usage:** Used by `stb_fill_active_edges()` for scanline buffer calculations
-- [ ] **stbtt__rasterize_sorted_edges()**: Main scanline iteration and edge management → `stb_rasterize_sorted_edges()` ❌ **NEEDS VALIDATION**
-  - **Status:** Implementation exists but needs TDD validation against STB C reference
-  - **Next:** Create comprehensive tests comparing edge processing and bitmap output with STB
+- [x] **stbtt__rasterize_sorted_edges()**: Main scanline iteration and edge management → `stb_rasterize_sorted_edges()` ✅ **COMPLETED & VALIDATED**
+  - **C Reference:** `thirdparty/stb_truetype.h`, line 3331
+  - **Fortran Target:** `stb_rasterize_sorted_edges()` in `forttf_stb_raster.f90`
+  - **Test:** `test_forttf_rasterize_sorted_edges.f90` - ✅ **PASSES STB C comparison perfectly**
+  - **Status:** ✅ **COMPLETE** - Fixed buffer offset compatibility with `stb_fill_active_edges_with_offset`
+  - **Achievement:** All test cases pass with pixel-perfect STB C matching
+  - **Description:** Core function that iterates through scanlines and manages active edges to generate the bitmap
+
+### **Phase 12B.6: Anti-Aliasing Area Calculation - ✅ COMPLETED**
+- [x] **stbtt__sized_trapezoid_area()**: Trapezoid area calculation for coverage → `stb_sized_trapezoid_area()` ✅ **COMPLETED & VALIDATED**
+  - **C Reference:** `thirdparty/stb_truetype.h`, line 3065
+  - **Fortran Target:** `stb_sized_trapezoid_area()` in `forttf_stb_raster.f90`
+  - **Test:** `test_forttf_area_functions.f90` - matches STB C reference exactly
+  - **Description:** Calculates the area of a trapezoid for anti-aliasing coverage
+
+- [x] **stbtt__position_trapezoid_area()**: Positioned trapezoid area calculation → `stb_position_trapezoid_area()` ✅ **COMPLETED & VALIDATED**
+  - **C Reference:** `thirdparty/stb_truetype.h`, line 3072
+  - **Fortran Target:** `stb_position_trapezoid_area()` in `forttf_stb_raster.f90`
+  - **Test:** `test_forttf_area_functions.f90` - matches STB C reference exactly
+  - **Description:** Calculates trapezoid area with sub-pixel positioning
+
+- [x] **stbtt__sized_triangle_area()**: Triangle area calculation for edge coverage → `stb_sized_triangle_area()` ✅ **COMPLETED & VALIDATED**
+  - **C Reference:** `thirdparty/stb_truetype.h`, line 3077
+  - **Fortran Target:** `stb_sized_triangle_area()` in `forttf_stb_raster.f90`
+  - **Test:** `test_forttf_area_functions.f90` - matches STB C reference exactly
+  - **Description:** Calculates the area of a triangle for partial coverage at the edges of shapes
