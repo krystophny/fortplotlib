@@ -623,25 +623,59 @@ contains
 
     subroutine rasterize_vertices(vertices, num_vertices, bitmap_array, width, height, &
                                  scale_x, scale_y, shift_x, shift_y, xoff, yoff)
-        !! Rasterize vertex outline using scanline algorithm for precise shapes
+        !! Rasterize vertex outline using STB-compatible scanline algorithm for pixel-perfect matching
+        use forttf_stb_raster, only: stb_flatten_curves, stb_build_edges, stb_sort_edges, stb_rasterize_sorted_edges
         type(ttf_vertex_t), intent(in) :: vertices(:)
         integer, intent(in) :: num_vertices
-        integer(c_int8_t), intent(inout) :: bitmap_array(:)
+        integer(c_int8_t), intent(inout), target :: bitmap_array(:)
         integer, intent(in) :: width, height
         real(wp), intent(in) :: scale_x, scale_y, shift_x, shift_y
         integer, intent(in) :: xoff, yoff
         
-        type(ttf_edge_t), allocatable :: edges(:)
-        integer :: num_edges
+        type(stb_point_t), allocatable :: points(:)
+        type(stb_edge_t), allocatable :: edges(:)
+        type(stb_bitmap_t) :: bitmap
+        integer, allocatable :: contour_lengths(:)
+        integer :: num_contours, num_edges
+        real(wp), parameter :: objspace_flatness = 0.35_wp  ! STB default
         
         if (num_vertices <= 0) then
             call create_fallback_bitmap(bitmap_array, width, height)
             return
         end if
         
-        ! Use simple rasterization for now (works reliably)
-        call rasterize_vertices_simple(vertices, num_vertices, bitmap_array, width, height, &
-                                      scale_x, scale_y, shift_x, shift_y, xoff, yoff)
+        ! Step 1: Flatten curves to points (STB algorithm)
+        points = stb_flatten_curves(vertices, num_vertices, objspace_flatness, contour_lengths, num_contours)
+        
+        if (size(points) == 0) then
+            ! No points - fallback
+            call rasterize_vertices_simple(vertices, num_vertices, bitmap_array, width, height, &
+                                          scale_x, scale_y, shift_x, shift_y, xoff, yoff)
+            return
+        end if
+        
+        ! Step 2: Build edges from flattened points
+        edges = stb_build_edges(points, contour_lengths, num_contours, &
+                               scale_x, scale_y, shift_x, shift_y, .false.)
+        num_edges = size(edges)
+        
+        if (num_edges > 0) then
+            ! Step 3: Sort edges
+            call stb_sort_edges(edges, num_edges)
+            
+            ! Step 4: Set up STB bitmap structure
+            bitmap%w = width
+            bitmap%h = height
+            bitmap%stride = width
+            bitmap%pixels => bitmap_array
+            
+            ! Step 5: Use STB-compatible rasterization with anti-aliasing
+            call stb_rasterize_sorted_edges(bitmap, edges, num_edges, 1, int(xoff), int(yoff), c_null_ptr)
+        else
+            ! Fallback to simple rasterization if no edges
+            call rasterize_vertices_simple(vertices, num_vertices, bitmap_array, width, height, &
+                                          scale_x, scale_y, shift_x, shift_y, xoff, yoff)
+        end if
 
     end subroutine rasterize_vertices
     
@@ -834,5 +868,76 @@ contains
         end do
 
     end subroutine rasterize_vertices_simple
+
+    subroutine vertices_to_stb_edges(vertices, num_vertices, scale_x, scale_y, &
+                                     shift_x, shift_y, xoff, yoff, edges, num_edges)
+        !! Convert vertex outline to STB-compatible edges for scanline rasterization
+        type(ttf_vertex_t), intent(in) :: vertices(:)
+        integer, intent(in) :: num_vertices
+        real(wp), intent(in) :: scale_x, scale_y, shift_x, shift_y
+        integer, intent(in) :: xoff, yoff
+        type(stb_edge_t), allocatable, intent(out) :: edges(:)
+        integer, intent(out) :: num_edges
+        
+        integer :: i, max_edges
+        real(wp) :: x0, y0, x1, y1
+        real(wp) :: prev_x, prev_y, curr_x, curr_y
+        logical :: in_contour
+        
+        ! Allocate maximum possible edges
+        max_edges = num_vertices
+        allocate(edges(max_edges))
+        num_edges = 0
+        
+        ! Track contour state
+        in_contour = .false.
+        prev_x = 0.0_wp
+        prev_y = 0.0_wp
+        
+        do i = 1, num_vertices
+            ! Transform vertex coordinates
+            curr_x = (vertices(i)%x * scale_x + shift_x) - real(xoff, wp)
+            curr_y = (vertices(i)%y * scale_y + shift_y) - real(yoff, wp)
+            
+            if (vertices(i)%type == 1) then
+                ! Move to - start new contour
+                in_contour = .true.
+                prev_x = curr_x
+                prev_y = curr_y
+            else if (vertices(i)%type == 2 .and. in_contour) then
+                ! Line to - create edge
+                num_edges = num_edges + 1
+                if (prev_y < curr_y) then
+                    ! Edge goes downward
+                    edges(num_edges)%x0 = prev_x
+                    edges(num_edges)%y0 = prev_y
+                    edges(num_edges)%x1 = curr_x
+                    edges(num_edges)%y1 = curr_y
+                    edges(num_edges)%invert = 0
+                else if (prev_y > curr_y) then
+                    ! Edge goes upward - invert it
+                    edges(num_edges)%x0 = curr_x
+                    edges(num_edges)%y0 = curr_y
+                    edges(num_edges)%x1 = prev_x
+                    edges(num_edges)%y1 = prev_y
+                    edges(num_edges)%invert = 1
+                else
+                    ! Horizontal edge - don't create
+                    num_edges = num_edges - 1
+                end if
+                prev_x = curr_x
+                prev_y = curr_y
+            end if
+        end do
+        
+        ! Resize to actual number of edges
+        if (num_edges > 0) then
+            edges = edges(1:num_edges)
+        else
+            deallocate(edges)
+            allocate(edges(0))
+        end if
+        
+    end subroutine vertices_to_stb_edges
 
 end module forttf_bitmap
