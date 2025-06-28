@@ -316,28 +316,73 @@ contains
     end subroutine stb_free_bitmap_pure
 
     function stb_get_number_of_fonts_pure(font_data, data_size) result(num_fonts)
-        !! Get number of fonts in font file/data (STUB)
+        !! Get number of fonts in font file/data
         type(c_ptr), intent(in) :: font_data
         integer, intent(in) :: data_size
         integer :: num_fonts
+        integer(c_int8_t), pointer :: font_array(:)
+        type(ttc_header_t) :: ttc_header
 
-        ! STUB: Return placeholder
-        num_fonts = 0
+        num_fonts = 1  ! Default for TTF files
 
-        ! TODO: Parse TTC header if applicable
+        if (.not. c_associated(font_data) .or. data_size <= 0) then
+            num_fonts = 0
+            return
+        end if
+
+        ! Convert C pointer to Fortran array
+        call c_f_pointer(font_data, font_array, [data_size])
+
+        ! Check if this is a TTC file
+        if (is_ttc_file(font_array)) then
+            ! Parse TTC header to get number of fonts
+            if (parse_ttc_header(font_array, ttc_header)) then
+                num_fonts = ttc_header%numFonts
+            else
+                num_fonts = 0  ! Error parsing TTC
+            end if
+        end if
+        ! For TTF files, return 1 (default set above)
 
     end function stb_get_number_of_fonts_pure
 
     function stb_get_font_offset_for_index_pure(font_data, index) result(offset)
-        !! Get font offset for multi-font files (STUB)
+        !! Get font offset for multi-font files
         type(c_ptr), intent(in) :: font_data
         integer, intent(in) :: index
         integer :: offset
+        integer(c_int8_t), pointer :: font_array(:)
+        type(ttc_header_t) :: ttc_header
 
-        ! STUB: Return error
-        offset = -1
+        offset = 0  ! Default for TTF files (start at beginning)
 
-        ! TODO: Parse TTC directory
+        if (.not. c_associated(font_data)) then
+            offset = -1
+            return
+        end if
+
+        ! Convert C pointer to Fortran array (we need size, so use a large value)
+        call c_f_pointer(font_data, font_array, [100000])  ! Assume large enough for header
+
+        ! Check if this is a TTC file
+        if (is_ttc_file(font_array)) then
+            ! Parse TTC header to get font offset
+            if (parse_ttc_header(font_array, ttc_header)) then
+                offset = get_ttc_font_offset(ttc_header, index)
+                if (offset == 0) then
+                    offset = -1  ! Invalid index
+                end if
+            else
+                offset = -1  ! Error parsing TTC
+            end if
+        else
+            ! For TTF files, only index 0 is valid
+            if (index == 0) then
+                offset = 0
+            else
+                offset = -1
+            end if
+        end if
 
     end function stb_get_font_offset_for_index_pure
 
