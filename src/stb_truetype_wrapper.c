@@ -485,3 +485,97 @@ void stb_wrapper_make_glyph_bitmap(const stb_fontinfo_wrapper_t *wrapper, unsign
     stb_font_context_t *context = (stb_font_context_t*)wrapper->private_data;
     stbtt_MakeGlyphBitmap(&context->font_info, output, out_w, out_h, out_stride, scale_x, scale_y, glyph);
 }
+
+/*
+ * Allocate and render glyph bitmap with subpixel positioning
+ */
+unsigned char* stb_wrapper_get_glyph_bitmap_subpixel(const stb_fontinfo_wrapper_t *wrapper, 
+                                                    float scale_x, float scale_y, 
+                                                    float shift_x, float shift_y, int glyph,
+                                                    int *width, int *height, int *xoff, int *yoff) {
+    if (!wrapper || !wrapper->private_data || !width || !height || !xoff || !yoff) {
+        if (width) *width = 0;
+        if (height) *height = 0;
+        if (xoff) *xoff = 0;
+        if (yoff) *yoff = 0;
+        return NULL;
+    }
+    
+    stb_font_context_t *context = (stb_font_context_t*)wrapper->private_data;
+    return stbtt_GetGlyphBitmapSubpixel(&context->font_info, scale_x, scale_y, shift_x, shift_y, 
+                                       glyph, width, height, xoff, yoff);
+}
+
+/*
+ * Render glyph into provided buffer with subpixel positioning
+ */
+void stb_wrapper_make_glyph_bitmap_subpixel(const stb_fontinfo_wrapper_t *wrapper, 
+                                           unsigned char *output,
+                                           int out_w, int out_h, int out_stride,
+                                           float scale_x, float scale_y, 
+                                           float shift_x, float shift_y, int glyph) {
+    if (!wrapper || !wrapper->private_data || !output) {
+        return;
+    }
+    
+    stb_font_context_t *context = (stb_font_context_t*)wrapper->private_data;
+    stbtt_MakeGlyphBitmapSubpixel(&context->font_info, output, out_w, out_h, out_stride, 
+                                 scale_x, scale_y, shift_x, shift_y, glyph);
+}
+
+/*
+ * Render character into provided buffer with subpixel positioning
+ */
+void stb_wrapper_make_codepoint_bitmap_subpixel(const stb_fontinfo_wrapper_t *wrapper, 
+                                               unsigned char *output,
+                                               int out_w, int out_h, int out_stride,
+                                               float scale_x, float scale_y, 
+                                               float shift_x, float shift_y, int codepoint) {
+    if (!wrapper || !wrapper->private_data || !output) {
+        return;
+    }
+    
+    stb_font_context_t *context = (stb_font_context_t*)wrapper->private_data;
+    stbtt_MakeCodepointBitmapSubpixel(&context->font_info, output, out_w, out_h, out_stride, 
+                                     scale_x, scale_y, shift_x, shift_y, codepoint);
+}
+
+/*
+ * Get bounding box for glyph bitmap with subpixel positioning
+ */
+void stb_wrapper_get_glyph_bitmap_box_subpixel(const stb_fontinfo_wrapper_t *wrapper, int glyph, 
+                                              float scale_x, float scale_y, 
+                                              float shift_x, float shift_y,
+                                              int *ix0, int *iy0, int *ix1, int *iy1) {
+    if (!wrapper || !wrapper->private_data || !ix0 || !iy0 || !ix1 || !iy1) {
+        if (ix0) *ix0 = 0;
+        if (iy0) *iy0 = 0;
+        if (ix1) *ix1 = 0;
+        if (iy1) *iy1 = 0;
+        return;
+    }
+    
+    stb_font_context_t *context = (stb_font_context_t*)wrapper->private_data;
+    stbtt_GetGlyphBitmapBoxSubpixel(&context->font_info, glyph, scale_x, scale_y, 
+                                   shift_x, shift_y, ix0, iy0, ix1, iy1);
+}
+
+/*
+ * Get bounding box for character bitmap with subpixel positioning
+ */
+void stb_wrapper_get_codepoint_bitmap_box_subpixel(const stb_fontinfo_wrapper_t *wrapper, int codepoint, 
+                                                  float scale_x, float scale_y, 
+                                                  float shift_x, float shift_y,
+                                                  int *ix0, int *iy0, int *ix1, int *iy1) {
+    if (!wrapper || !wrapper->private_data || !ix0 || !iy0 || !ix1 || !iy1) {
+        if (ix0) *ix0 = 0;
+        if (iy0) *iy0 = 0;
+        if (ix1) *ix1 = 0;
+        if (iy1) *iy1 = 0;
+        return;
+    }
+    
+    stb_font_context_t *context = (stb_font_context_t*)wrapper->private_data;
+    stbtt_GetCodepointBitmapBoxSubpixel(&context->font_info, codepoint, scale_x, scale_y, 
+                                       shift_x, shift_y, ix0, iy0, ix1, iy1);
+}

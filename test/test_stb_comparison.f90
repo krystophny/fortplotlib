@@ -254,8 +254,70 @@ contains
             write(*,*) "    ⚠ Subpixel bitmap allocation failed"
         end if
         
+        ! Test additional subpixel functions
+        call test_subpixel_functions(stb_font, glyph_index)
+        
         write(*,*) "    ✓ Bitmap functions tested successfully"
         
     end subroutine test_bitmap_functions
+    
+    subroutine test_subpixel_functions(stb_font, glyph_index)
+        !! Test newly added subpixel bitmap functions
+        type(stb_fontinfo_t), intent(in) :: stb_font
+        integer, intent(in) :: glyph_index
+        type(c_ptr) :: subpixel_glyph_bitmap_ptr
+        integer :: width, height, xoff, yoff
+        integer :: bbox_x0, bbox_y0, bbox_x1, bbox_y1
+        real(wp) :: scale_x, scale_y, shift_x, shift_y
+        
+        write(*,*) "      Testing subpixel functions..."
+        
+        scale_x = 0.08_wp
+        scale_y = 0.08_wp
+        shift_x = 0.25_wp
+        shift_y = 0.75_wp
+        
+        if (glyph_index > 0) then
+            ! Test subpixel glyph bitmap rendering
+            subpixel_glyph_bitmap_ptr = stb_get_glyph_bitmap_subpixel(stb_font, &
+                                                                     scale_x, &
+                                                                     scale_y, &
+                                                                     shift_x, &
+                                                                     shift_y, &
+                                                                     glyph_index, &
+                                                                     width, &
+                                                                     height, &
+                                                                     xoff, yoff)
+            
+            if (c_associated(subpixel_glyph_bitmap_ptr)) then
+                write(*,'(A,I0,A,I0,A,I0,A,I0)') "      ✓ Subpixel glyph: ", &
+                    width, "x", height, " offset: ", xoff, ",", yoff
+                call stb_free_bitmap(subpixel_glyph_bitmap_ptr)
+            else
+                write(*,*) "      ⚠ Subpixel glyph bitmap allocation failed"
+            end if
+            
+            ! Test subpixel glyph bounding box
+            call stb_get_glyph_bitmap_box_subpixel(stb_font, glyph_index, &
+                                                  scale_x, scale_y, &
+                                                  shift_x, shift_y, &
+                                                  bbox_x0, bbox_y0, &
+                                                  bbox_x1, bbox_y1)
+            write(*,'(A,4I6)') "      Subpixel glyph bbox: ", bbox_x0, &
+                               bbox_y0, bbox_x1, bbox_y1
+        end if
+        
+        ! Test subpixel character bounding box
+        call stb_get_codepoint_bitmap_box_subpixel(stb_font, iachar('A'), &
+                                                  scale_x, scale_y, &
+                                                  shift_x, shift_y, &
+                                                  bbox_x0, bbox_y0, &
+                                                  bbox_x1, bbox_y1)
+        write(*,'(A,4I6)') "      Subpixel char bbox: ", bbox_x0, bbox_y0, &
+                           bbox_x1, bbox_y1
+        
+        write(*,*) "      ✓ Subpixel functions tested successfully"
+        
+    end subroutine test_subpixel_functions
 
 end program test_stb_comparison
