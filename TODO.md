@@ -79,21 +79,26 @@ Break down the large `test/test_stb_comparison.f90` into focused test modules:
 
 ### 🔧 IMMEDIATE: Complete Modularization (Phase 2 & 3)
 
+
 **Phase 2: STB API Modularization**
-- [ ] Create `src/fortplot_stb_core.f90` (font init/cleanup, TTC support)
-- [ ] Create `src/fortplot_stb_metrics.f90` (horizontal, vertical, OS/2, kerning metrics)
-- [ ] Create `src/fortplot_stb_mapping.f90` (character-to-glyph mapping and lookup)
-- [ ] Create `src/fortplot_stb_bitmap.f90` (bitmap rendering functions - stubs for now)
-- [ ] Refactor `src/fortplot_stb.f90` to be a thin API layer importing/re-exporting modules
-- [ ] Ensure all tests pass after modularization
+In every step refactor `src/fortplot_stb.f90` to remove funcionality moved to specialized modules and become a thin API layer importing/re-exporting modules.
+
+- [ ] Move functionality to `src/fortplot_stb_core.f90` (font init/cleanup, TTC support)
+- [ ] Run Tests. Ensure all core functionality works as before.
+- [ ] Move functionality to `src/fortplot_stb_metrics.f90` (horizontal, vertical, OS/2, kerning metrics)
+- [ ] Run Tests. Ensure all metrics functions work as before.
+- [ ] Move functionality to `src/fortplot_stb_mapping.f90` (character-to-glyph mapping and lookup)
+- [ ] Run Tests. Ensure all mapping functions work as before.
+- [ ] Move functionality to `src/fortplot_stb_bitmap.f90` (bitmap rendering functions - stubs for now)
+- [ ] Run Tests. Ensure all bitmap functions work as before.
 
 **Phase 3: Test Modularization**
-- [ ] Create `test/test_utils.f90` (font discovery, initialization helpers)
-- [ ] Create `test/test_stb_core.f90` (core font and TTC tests)
-- [ ] Create `test/test_stb_metrics.f90` (metrics comparison tests)
-- [ ] Create `test/test_stb_mapping.f90` (character mapping tests)
-- [ ] Create `test/test_stb_bitmap.f90` (bitmap rendering tests)
-- [ ] Refactor `test/test_stb_comparison.f90` to orchestrate modular test suites
+In every step refactor `test/test_stb_comparison.f90` to remove functionality moved into focused test modules.
+
+- [ ] Move relevant tests to `test/test_utils.f90` (font discovery, initialization helpers)
+- [ ] Move relevant tests to `test/test_stb_metrics.f90` (metrics comparison tests)
+- [ ] Move relevant tests to `test/test_stb_mapping.f90` (character mapping tests)
+- [ ] Move relevant tests to `test/test_stb_bitmap.f90` (bitmap rendering tests)
 - [ ] Ensure all tests pass and provide same coverage as before
 
 ---
