@@ -260,11 +260,11 @@ contains
         ! Test Level 7: Bounding Boxes and Font Metrics (TDD)
         call test_bounding_box_functions(stb_font, pure_font)
 
+        ! Test Level 8: OS/2 Metrics (TDD)
+        call test_os2_metrics_functions(stb_font, pure_font)
+
         ! Test additional STB functions (bitmap rendering, etc.)
         call test_stb_extended_functions(stb_font)
-
-        ! Test Level 7: Bounding Boxes and Font Metrics (TDD)
-        call test_bounding_box_functions(stb_font, pure_font)
 
         call cleanup_fonts(stb_font, pure_font, stb_success, pure_success)
         success = .true.
@@ -715,5 +715,48 @@ contains
         end if
 
     end subroutine test_bounding_box_functions
+
+    subroutine test_os2_metrics_functions(stb_font, pure_font)
+        !! Test Level 8: OS/2 Metrics (TDD)
+        type(stb_fontinfo_t), intent(in) :: stb_font
+        type(stb_fontinfo_pure_t), intent(in) :: pure_font
+        integer :: stb_typo_ascent, stb_typo_descent, stb_typo_line_gap
+        integer :: pure_typo_ascent, pure_typo_descent, pure_typo_line_gap
+        integer :: pure_result
+        logical :: os2_match
+
+        write(*,*) "  Testing OS/2 metrics functions (TDD)..."
+
+        ! Test: stb_get_font_vmetrics_os2 comparison
+        call stb_get_font_vmetrics_os2(stb_font, stb_typo_ascent, stb_typo_descent, stb_typo_line_gap)
+        pure_result = stb_get_font_vmetrics_os2_pure(pure_font, pure_typo_ascent, pure_typo_descent, pure_typo_line_gap)
+
+        write(*,'(A,3I6,A,I0,A,3I6)') "    OS/2 metrics: STB=(", &
+                                      stb_typo_ascent, stb_typo_descent, stb_typo_line_gap, &
+                                      "), Pure=", pure_result, &
+                                      " (", pure_typo_ascent, pure_typo_descent, pure_typo_line_gap, ")"
+
+        ! If pure function returns 0, OS/2 table doesn't exist, so STB should return zeros too
+        if (pure_result == 0) then
+            os2_match = (stb_typo_ascent == 0 .and. stb_typo_descent == 0 .and. stb_typo_line_gap == 0)
+        else
+            os2_match = (stb_typo_ascent == pure_typo_ascent .and. &
+                         stb_typo_descent == pure_typo_descent .and. &
+                         stb_typo_line_gap == pure_typo_line_gap)
+        end if
+
+        if (.not. os2_match) then
+            write(*,*) "    ❌ OS/2 metrics mismatch!"
+        else
+            write(*,*) "    ✅ OS/2 metrics match"
+        end if
+
+        if (os2_match) then
+            write(*,*) "  ✅ All OS/2 metrics functions match"
+        else
+            write(*,*) "  ❌ OS/2 metrics functions failed"
+        end if
+
+    end subroutine test_os2_metrics_functions
 
 end program test_stb_comparison

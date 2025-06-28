@@ -535,27 +535,42 @@ contains
 
     end function stb_get_codepoint_kern_advance_pure
 
-    subroutine stb_get_font_vmetrics_os2_pure(font_info, typoAscent, typoDescent, &
-                                             typoLineGap)
-        !! Get OS/2 table vertical metrics (STUB)
+    function stb_get_font_vmetrics_os2_pure(font_info, typoAscent, typoDescent, &
+                                           typoLineGap) result(success)
+        !! Get OS/2 table vertical metrics
         type(stb_fontinfo_pure_t), intent(in) :: font_info
         integer, intent(out) :: typoAscent, typoDescent, typoLineGap
+        integer :: success
+        integer :: os2_table_idx, os2_offset
 
         if (.not. font_info%initialized) then
             typoAscent = 0
             typoDescent = 0
             typoLineGap = 0
+            success = 0
             return
         end if
 
-        ! STUB: Return placeholder values
-        typoAscent = 0
-        typoDescent = 0
-        typoLineGap = 0
+        ! Find OS/2 table
+        os2_table_idx = find_table(font_info%tables, 'OS/2')
+        if (os2_table_idx == 0) then
+            typoAscent = 0
+            typoDescent = 0
+            typoLineGap = 0
+            success = 0
+            return
+        end if
 
-        ! TODO: Implement using OS/2 table
+        os2_offset = font_info%tables(os2_table_idx)%offset
 
-    end subroutine stb_get_font_vmetrics_os2_pure
+        ! Read OS/2 typo metrics from table at offsets 68, 70, 72
+        typoAscent = read_be_int16(font_info%font_data, os2_offset + 68)
+        typoDescent = read_be_int16(font_info%font_data, os2_offset + 70)
+        typoLineGap = read_be_int16(font_info%font_data, os2_offset + 72)
+
+        success = 1
+
+    end function stb_get_font_vmetrics_os2_pure
 
     subroutine stb_get_glyph_hmetrics_pure(font_info, glyph_index, advanceWidth, &
                                           leftSideBearing)

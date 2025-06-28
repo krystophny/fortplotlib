@@ -3,7 +3,7 @@
 This TODO list tracks the remaining steps to achieve a pure Fortran replacement for the STB TrueType C library, with feature parity and test-driven development.
 Tests build code automatically. Just run
 
-`fpm test --target test_stb_comparison 2>&1` to run all tests and build the code. Important: the command is `fpm`, NOT `fmp`!
+`fpm test --target test_stb_comparison` to run all tests and build the code. Important: the command is `fpm`, NOT `fmp`!
 
 ## !! Important Notes
 - YOU MUST USE RED-GREEN TEST-DRIVEN DEVELOPMENT (TDD) FOR EVERY FUNCTION AND SUBROUTINE.
@@ -77,8 +77,9 @@ All TrueType/TTC types and parsing logic are now in dedicated modules:
 - ✅ RED-GREEN TDD tests added and passing for all bounding box functions
 
 ### Level 8: OS/2 Metrics
-- [ ] `stb_get_font_vmetrics_os2_pure()` - Get OS/2 table vertical metrics (currently STUB)
-- [ ] Parse `OS/2` table for extended font metrics
+- ✅ `stb_get_font_vmetrics_os2_pure()` - Get OS/2 table vertical metrics
+- ✅ Parse `OS/2` table for extended font metrics
+- ✅ RED-GREEN TDD tests added and passing for OS/2 metrics functions
 
 ### Level 9: Kerning Support
 - [ ] `stb_get_codepoint_kern_advance_pure()` - Get kerning advance between two characters (currently STUB)
