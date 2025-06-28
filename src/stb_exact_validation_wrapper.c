@@ -10,12 +10,53 @@
 #include <string.h>
 
 /*
+ * Fortran ttf_vertex_t structure (must match forttf_types.f90)
+ */
+typedef struct {
+    int x, y;           // Primary coordinates  
+    int cx, cy;         // Control point 1
+    int cx1, cy1;       // Control point 2  
+    int type;           // Vertex type
+} fortran_vertex_t;
+
+/*
+ * Convert Fortran vertices to STB format
+ */
+static stbtt_vertex* convert_fortran_to_stb_vertices(fortran_vertex_t *fortran_verts, int num_verts) {
+    stbtt_vertex *stb_verts = malloc(num_verts * sizeof(stbtt_vertex));
+    if (!stb_verts) return NULL;
+    
+    for (int i = 0; i < num_verts; i++) {
+        stb_verts[i].x = (short)fortran_verts[i].x;
+        stb_verts[i].y = (short)fortran_verts[i].y;
+        stb_verts[i].cx = (short)fortran_verts[i].cx;
+        stb_verts[i].cy = (short)fortran_verts[i].cy;
+        stb_verts[i].cx1 = (short)fortran_verts[i].cx1;
+        stb_verts[i].cy1 = (short)fortran_verts[i].cy1;
+        stb_verts[i].type = (unsigned char)fortran_verts[i].type;
+        stb_verts[i].padding = 0;
+    }
+    
+    return stb_verts;
+}
+
+/*
  * Test wrapper for stbtt_FlattenCurves
  */
-void stb_test_flatten_curves_exact(stbtt_vertex *vertices, int num_verts, float flatness,
+void stb_test_flatten_curves_exact(fortran_vertex_t *fortran_vertices, int num_verts, float flatness,
                                   stbtt__point **points_out, int **contour_lengths_out, 
                                   int *num_contours_out, int *total_points_out) {
-    stbtt__point *points = stbtt_FlattenCurves(vertices, num_verts, flatness, 
+    // Convert Fortran vertices to STB format
+    stbtt_vertex *stb_vertices = convert_fortran_to_stb_vertices(fortran_vertices, num_verts);
+    if (!stb_vertices) {
+        *points_out = NULL;
+        *contour_lengths_out = NULL;
+        *num_contours_out = 0;
+        *total_points_out = 0;
+        return;
+    }
+    
+    stbtt__point *points = stbtt_FlattenCurves(stb_vertices, num_verts, flatness, 
                                               contour_lengths_out, num_contours_out, NULL);
     *points_out = points;
     
@@ -24,6 +65,8 @@ void stb_test_flatten_curves_exact(stbtt_vertex *vertices, int num_verts, float 
     for (int i = 0; i < *num_contours_out; i++) {
         *total_points_out += (*contour_lengths_out)[i];
     }
+    
+    free(stb_vertices);
 }
 
 /*
@@ -91,10 +134,18 @@ void stb_test_build_edges_exact(stbtt__point *pts, int *wcount, int windings,
 /*
  * Test wrapper for complete pipeline with pixel counting
  */
-void stb_test_complete_rasterize_exact(stbtt_vertex *vertices, int num_verts,
+void stb_test_complete_rasterize_exact(fortran_vertex_t *fortran_vertices, int num_verts,
                                       float scale_x, float scale_y, float shift_x, float shift_y,
                                       int width, int height, int x_off, int y_off, int invert,
                                       unsigned char **bitmap_out, int *pixel_count_out) {
+    // Convert Fortran vertices to STB format
+    stbtt_vertex *stb_vertices = convert_fortran_to_stb_vertices(fortran_vertices, num_verts);
+    if (!stb_vertices) {
+        *bitmap_out = NULL;
+        *pixel_count_out = 0;
+        return;
+    }
+    
     stbtt__bitmap result;
     result.w = width;
     result.h = height;
@@ -103,7 +154,7 @@ void stb_test_complete_rasterize_exact(stbtt_vertex *vertices, int num_verts,
     memset(result.pixels, 0, width * height);
     
     // Call STB rasterization
-    stbtt_Rasterize(&result, 0.35f, vertices, num_verts, 
+    stbtt_Rasterize(&result, 0.35f, stb_vertices, num_verts, 
                    scale_x, scale_y, shift_x, shift_y, 
                    x_off, y_off, invert, NULL);
     
@@ -116,6 +167,7 @@ void stb_test_complete_rasterize_exact(stbtt_vertex *vertices, int num_verts,
     }
     
     *bitmap_out = result.pixels;
+    free(stb_vertices);
 }
 
 /*
