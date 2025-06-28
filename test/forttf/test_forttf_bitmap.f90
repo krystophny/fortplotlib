@@ -1,20 +1,52 @@
-module test_stb_bitmap
+program test_forttf_bitmap
     !! Bitmap rendering tests for STB TrueType vs Pure Fortran
     !! Tests bitmap box calculations, rendering functions, and subpixel positioning
+    use test_forttf_utils
     use fortplot_stb_truetype
-    use fortplot_stb
+    use forttf
     use iso_c_binding
     use, intrinsic :: iso_fortran_env, only: wp => real64
     implicit none
 
-    private
-
-    ! Public interface
-    public :: test_bitmap_boxes
-    public :: test_bitmap_rendering
-    public :: test_subpixel_rendering
+    ! Test execution
+    call run_all_bitmap_tests()
 
 contains
+
+    subroutine run_all_bitmap_tests()
+        !! Main test runner for all bitmap tests
+        logical :: all_tests_passed
+        type(stb_fontinfo_t) :: stb_font
+        type(stb_fontinfo_pure_t) :: pure_font
+        character(len=256) :: font_path
+        logical :: stb_success, pure_success
+        
+        write(*,*) "=== Running ForTTF Bitmap Tests ==="
+        all_tests_passed = .true.
+        
+        ! Use a default test font path
+        font_path = "/usr/share/fonts/TTF/DejaVuSerif.ttf"
+        if (.not. init_both_fonts(font_path, stb_font, pure_font, stb_success, pure_success)) then
+            write(*,*) "❌ Failed to initialize test fonts"
+            error stop 1
+        end if
+        
+        ! Run all test subroutines
+        call test_bitmap_boxes(stb_font, pure_font)
+        call test_bitmap_rendering(stb_font, pure_font)
+        call test_subpixel_rendering(stb_font, pure_font)
+        
+        ! Cleanup
+        if (stb_success) call stb_cleanup_font(stb_font)
+        if (pure_success) call stb_cleanup_font_pure(pure_font)
+        
+        if (all_tests_passed) then
+            write(*,*) "✅ All bitmap tests passed!"
+        else
+            write(*,*) "❌ Some bitmap tests failed!"
+            error stop 1
+        end if
+    end subroutine run_all_bitmap_tests
 
     subroutine test_bitmap_boxes(stb_font, pure_font)
         !! Test bitmap bounding box calculations (TDD)
@@ -346,4 +378,4 @@ contains
 
     end subroutine test_subpixel_bitmap_boxes
 
-end module test_stb_bitmap
+end program test_forttf_bitmap

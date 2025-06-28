@@ -3,9 +3,9 @@
 This TODO list tracks the remaining steps to achieve a pure Fortran replacement for the STB TrueType C library, with feature parity and test-driven development.
 
 **Test Commands (modular tests run automatically via fpm):**
-- `fpm test --target test_stb_metrics` — Run metrics comparison tests
-- `fpm test --target test_stb_mapping` — Run character mapping tests  
-- `fpm test --target test_stb_bitmap` — Run bitmap rendering tests
+- `fpm test --target test_forttf_metrics` — Run metrics comparison tests
+- `fpm test --target test_forttf_mapping` — Run character mapping tests  
+- `fpm test --target test_forttf_bitmap` — Run bitmap rendering tests
 - `fpm test` — Run all tests (builds code automatically)
 
 **Note:** The old `test_stb_comparison` is no longer needed. Individual focused test modules now handle comprehensive testing.
@@ -24,15 +24,16 @@ This TODO list tracks the remaining steps to achieve a pure Fortran replacement 
 ## 📁 Source File Locations
 
 - `thirdparty/` — Original C reference: `stb_truetype.h`
-- `src/` — Fortran implementation (modular architecture):
-    - `fortplot_stb.f90` (thin API layer)
-    - `fortplot_stb_core.f90` (font initialization)
-    - `fortplot_stb_metrics.f90` (all metrics functionality)
-    - `fortplot_stb_mapping.f90` (character mapping)
-    - `fortplot_stb_bitmap.f90` (bitmap rendering)
-    - `fortplot_stb_types.f90` (type definitions)
-    - `fortplot_stb_parser.f90` (parsing logic)
-- `test/` — Focused test modules: `test_stb_metrics.f90`, `test_stb_mapping.f90`, `test_stb_bitmap.f90`
+- `src/forttf/` — Fortran implementation (modular architecture):
+    - `forttf.f90` (thin API layer)
+    - `forttf_core.f90` (font initialization)
+    - `forttf_metrics.f90` (all metrics functionality)
+    - `forttf_mapping.f90` (character mapping)
+    - `forttf_bitmap.f90` (bitmap rendering)
+    - `forttf_types.f90` (type definitions)
+    - `forttf_parser.f90` (parsing logic)
+- `src/` — STB C wrapper: `fortplot_stb_truetype.f90`, `stb_truetype_wrapper.c`
+- `test/forttf/` — Focused test modules: `test_forttf_metrics.f90`, `test_forttf_mapping.f90`, `test_forttf_bitmap.f90`
 - `DONE.md` — Completed tasks and implementations
 
 ---
@@ -40,17 +41,20 @@ This TODO list tracks the remaining steps to achieve a pure Fortran replacement 
 ## 🚦 Current Status (June 28, 2025)
 
 - ✅ **Modularization Complete**: Phase 1, 2, and 3 successfully completed (see DONE.md)
-- ✅ **Naming Consistency**: All modules now use consistent `fortplot_stb_*` naming scheme
+- ✅ **Naming Consistency**: All modules now use consistent `forttf_*` naming scheme
 - ✅ **Core Implementation**: Font initialization, metrics, mapping fully working
 - ✅ **Test Architecture**: Focused modular test suite with comprehensive coverage
 - 🎯 **Next Priority**: Implement kerning table parsing (Level 9.5)
 - 🔄 **Following**: Complete bitmap rendering implementation (Level 10)
 
 **Available Test Commands:**
-- `fpm test --target test_stb_metrics` — Metrics validation
-- `fpm test --target test_stb_mapping` — Character mapping validation  
-- `fpm test --target test_stb_bitmap` — Bitmap functionality validation
+- `fpm test --target test_forttf_metrics` — Metrics validation
+- `fpm test --target test_forttf_mapping` — Character mapping validation  
+- `fpm test --target test_forttf_bitmap` — Bitmap functionality validation
 
+You can run all tests for forttf by 
+
+`fpm test --target test_forttf_*`
 ---
 
 ## 📝 Remaining TODOs
@@ -58,8 +62,8 @@ This TODO list tracks the remaining steps to achieve a pure Fortran replacement 
 ### Level 9.5: Kerning Implementation (🎯 Immediate Next Priority)
 Current status: Kerning functions exist and have proper interfaces but return 0 (need actual kern table parsing)
 
-- [ ] Implement `kern` table parsing in `fortplot_stb_parser.f90`
-  - [ ] Add `ttf_kern_table_t` type to `fortplot_stb_types.f90`
+- [ ] Implement `kern` table parsing in `forttf_parser.f90`
+  - [ ] Add `ttf_kern_table_t` type to `forttf_types.f90`
   - [ ] Implement `parse_kern_table()` function
   - [ ] Add kerning table validation and format support
 - [ ] Update `stb_get_codepoint_kern_advance_pure()` to use parsed kerning data
@@ -72,7 +76,7 @@ Current status: Kerning functions exist and have proper interfaces but return 0 
 Current status: Bounding box functions implemented, actual rendering functions are stubs
 
 - [ ] Parse `glyf` and `loca` tables for glyph outline data
-  - [ ] Add glyph table types to `fortplot_stb_types.f90`
+  - [ ] Add glyph table types to `forttf_types.f90`
   - [ ] Implement `parse_glyf_table()` and `parse_loca_table()` functions
 - [ ] Implement glyph outline rasterization and anti-aliasing
 - [ ] Complete bitmap rendering functions:

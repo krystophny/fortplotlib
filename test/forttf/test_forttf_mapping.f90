@@ -1,20 +1,52 @@
-module test_stb_mapping
+program test_forttf_mapping
     !! Character mapping and glyph lookup tests for STB TrueType vs Pure Fortran
     !! Tests character-to-glyph mapping, glyph index lookup, and cmap functionality
+    use test_forttf_utils
     use fortplot_stb_truetype
-    use fortplot_stb
+    use forttf
     use iso_c_binding
     use, intrinsic :: iso_fortran_env, only: wp => real64
     implicit none
 
-    private
-
-    ! Public interface
-    public :: test_glyph_mapping
-    public :: test_character_lookup
-    public :: test_glyph_indices
+    ! Test execution
+    call run_all_mapping_tests()
 
 contains
+
+    subroutine run_all_mapping_tests()
+        !! Main test runner for all mapping tests
+        logical :: all_tests_passed
+        type(stb_fontinfo_t) :: stb_font
+        type(stb_fontinfo_pure_t) :: pure_font
+        character(len=256) :: font_path
+        logical :: stb_success, pure_success
+        
+        write(*,*) "=== Running ForTTF Mapping Tests ==="
+        all_tests_passed = .true.
+        
+        ! Use a default test font path
+        font_path = "/usr/share/fonts/TTF/DejaVuSerif.ttf"
+        if (.not. init_both_fonts(font_path, stb_font, pure_font, stb_success, pure_success)) then
+            write(*,*) "❌ Failed to initialize test fonts"
+            error stop 1
+        end if
+        
+        ! Run all test subroutines
+        call test_glyph_mapping(stb_font, pure_font)
+        call test_character_lookup(stb_font, pure_font)
+        call test_glyph_indices(stb_font, pure_font)
+        
+        ! Cleanup
+        if (stb_success) call stb_cleanup_font(stb_font)
+        if (pure_success) call stb_cleanup_font_pure(pure_font)
+        
+        if (all_tests_passed) then
+            write(*,*) "✅ All mapping tests passed!"
+        else
+            write(*,*) "❌ Some mapping tests failed!"
+            error stop 1
+        end if
+    end subroutine run_all_mapping_tests
 
     subroutine test_glyph_mapping(stb_font, pure_font)
         !! Test character-to-glyph mapping consistency (TDD)
@@ -249,4 +281,4 @@ contains
 
     end subroutine test_punctuation_glyph
 
-end module test_stb_mapping
+end program test_forttf_mapping

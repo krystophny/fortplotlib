@@ -1,22 +1,56 @@
-module test_forttf_metrics
+program test_forttf_metrics
     !! Metrics comparison tests for STB TrueType vs Pure Fortran forttf (derived from stb_truetype.h)
     !! Tests horizontal metrics, vertical metrics, OS/2 metrics, and kerning
+    use test_forttf_utils
     use fortplot_stb_truetype
     use forttf
     use iso_c_binding
     use, intrinsic :: iso_fortran_env, only: wp => real64
     implicit none
 
-    private
-
-    ! Public interface
-    public :: test_font_metrics
-    public :: test_metrics_functions
-    public :: test_bounding_box_functions
-    public :: test_os2_metrics_functions
-    public :: test_kerning_functions
+    ! Test execution
+    call run_all_metrics_tests()
 
 contains
+
+    subroutine run_all_metrics_tests()
+        !! Main test runner for all metrics tests
+        logical :: all_tests_passed, test_result
+        type(stb_fontinfo_t) :: stb_font
+        type(stb_fontinfo_pure_t) :: pure_font
+        character(len=256) :: font_path
+        logical :: stb_success, pure_success
+        
+        write(*,*) "=== Running ForTTF Metrics Tests ==="
+        all_tests_passed = .true.
+        
+        ! Use a default test font path
+        font_path = "/usr/share/fonts/TTF/DejaVuSerif.ttf"
+        if (.not. init_both_fonts(font_path, stb_font, pure_font, stb_success, pure_success)) then
+            write(*,*) "❌ Failed to initialize test fonts"
+            error stop 1
+        end if
+        
+        ! Run all test functions/subroutines
+        test_result = test_font_metrics(stb_font, pure_font)
+        all_tests_passed = all_tests_passed .and. test_result
+        
+        call test_metrics_functions(stb_font, pure_font)
+        call test_bounding_box_functions(stb_font, pure_font)
+        call test_os2_metrics_functions(stb_font, pure_font)
+        call test_kerning_functions(stb_font, pure_font)
+        
+        ! Cleanup
+        if (stb_success) call stb_cleanup_font(stb_font)
+        if (pure_success) call stb_cleanup_font_pure(pure_font)
+        
+        if (all_tests_passed) then
+            write(*,*) "✅ All metrics tests passed!"
+        else
+            write(*,*) "❌ Some metrics tests failed!"
+            error stop 1
+        end if
+    end subroutine run_all_metrics_tests
 
     function test_font_metrics(stb_font, pure_font) result(success)
         !! Test basic font metrics consistency
@@ -299,4 +333,4 @@ contains
 
     end subroutine test_kerning_pair
 
-end module test_stb_metrics
+end program test_forttf_metrics

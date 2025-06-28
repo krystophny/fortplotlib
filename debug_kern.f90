@@ -1,7 +1,7 @@
 program debug_kern
     use iso_c_binding
-    use fortplot_stb
-    use fortplot_stb_types
+    use forttf
+    use forttf_types
     implicit none
 
     interface
