@@ -12,6 +12,9 @@ module forttf_file_io
     public :: read_truetype_file
     public :: read_be_uint32, read_be_uint16, read_be_int16, read_tag
     public :: is_ttc_file, parse_ttc_header, get_ttc_font_offset
+    public :: parse_ttf_header, parse_table_directory
+    public :: parse_ttf_header_at_offset, parse_table_directory_at_offset
+    public :: has_table, find_table
 
 contains
 
@@ -189,5 +192,169 @@ contains
         font_offset = ttc_header%offsetTable(font_index + 1)
 
     end function get_ttc_font_offset
+
+    ! ============================================================================
+    ! TTF header and table directory parsing functions
+    ! ============================================================================
+
+    function parse_ttf_header(font_data, header, offset) result(success)
+        !! Parse TrueType font header (with optional offset for TTC fonts)
+        integer(c_int8_t), intent(in) :: font_data(:)
+        type(ttf_header_t), intent(out) :: header
+        integer, intent(in), optional :: offset
+        logical :: success
+        integer :: start_offset
+
+        success = .false.
+        start_offset = 1
+        if (present(offset)) start_offset = offset + 1  ! Convert to 1-based
+
+        if (size(font_data) < start_offset + 11) return
+
+        ! Read header fields (big-endian)
+        header%sfnt_version = read_be_uint32(font_data, start_offset)
+        header%num_tables = read_be_uint16(font_data, start_offset + 4)
+        header%search_range = read_be_uint16(font_data, start_offset + 6)
+        header%entry_selector = read_be_uint16(font_data, start_offset + 8)
+        header%range_shift = read_be_uint16(font_data, start_offset + 10)
+
+        ! Validate header
+        if (header%num_tables <= 0 .or. header%num_tables > 100) return
+        if (header%sfnt_version /= 65536 .and. &
+            header%sfnt_version /= 1330926671) return  ! 'OTTO' = 0x4F54544F
+
+        success = .true.
+
+    end function parse_ttf_header
+
+    function parse_table_directory(font_data, header, tables, offset) result(success)
+        !! Parse table directory entries (with optional offset for TTC fonts)
+        integer(c_int8_t), intent(in) :: font_data(:)
+        type(ttf_header_t), intent(in) :: header
+        type(ttf_table_entry_t), allocatable, intent(out) :: tables(:)
+        integer, intent(in), optional :: offset
+        logical :: success
+        integer :: i, table_offset, start_offset
+
+        success = .false.
+        start_offset = 1
+        if (present(offset)) start_offset = offset + 1  ! Convert to 1-based
+
+        ! Check we have enough data for all table entries
+        if (size(font_data) < start_offset + 11 + 16 * header%num_tables) return
+
+        allocate(tables(header%num_tables))
+
+        ! Parse each table entry
+        table_offset = start_offset + 12  ! Skip header
+        do i = 1, header%num_tables
+            tables(i)%tag = read_tag(font_data, table_offset)
+            tables(i)%checksum = read_be_uint32(font_data, table_offset + 4)
+            tables(i)%offset = read_be_uint32(font_data, table_offset + 8) + 1  ! Convert to 1-based
+            tables(i)%length = read_be_uint32(font_data, table_offset + 12)
+            table_offset = table_offset + 16
+        end do
+
+        success = .true.
+
+    end function parse_table_directory
+
+    function parse_ttf_header_at_offset(font_data, offset, header) result(success)
+        !! Parse TrueType font header at specific offset (for TTC support)
+        integer(c_int8_t), intent(in) :: font_data(:)
+        integer, intent(in) :: offset
+        type(ttf_header_t), intent(out) :: header
+        logical :: success
+        integer :: start_offset
+
+        success = .false.
+        start_offset = offset + 1  ! Convert to 1-based
+        if (size(font_data) < start_offset + 11) return
+
+        ! Read header fields (big-endian) at offset
+        header%sfnt_version = read_be_uint32(font_data, start_offset)
+        header%num_tables = read_be_uint16(font_data, start_offset + 4)
+        header%search_range = read_be_uint16(font_data, start_offset + 6)
+        header%entry_selector = read_be_uint16(font_data, start_offset + 8)
+        header%range_shift = read_be_uint16(font_data, start_offset + 10)
+
+        ! Validate header
+        if (header%num_tables <= 0 .or. header%num_tables > 100) return
+        if (header%sfnt_version /= 65536 .and. &
+            header%sfnt_version /= 1330926671) return  ! 'OTTO' = 0x4F54544F
+
+        success = .true.
+
+    end function parse_ttf_header_at_offset
+
+    function parse_table_directory_at_offset(font_data, offset, header, tables) result(success)
+        !! Parse table directory entries at specific offset (for TTC support)
+        integer(c_int8_t), intent(in) :: font_data(:)
+        integer, intent(in) :: offset
+        type(ttf_header_t), intent(in) :: header
+        type(ttf_table_entry_t), allocatable, intent(out) :: tables(:)
+        logical :: success
+        integer :: i, start_offset, table_offset
+
+        success = .false.
+        start_offset = offset + 1  ! Convert to 1-based
+
+        ! Check we have enough data for all table entries
+        if (size(font_data) < start_offset + 11 + 16 * header%num_tables) return
+
+        allocate(tables(header%num_tables))
+
+        ! Parse each table entry
+        table_offset = start_offset + 12  ! Skip header
+        do i = 1, header%num_tables
+            tables(i)%tag = read_tag(font_data, table_offset)
+            tables(i)%checksum = read_be_uint32(font_data, table_offset + 4)
+            ! For TTC, offsets are relative to the original file, not the font offset
+            tables(i)%offset = read_be_uint32(font_data, table_offset + 8) + 1  ! Convert to 1-based
+            tables(i)%length = read_be_uint32(font_data, table_offset + 12)
+            table_offset = table_offset + 16
+        end do
+
+        success = .true.
+
+    end function parse_table_directory_at_offset
+
+    ! ============================================================================
+    ! Table helper functions
+    ! ============================================================================
+
+    function has_table(tables, tag) result(found)
+        !! Check if a table with given tag exists
+        type(ttf_table_entry_t), intent(in) :: tables(:)
+        character(len=4), intent(in) :: tag
+        logical :: found
+        integer :: i
+
+        found = .false.
+        do i = 1, size(tables)
+            if (tables(i)%tag == tag) then
+                found = .true.
+                return
+            end if
+        end do
+
+    end function has_table
+
+    function find_table(tables, tag) result(table_index)
+        !! Find table index by tag, returns 0 if not found
+        type(ttf_table_entry_t), intent(in) :: tables(:)
+        character(len=4), intent(in) :: tag
+        integer :: table_index
+        integer :: i
+
+        table_index = 0
+        do i = 1, size(tables)
+            if (tables(i)%tag == tag) then
+                table_index = i
+                return
+            end if
+        end do
+
+    end function find_table
 
 end module forttf_file_io

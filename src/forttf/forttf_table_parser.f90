@@ -14,6 +14,7 @@ module forttf_table_parser
     public :: parse_cmap_table, parse_cmap_format4
     public :: parse_kern_table, find_kerning_advance
     public :: parse_kern_table_if_available
+    public :: find_table_offset, find_table_index
 
 contains
 

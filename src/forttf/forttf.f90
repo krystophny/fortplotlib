@@ -18,6 +18,8 @@ module forttf
     public :: ttf_table_entry_t, ttf_header_t, ttf_head_table_t
     public :: ttf_hhea_table_t, ttf_maxp_table_t, ttf_cmap_table_t
     public :: ttf_cmap_subtable_t, ttc_header_t
+    public :: ttf_kern_entry_t, ttf_kern_table_t
+    public :: ttf_loca_table_t, ttf_glyf_header_t
     public :: stb_fontinfo_pure_t, stb_init_font_pure, stb_init_font_pure_with_index, stb_cleanup_font_pure
     public :: stb_get_codepoint_bitmap_pure, stb_free_bitmap_pure
     public :: stb_get_codepoint_hmetrics_pure, stb_get_font_vmetrics_pure
