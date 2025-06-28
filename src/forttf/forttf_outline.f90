@@ -376,8 +376,10 @@ contains
         integer, intent(out) :: num_vertices
         
         integer :: max_vertices, i, contour, point_idx, contour_start, contour_end
-        logical :: is_on_curve, prev_was_off, was_off, start_off
-        integer :: sx, sy, cx, cy, scx, scy, px, py, qx, qy
+        logical :: prev_was_off, was_off, start_off
+        logical, allocatable :: is_on_curve(:)
+        integer :: sx, sy, cx, cy, scx, scy, qx, qy
+        integer, allocatable :: px(:), py(:)
         integer :: flag_byte, n, m, j, k
         
         ! Allocate maximum possible vertices (conservative estimate)

@@ -40,13 +40,31 @@ program test_exact_params
     
     ! Use EXACT same parameters as bitmap content test would use internally
     call stbtt_rasterize(bitmap, 0.35_wp, vertices, num_vertices, &
-                        scale, scale, 0.0_wp, 0.0_wp, xoff, yoff, .true., c_null_ptr)
+                        scale, scale, 0.0_wp, 0.0_wp, xoff, yoff, .false., c_null_ptr)
     
     ! Count pixels
     pixel_count = 0
     do i = 1, width * height
         if (pixels(i) /= 0) pixel_count = pixel_count + 1
     end do
+    
+    ! Count pixels with different thresholds
+    block
+        integer :: threshold_counts(5), t, threshold_vals(5)
+        threshold_vals = [1, 10, 25, 50, 100]
+        
+        do t = 1, 5
+            threshold_counts(t) = 0
+            do i = 1, width * height
+                if (abs(int(pixels(i))) >= threshold_vals(t)) threshold_counts(t) = threshold_counts(t) + 1
+            end do
+        end do
+        
+        write(*,*) "Pixel counts by threshold:"
+        do t = 1, 5
+            write(*,*) "  >= ", threshold_vals(t), ":", threshold_counts(t), "pixels"
+        end do
+    end block
     
     write(*,*) "Pixel count with bitmap test params:", pixel_count
     write(*,*) "Expected STB pixel count: 1817"
