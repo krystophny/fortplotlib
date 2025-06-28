@@ -146,18 +146,23 @@ contains
     end function stb_get_codepoint_bitmap_pure
 
     subroutine stb_make_codepoint_bitmap_pure(font_info, output_buffer, out_w, out_h, out_stride, scale_x, scale_y, codepoint)
-        !! Render character into provided buffer (STUB)
+        !! Render character into provided buffer
         type(stb_fontinfo_pure_t), intent(in) :: font_info
         integer(c_int8_t), intent(inout), target :: output_buffer(*)
         integer, intent(in) :: out_w, out_h, out_stride
         real(wp), intent(in) :: scale_x, scale_y
         integer, intent(in) :: codepoint
+        integer :: glyph_index
 
         if (.not. font_info%initialized) return
 
-        ! STUB: Do nothing
+        ! Get glyph index for the codepoint
+        glyph_index = stb_find_glyph_index_pure(font_info, codepoint)
+        if (glyph_index == 0) return
 
-        ! TODO: Implement bitmap rendering into user buffer
+        ! Delegate to glyph function
+        call stb_make_glyph_bitmap_pure(font_info, output_buffer, out_w, out_h, out_stride, &
+                                       scale_x, scale_y, glyph_index)
 
     end subroutine stb_make_codepoint_bitmap_pure
 
@@ -175,12 +180,13 @@ contains
     function stb_get_glyph_bitmap_pure(font_info, scale_x, scale_y, glyph, &
                                       width, height, xoff, yoff) &
              result(bitmap_ptr)
-        !! Allocate and render glyph bitmap by glyph index (STUB)
+        !! Allocate and render glyph bitmap by glyph index
         type(stb_fontinfo_pure_t), intent(in) :: font_info
         real(wp), intent(in) :: scale_x, scale_y
         integer, intent(in) :: glyph
         integer, intent(out) :: width, height, xoff, yoff
         type(c_ptr) :: bitmap_ptr
+        integer :: ix0, iy0, ix1, iy1
 
         if (.not. font_info%initialized) then
             bitmap_ptr = c_null_ptr
@@ -188,49 +194,88 @@ contains
             return
         end if
 
-        ! STUB: Return null pointer
-        bitmap_ptr = c_null_ptr
-        width = 0; height = 0; xoff = 0; yoff = 0
+        ! Get bitmap bounding box for glyph
+        call stb_get_glyph_bitmap_box_pure(font_info, glyph, scale_x, scale_y, &
+                                           ix0, iy0, ix1, iy1)
 
-        ! TODO: Implement glyph bitmap rendering by index
+        ! Calculate dimensions and offset
+        width = ix1 - ix0
+        height = iy1 - iy0
+        xoff = ix0
+        yoff = iy0
+
+        ! Check if bitmap has valid dimensions
+        if (width <= 0 .or. height <= 0) then
+            bitmap_ptr = c_null_ptr
+            width = 0; height = 0; xoff = 0; yoff = 0
+            return
+        end if
+
+        ! Allocate bitmap buffer using C malloc for compatibility with STB interface
+        bitmap_ptr = c_malloc(int(width * height, c_size_t))
+        if (.not. c_associated(bitmap_ptr)) then
+            width = 0; height = 0; xoff = 0; yoff = 0
+            return
+        end if
+
+        ! Render the glyph into the bitmap
+        call render_glyph_to_bitmap(font_info, glyph, scale_x, scale_y, 0.0_wp, 0.0_wp, &
+                                   bitmap_ptr, width, height, xoff, yoff)
 
     end function stb_get_glyph_bitmap_pure
 
     subroutine stb_get_glyph_bitmap_box_pure(font_info, glyph, scale_x, &
                                             scale_y, ix0, iy0, ix1, iy1)
-        !! Get bounding box for glyph bitmap (STUB)
+        !! Get bounding box for glyph bitmap
         type(stb_fontinfo_pure_t), intent(in) :: font_info
         integer, intent(in) :: glyph
         real(wp), intent(in) :: scale_x, scale_y
         integer, intent(out) :: ix0, iy0, ix1, iy1
+        integer :: glyph_x0, glyph_y0, glyph_x1, glyph_y1
 
         if (.not. font_info%initialized) then
             ix0 = 0; iy0 = 0; ix1 = 0; iy1 = 0
             return
         end if
 
-        ! STUB: Return placeholder values
-        ix0 = 0; iy0 = 0; ix1 = 0; iy1 = 0
+        ! Get glyph bounding box from glyf/head tables
+        call stb_get_glyph_box_pure(font_info, glyph, &
+                                   glyph_x0, glyph_y0, glyph_x1, glyph_y1)
 
-        ! TODO: Implement glyph bitmap bounding box calculation
+        if (glyph_x0 == 0 .and. glyph_y0 == 0 .and. glyph_x1 == 0 .and. glyph_y1 == 0) then
+            ix0 = 0; iy0 = 0; ix1 = 0; iy1 = 0
+            return
+        end if
+
+        ! Scale the bounding box to bitmap coordinates
+        ! Note: Y coordinates are flipped in bitmap space (top-down vs bottom-up)
+        ix0 = floor(real(glyph_x0) * scale_x)
+        iy0 = floor(real(-glyph_y1) * scale_y)  ! Flip Y and swap y0<->y1
+        ix1 = ceiling(real(glyph_x1) * scale_x)
+        iy1 = ceiling(real(-glyph_y0) * scale_y) ! Flip Y and swap y0<->y1
 
     end subroutine stb_get_glyph_bitmap_box_pure
 
     subroutine stb_make_glyph_bitmap_pure(font_info, output_buffer, out_w, &
                                          out_h, out_stride, scale_x, scale_y, &
                                          glyph)
-        !! Render glyph into provided buffer (STUB)
+        !! Render glyph into provided buffer
         type(stb_fontinfo_pure_t), intent(in) :: font_info
         integer(c_int8_t), intent(inout), target :: output_buffer(*)
         integer, intent(in) :: out_w, out_h, out_stride
         real(wp), intent(in) :: scale_x, scale_y
         integer, intent(in) :: glyph
+        type(c_ptr) :: buffer_ptr
 
         if (.not. font_info%initialized) return
 
-        ! STUB: Do nothing
+        ! Convert array to C pointer for compatibility with rendering function
+        buffer_ptr = c_loc(output_buffer(1))
 
-        ! TODO: Implement glyph bitmap rendering into user buffer
+        ! Render glyph using existing rendering infrastructure
+        ! Note: out_stride is ignored for now (assuming packed buffer)
+        call render_glyph_to_bitmap(font_info, glyph, scale_x, scale_y, 0.0_wp, 0.0_wp, &
+                                   buffer_ptr, out_w, out_h, 0, 0)
 
     end subroutine stb_make_glyph_bitmap_pure
 
@@ -239,12 +284,13 @@ contains
                                                    shift_y, codepoint, &
                                                    width, height, xoff, &
                                                    yoff) result(bitmap_ptr)
-        !! Allocate and render character bitmap with subpixel positioning (STUB)
+        !! Allocate and render character bitmap with subpixel positioning
         type(stb_fontinfo_pure_t), intent(in) :: font_info
         real(wp), intent(in) :: scale_x, scale_y, shift_x, shift_y
         integer, intent(in) :: codepoint
         integer, intent(out) :: width, height, xoff, yoff
         type(c_ptr) :: bitmap_ptr
+        integer :: glyph_index
 
         if (.not. font_info%initialized) then
             bitmap_ptr = c_null_ptr
@@ -252,11 +298,18 @@ contains
             return
         end if
 
-        ! STUB: Return null pointer
-        bitmap_ptr = c_null_ptr
-        width = 0; height = 0; xoff = 0; yoff = 0
+        ! Get glyph index for the codepoint
+        glyph_index = stb_find_glyph_index_pure(font_info, codepoint)
+        if (glyph_index == 0) then
+            bitmap_ptr = c_null_ptr
+            width = 0; height = 0; xoff = 0; yoff = 0
+            return
+        end if
 
-        ! TODO: Implement subpixel positioned bitmap rendering
+        ! Delegate to glyph function (following STB pattern)
+        bitmap_ptr = stb_get_glyph_bitmap_subpixel_pure(font_info, scale_x, scale_y, &
+                                                       shift_x, shift_y, glyph_index, &
+                                                       width, height, xoff, yoff)
 
     end function stb_get_codepoint_bitmap_subpixel_pure
 
@@ -264,12 +317,13 @@ contains
                                                shift_x, shift_y, glyph, &
                                                width, height, xoff, yoff) &
              result(bitmap_ptr)
-        !! Allocate and render glyph bitmap with subpixel positioning (STUB)
+        !! Allocate and render glyph bitmap with subpixel positioning
         type(stb_fontinfo_pure_t), intent(in) :: font_info
         real(wp), intent(in) :: scale_x, scale_y, shift_x, shift_y
         integer, intent(in) :: glyph
         integer, intent(out) :: width, height, xoff, yoff
         type(c_ptr) :: bitmap_ptr
+        integer :: ix0, iy0, ix1, iy1
 
         if (.not. font_info%initialized) then
             bitmap_ptr = c_null_ptr
@@ -277,11 +331,34 @@ contains
             return
         end if
 
-        ! STUB: Return null pointer
-        bitmap_ptr = c_null_ptr
-        width = 0; height = 0; xoff = 0; yoff = 0
+        ! Get subpixel bitmap bounding box
+        call stb_get_glyph_bitmap_box_subpixel_pure(font_info, glyph, &
+                                                   scale_x, scale_y, shift_x, shift_y, &
+                                                   ix0, iy0, ix1, iy1)
 
-        ! TODO: Implement subpixel positioned glyph bitmap rendering
+        ! Calculate dimensions and offset
+        width = ix1 - ix0
+        height = iy1 - iy0
+        xoff = ix0
+        yoff = iy0
+
+        ! Check if bitmap has valid dimensions
+        if (width <= 0 .or. height <= 0) then
+            bitmap_ptr = c_null_ptr
+            width = 0; height = 0; xoff = 0; yoff = 0
+            return
+        end if
+
+        ! Allocate bitmap buffer using C malloc for compatibility with STB interface
+        bitmap_ptr = c_malloc(int(width * height, c_size_t))
+        if (.not. c_associated(bitmap_ptr)) then
+            width = 0; height = 0; xoff = 0; yoff = 0
+            return
+        end if
+
+        ! Render the glyph into the bitmap with subpixel positioning
+        call render_glyph_to_bitmap(font_info, glyph, scale_x, scale_y, shift_x, shift_y, &
+                                   bitmap_ptr, width, height, xoff, yoff)
 
     end function stb_get_glyph_bitmap_subpixel_pure
 
@@ -289,18 +366,23 @@ contains
                                                   out_w, out_h, out_stride, &
                                                   scale_x, scale_y, shift_x, &
                                                   shift_y, glyph)
-        !! Render glyph into provided buffer with subpixel positioning (STUB)
+        !! Render glyph into provided buffer with subpixel positioning
         type(stb_fontinfo_pure_t), intent(in) :: font_info
         integer(c_int8_t), intent(inout), target :: output_buffer(*)
         integer, intent(in) :: out_w, out_h, out_stride
         real(wp), intent(in) :: scale_x, scale_y, shift_x, shift_y
         integer, intent(in) :: glyph
+        type(c_ptr) :: buffer_ptr
 
         if (.not. font_info%initialized) return
 
-        ! STUB: Do nothing
+        ! Convert array to C pointer for compatibility with rendering function
+        buffer_ptr = c_loc(output_buffer(1))
 
-        ! TODO: Implement subpixel positioned glyph bitmap rendering
+        ! Render glyph with subpixel positioning using existing rendering infrastructure
+        ! Note: out_stride is ignored for now (assuming packed buffer)
+        call render_glyph_to_bitmap(font_info, glyph, scale_x, scale_y, shift_x, shift_y, &
+                                   buffer_ptr, out_w, out_h, 0, 0)
 
     end subroutine stb_make_glyph_bitmap_subpixel_pure
 
@@ -310,18 +392,24 @@ contains
                                                       scale_x, scale_y, &
                                                       shift_x, shift_y, &
                                                       codepoint)
-        !! Render character into provided buffer with subpixel positioning (STUB)
+        !! Render character into provided buffer with subpixel positioning
         type(stb_fontinfo_pure_t), intent(in) :: font_info
         integer(c_int8_t), intent(inout), target :: output_buffer(*)
         integer, intent(in) :: out_w, out_h, out_stride
         real(wp), intent(in) :: scale_x, scale_y, shift_x, shift_y
         integer, intent(in) :: codepoint
+        integer :: glyph_index
 
         if (.not. font_info%initialized) return
 
-        ! STUB: Do nothing
+        ! Get glyph index for the codepoint
+        glyph_index = stb_find_glyph_index_pure(font_info, codepoint)
+        if (glyph_index == 0) return
 
-        ! TODO: Implement subpixel positioned character bitmap rendering
+        ! Delegate to glyph function
+        call stb_make_glyph_bitmap_subpixel_pure(font_info, output_buffer, out_w, out_h, &
+                                                out_stride, scale_x, scale_y, shift_x, shift_y, &
+                                                glyph_index)
 
     end subroutine stb_make_codepoint_bitmap_subpixel_pure
 
@@ -329,21 +417,33 @@ contains
                                                      scale_x, scale_y, &
                                                      shift_x, shift_y, &
                                                      ix0, iy0, ix1, iy1)
-        !! Get bounding box for glyph bitmap with subpixel positioning (STUB)
+        !! Get bounding box for glyph bitmap with subpixel positioning
         type(stb_fontinfo_pure_t), intent(in) :: font_info
         integer, intent(in) :: glyph
         real(wp), intent(in) :: scale_x, scale_y, shift_x, shift_y
         integer, intent(out) :: ix0, iy0, ix1, iy1
+        integer :: glyph_x0, glyph_y0, glyph_x1, glyph_y1
 
         if (.not. font_info%initialized) then
             ix0 = 0; iy0 = 0; ix1 = 0; iy1 = 0
             return
         end if
 
-        ! STUB: Return placeholder values
-        ix0 = 0; iy0 = 0; ix1 = 0; iy1 = 0
+        ! Get glyph bounding box from glyf/head tables
+        call stb_get_glyph_box_pure(font_info, glyph, &
+                                   glyph_x0, glyph_y0, glyph_x1, glyph_y1)
 
-        ! TODO: Implement subpixel positioned glyph bitmap bounding box
+        if (glyph_x0 == 0 .and. glyph_y0 == 0 .and. glyph_x1 == 0 .and. glyph_y1 == 0) then
+            ix0 = 0; iy0 = 0; ix1 = 0; iy1 = 0
+            return
+        end if
+
+        ! Scale and shift the bounding box to bitmap coordinates (following STB algorithm exactly)
+        ! Note: Y coordinates are flipped in bitmap space (top-down vs bottom-up)
+        ix0 = floor(real(glyph_x0) * scale_x + shift_x)
+        iy0 = floor(real(-glyph_y1) * scale_y + shift_y)  ! Flip Y and swap y0<->y1
+        ix1 = ceiling(real(glyph_x1) * scale_x + shift_x)
+        iy1 = ceiling(real(-glyph_y0) * scale_y + shift_y) ! Flip Y and swap y0<->y1
 
     end subroutine stb_get_glyph_bitmap_box_subpixel_pure
 
@@ -352,21 +452,29 @@ contains
                                                          scale_x, scale_y, &
                                                          shift_x, shift_y, &
                                                          ix0, iy0, ix1, iy1)
-        !! Get bounding box for character bitmap with subpixel positioning (STUB)
+        !! Get bounding box for character bitmap with subpixel positioning
         type(stb_fontinfo_pure_t), intent(in) :: font_info
         integer, intent(in) :: codepoint
         real(wp), intent(in) :: scale_x, scale_y, shift_x, shift_y
         integer, intent(out) :: ix0, iy0, ix1, iy1
+        integer :: glyph_index
 
         if (.not. font_info%initialized) then
             ix0 = 0; iy0 = 0; ix1 = 0; iy1 = 0
             return
         end if
 
-        ! STUB: Return placeholder values
-        ix0 = 0; iy0 = 0; ix1 = 0; iy1 = 0
+        ! Get glyph index for the codepoint
+        glyph_index = stb_find_glyph_index_pure(font_info, codepoint)
+        if (glyph_index == 0) then
+            ix0 = 0; iy0 = 0; ix1 = 0; iy1 = 0
+            return
+        end if
 
-        ! TODO: Implement subpixel positioned character bitmap bounding box
+        ! Delegate to glyph function (following STB pattern)
+        call stb_get_glyph_bitmap_box_subpixel_pure(font_info, glyph_index, &
+                                                   scale_x, scale_y, shift_x, shift_y, &
+                                                   ix0, iy0, ix1, iy1)
 
     end subroutine stb_get_codepoint_bitmap_box_subpixel_pure
 

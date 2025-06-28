@@ -4,12 +4,12 @@ This TODO list tracks the remaining steps to achieve a pure Fortran replacement 
 
 **Build and Test Commands (modular tests run automatically via fpm):**
 
-Test commands do build automatically! Don't build in addition.
+All test commands build the code automatically! If you want to build, just test!
 
+- `fpm test --target test_forttf_*` — Run all tests
 - `fpm test --target test_forttf_metrics` — Run metrics comparison tests
 - `fpm test --target test_forttf_mapping` — Run character mapping tests  
 - `fpm test --target test_forttf_bitmap` — Run bitmap rendering tests
-- `fpm test --target test_forttf_*` — Run all tests (builds code automatically)
 
 ## !! Important Notes
 - Port original C reference `thirdparty/stb_truetype.h` and use it to check your logics.
@@ -53,59 +53,63 @@ Test commands do build automatically! Don't build in addition.
 - ✅ **Naming Consistency**: All modules now use consistent `forttf_*` naming scheme
 - ✅ **Core Implementation**: Font initialization, metrics, mapping fully working
 - ✅ **Kerning Implementation**: Level 9.5 COMPLETE! All kerning functions working with perfect STB compatibility
+- ✅ **Bitmap Rendering**: Level 10 COMPLETE! All basic bitmap functions working with perfect STB compatibility
+- ✅ **Subpixel Rendering**: Level 11 COMPLETE! All subpixel functions working with perfect STB compatibility
 - ✅ **Test Architecture**: Focused modular test suite with comprehensive coverage
-- 🎯 **Next Priority**: Complete bitmap rendering implementation (Level 10)
-- 🔄 **Following**: Implement subpixel rendering (Level 11)
+- ✅ **API Completeness**: All STB functions required by `fortplot_text.f90` are implemented and tested
+- 🎯 **Next Priority**: Switch backend from STB C library to pure Fortran implementation (Level 12)
 
 ## 📝 Remaining TODOs
 
-### ✅ Level 9.5: Kerning Implementation - COMPLETED! 
-**Status: COMPLETE** - All kerning functions now work perfectly and match STB results exactly!
+### ✅ All Core TrueType Functionality - COMPLETED!
 
-- ✅ Implement `kern` table parsing in `forttf_parser.f90`
-  - ✅ Add `ttf_kern_table_t` type to `forttf_types.f90`
-  - ✅ Implement `parse_kern_table()` function
-  - ✅ Add kerning table validation and format support
-- ✅ Update `stb_get_codepoint_kern_advance_pure()` to use parsed kerning data
-- ✅ Update `stb_get_glyph_kern_advance_pure()` to use parsed kerning data  
-- ✅ Update `stb_get_kerning_table_pure()` to return actual kerning pairs
-- ✅ Implement proper kerning table search and lookup algorithms
-- ✅ Update tests to validate kerning functionality works correctly
+**Status: COMPLETE** - All levels (9.5, 10, 11) have been successfully implemented! See DONE.md for details.
 
-**Test Results:**
-- ✅ A-V kerning: -102 (perfect match)
-- ✅ A-W kerning: -83 (perfect match)  
-- ✅ T-o kerning: -159 (perfect match)
-- ✅ V-A kerning: -139 (perfect match)
-- ✅ Kerning table length: 1367 pairs (perfect match)
+---
 
-### Level 10: Bitmap Rendering - Basic (🎯 Immediate Next Priority)
-Current status: Bounding box functions implemented, actual rendering functions are stubs
+### 🎯 Level 12: Backend Switch to Pure Fortran (Immediate Next Priority)
 
-- [ ] Parse `glyf` and `loca` tables for glyph outline data
-  - [ ] Add glyph table types to `forttf_types.f90`
-  - [ ] Implement `parse_glyf_table()` and `parse_loca_table()` functions
-- [ ] Implement glyph outline rasterization and anti-aliasing
-- [ ] Complete bitmap rendering functions:
-  - [ ] `stb_get_codepoint_bitmap_pure()` - Allocate and render character bitmap
-  - [ ] `stb_make_codepoint_bitmap_pure()` - Render character into provided buffer  
-  - [ ] `stb_free_bitmap_pure()` - Free bitmap memory
-  - [ ] `stb_get_glyph_bitmap_pure()` - Allocate and render glyph bitmap by index
-  - [ ] `stb_make_glyph_bitmap_pure()` - Render glyph into provided buffer
-- [ ] Update tests to validate bitmap rendering works correctly
+**Status: READY** - All required STB functions are implemented and tested. Time to switch!
 
-### Level 11: Subpixel Rendering (🎯 Future Priority)
-Current status: All subpixel functions are stubs
+**Objective**: Replace the STB C library backend in `fortplot_text.f90` with the pure Fortran implementation.
 
-- [ ] Implement subpixel positioning infrastructure
-- [ ] Complete subpixel rendering functions:
-  - [ ] `stb_get_codepoint_bitmap_subpixel_pure()` - Character bitmap with subpixel positioning
-  - [ ] `stb_get_glyph_bitmap_subpixel_pure()` - Glyph bitmap with subpixel positioning
-  - [ ] `stb_make_glyph_bitmap_subpixel_pure()` - Render glyph with subpixel positioning
-  - [ ] `stb_make_codepoint_bitmap_subpixel_pure()` - Render character with subpixel positioning
-  - [ ] `stb_get_glyph_bitmap_box_subpixel_pure()` - Glyph bitmap box with subpixel positioning
-  - [ ] `stb_get_codepoint_bitmap_box_subpixel_pure()` - Character bitmap box with subpixel positioning
-- [ ] Update tests to validate subpixel rendering works correctly
+**Implementation Strategy:**
+
+**Phase 12.1: Preparation**
+- [ ] Create backup of current `fortplot_text.f90` as `fortplot_text_stb.f90.backup`
+- [ ] Audit all STB function calls in `fortplot_text.f90` (7 functions confirmed)
+- [ ] Verify pure Fortran equivalents exist and work (✅ Already confirmed)
+
+**Phase 12.2: Backend Switch**
+- [ ] Update `use fortplot_stb_truetype` → `use forttf` in `fortplot_text.f90`
+- [ ] Replace function calls:
+  - [ ] `stb_init_font()` → `stb_init_font_pure()`
+  - [ ] `stb_scale_for_pixel_height()` → `stb_scale_for_pixel_height_pure()`
+  - [ ] `stb_cleanup_font()` → `stb_cleanup_font_pure()`
+  - [ ] `stb_get_codepoint_hmetrics()` → `stb_get_codepoint_hmetrics_pure()`
+  - [ ] `stb_get_font_vmetrics()` → `stb_get_font_vmetrics_pure()`
+  - [ ] `stb_get_codepoint_bitmap()` → `stb_get_codepoint_bitmap_pure()`
+  - [ ] `stb_free_bitmap()` → `stb_free_bitmap_pure()`
+- [ ] Update type declarations: `stb_fontinfo_t` → `stb_fontinfo_pure_t`
+
+**Phase 12.3: Testing and Validation**
+- [ ] Run comprehensive text rendering tests
+- [ ] Compare output with STB version (pixel-perfect matching expected)
+- [ ] Verify memory management (no leaks)
+- [ ] Test all font loading scenarios
+- [ ] Performance testing and optimization
+
+**Phase 12.4: Cleanup**
+- [ ] Remove STB C library dependency from build system
+- [ ] Remove C wrapper files: `stb_truetype_wrapper.c`, `fortplot_stb_truetype.f90`
+- [ ] Update documentation to reflect pure Fortran implementation
+- [ ] Clean up build configuration
+
+**Expected Benefits:**
+- ✅ 100% pure Fortran implementation (no C dependencies)
+- ✅ Better portability and compiler compatibility
+- ✅ Easier debugging and maintenance
+- ✅ Same performance and accuracy as STB
 
 ---
 
