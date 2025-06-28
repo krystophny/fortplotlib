@@ -266,6 +266,9 @@ contains
         ! Test Level 9: Kerning Support (TDD)
         call test_kerning_functions(stb_font, pure_font)
 
+        ! Test Level 10: Bitmap Rendering - Basic (TDD)
+        call test_bitmap_rendering_functions(stb_font, pure_font)
+
         ! Test additional STB functions (bitmap rendering, etc.)
         call test_stb_extended_functions(stb_font)
 
@@ -858,5 +861,118 @@ contains
         end if
 
     end subroutine test_kerning_pair
+
+    subroutine test_bitmap_rendering_functions(stb_font, pure_font)
+        !! Test Level 10: Bitmap Rendering - Basic (TDD)
+        type(stb_fontinfo_t), intent(in) :: stb_font
+        type(stb_fontinfo_pure_t), intent(inout) :: pure_font
+        integer :: stb_ix0, stb_iy0, stb_ix1, stb_iy1
+        integer :: pure_ix0, pure_iy0, pure_ix1, pure_iy1
+        integer :: stb_width, stb_height, stb_xoff, stb_yoff
+        integer :: pure_width, pure_height, pure_xoff, pure_yoff
+        type(c_ptr) :: stb_bitmap, pure_bitmap
+        real(wp), parameter :: test_scale = 16.0_wp
+        logical :: all_match
+
+        write(*,*) "  Testing bitmap rendering functions (TDD)..."
+
+        all_match = .true.
+
+        ! Test 1: Get bitmap bounding box for character 'A'
+        call stb_get_codepoint_bitmap_box(stb_font, iachar('A'), test_scale, test_scale, &
+                                         stb_ix0, stb_iy0, stb_ix1, stb_iy1)
+        call stb_get_codepoint_bitmap_box_pure(pure_font, iachar('A'), test_scale, test_scale, &
+                                              pure_ix0, pure_iy0, pure_ix1, pure_iy1)
+
+        write(*,'(A,4I6,A,4I6,A)') "   Bitmap box 'A': STB=(", stb_ix0, stb_iy0, stb_ix1, stb_iy1, &
+                                   "), Pure=(", pure_ix0, pure_iy0, pure_ix1, pure_iy1, ")"
+        if (stb_ix0 /= pure_ix0 .or. stb_iy0 /= pure_iy0 .or. &
+            stb_ix1 /= pure_ix1 .or. stb_iy1 /= pure_iy1) then
+            write(*,*) "     ❌ Bitmap box mismatch"
+            all_match = .false.
+        else
+            write(*,*) "     ✅ Bitmap box matches"
+        end if
+
+        ! Test 2: Get character bitmap
+        stb_bitmap = stb_get_codepoint_bitmap(stb_font, test_scale, test_scale, iachar('A'), &
+                                             stb_width, stb_height, stb_xoff, stb_yoff)
+        pure_bitmap = stb_get_codepoint_bitmap_pure(pure_font, test_scale, test_scale, iachar('A'), &
+                                                   pure_width, pure_height, pure_xoff, pure_yoff)
+
+        write(*,'(A,I0,A,I0,A,I0,A,I0,A)') "   Bitmap 'A': STB=(", stb_width, "x", stb_height, &
+                                           " offset:", stb_xoff, ",", stb_yoff, ")"
+        write(*,'(A,I0,A,I0,A,I0,A,I0,A)') "              Pure=(", pure_width, "x", pure_height, &
+                                           " offset:", pure_xoff, ",", pure_yoff, ")"
+
+        ! Compare bitmap metadata (not bitmap content for now)
+        if (stb_width /= pure_width .or. stb_height /= pure_height .or. &
+            stb_xoff /= pure_xoff .or. stb_yoff /= pure_yoff) then
+            write(*,*) "     ❌ Bitmap metadata mismatch"
+            all_match = .false.
+        else
+            write(*,*) "     ✅ Bitmap metadata matches"
+        end if
+
+        ! Check if both return null pointer (expected for STUB phase)
+        if (c_associated(stb_bitmap) .neqv. c_associated(pure_bitmap)) then
+            write(*,*) "     ❌ Bitmap pointer association mismatch"
+            all_match = .false.
+        else
+            if (.not. c_associated(stb_bitmap) .and. .not. c_associated(pure_bitmap)) then
+                write(*,*) "     ✅ Both return null bitmap (STUB expected)"
+            else
+                write(*,*) "     ✅ Bitmap pointer association matches"
+            end if
+        end if
+
+        ! Clean up any allocated bitmaps
+        if (c_associated(stb_bitmap)) then
+            call stb_free_bitmap(stb_bitmap)
+        end if
+        if (c_associated(pure_bitmap)) then
+            call stb_free_bitmap_pure(pure_bitmap)
+        end if
+
+        ! Test 3: Test a few more characters for comprehensive coverage
+        call test_bitmap_character(stb_font, pure_font, iachar('B'), 'B', all_match)
+        call test_bitmap_character(stb_font, pure_font, iachar('g'), 'g', all_match)
+
+        if (all_match) then
+            write(*,*) "  ✅ All bitmap rendering functions match"
+        else
+            write(*,*) "  ❌ Bitmap rendering functions failed"
+        end if
+
+    end subroutine test_bitmap_rendering_functions
+
+    subroutine test_bitmap_character(stb_font, pure_font, codepoint, char_name, all_match)
+        !! Helper to test bitmap rendering for a single character
+        type(stb_fontinfo_t), intent(in) :: stb_font
+        type(stb_fontinfo_pure_t), intent(inout) :: pure_font
+        integer, intent(in) :: codepoint
+        character(len=*), intent(in) :: char_name
+        logical, intent(inout) :: all_match
+        integer :: stb_ix0, stb_iy0, stb_ix1, stb_iy1
+        integer :: pure_ix0, pure_iy0, pure_ix1, pure_iy1
+        real(wp), parameter :: test_scale = 16.0_wp
+
+        call stb_get_codepoint_bitmap_box(stb_font, codepoint, test_scale, test_scale, &
+                                         stb_ix0, stb_iy0, stb_ix1, stb_iy1)
+        call stb_get_codepoint_bitmap_box_pure(pure_font, codepoint, test_scale, test_scale, &
+                                              pure_ix0, pure_iy0, pure_ix1, pure_iy1)
+
+        write(*,'(A,A,A,4I6,A,4I6,A)') "   Bitmap box '", char_name, "': STB=(", &
+                                       stb_ix0, stb_iy0, stb_ix1, stb_iy1, &
+                                       "), Pure=(", pure_ix0, pure_iy0, pure_ix1, pure_iy1, ")"
+        if (stb_ix0 /= pure_ix0 .or. stb_iy0 /= pure_iy0 .or. &
+            stb_ix1 /= pure_ix1 .or. stb_iy1 /= pure_iy1) then
+            write(*,'(A,A,A)') "     ❌ Bitmap box '", char_name, "' mismatch"
+            all_match = .false.
+        else
+            write(*,'(A,A,A)') "     ✅ Bitmap box '", char_name, "' matches"
+        end if
+
+    end subroutine test_bitmap_character
 
 end program test_stb_comparison

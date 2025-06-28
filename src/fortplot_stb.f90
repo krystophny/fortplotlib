@@ -298,31 +298,45 @@ contains
     end function lookup_format4
 
     subroutine stb_get_codepoint_bitmap_box_pure(font_info, codepoint, scale_x, scale_y, ix0, iy0, ix1, iy1)
-        !! Get bounding box for character bitmap (STUB)
+        !! Get bounding box for character bitmap
         type(stb_fontinfo_pure_t), intent(in) :: font_info
         integer, intent(in) :: codepoint
         real(wp), intent(in) :: scale_x, scale_y
         integer, intent(out) :: ix0, iy0, ix1, iy1
+        integer :: char_x0, char_y0, char_x1, char_y1
+        integer :: success
 
         if (.not. font_info%initialized) then
             ix0 = 0; iy0 = 0; ix1 = 0; iy1 = 0
             return
         end if
 
-        ! STUB: Return placeholder values
-        ix0 = 0; iy0 = 0; ix1 = 0; iy1 = 0
+        ! Get character bounding box from glyf/head tables
+        call stb_get_codepoint_box_pure(font_info, codepoint, &
+                                       char_x0, char_y0, char_x1, char_y1)
 
-        ! TODO: Implement glyph outline parsing and bounding box calculation
+        if (char_x0 == 0 .and. char_y0 == 0 .and. char_x1 == 0 .and. char_y1 == 0) then
+            ix0 = 0; iy0 = 0; ix1 = 0; iy1 = 0
+            return
+        end if
+
+        ! Scale the bounding box to bitmap coordinates
+        ! Note: Y coordinates are flipped in bitmap space (top-down vs bottom-up)
+        ix0 = floor(real(char_x0) * scale_x)
+        iy0 = floor(real(-char_y1) * scale_y)  ! Flip Y and swap y0<->y1
+        ix1 = ceiling(real(char_x1) * scale_x)
+        iy1 = ceiling(real(-char_y0) * scale_y) ! Flip Y and swap y0<->y1
 
     end subroutine stb_get_codepoint_bitmap_box_pure
 
     function stb_get_codepoint_bitmap_pure(font_info, scale_x, scale_y, codepoint, width, height, xoff, yoff) result(bitmap_ptr)
-        !! Allocate and render character bitmap (STUB)
+        !! Allocate and render character bitmap
         type(stb_fontinfo_pure_t), intent(in) :: font_info
         real(wp), intent(in) :: scale_x, scale_y
         integer, intent(in) :: codepoint
         integer, intent(out) :: width, height, xoff, yoff
         type(c_ptr) :: bitmap_ptr
+        integer :: ix0, iy0, ix1, iy1
 
         if (.not. font_info%initialized) then
             bitmap_ptr = c_null_ptr
@@ -330,11 +344,20 @@ contains
             return
         end if
 
-        ! STUB: Return null pointer
-        bitmap_ptr = c_null_ptr
-        width = 0; height = 0; xoff = 0; yoff = 0
+        ! Get bitmap bounding box
+        call stb_get_codepoint_bitmap_box_pure(font_info, codepoint, scale_x, scale_y, &
+                                              ix0, iy0, ix1, iy1)
 
-        ! TODO: Implement glyph outline rasterization
+        ! Calculate dimensions and offset
+        width = ix1 - ix0
+        height = iy1 - iy0
+        xoff = ix0
+        yoff = iy0
+
+        ! Return null pointer for now (no actual rendering yet)
+        bitmap_ptr = c_null_ptr
+
+        ! TODO: Implement actual bitmap rendering
         ! TODO: Parse glyf table for outline data
         ! TODO: Implement curve-to-bitmap conversion with antialiasing
 
