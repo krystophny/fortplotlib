@@ -167,8 +167,105 @@ contains
     subroutine test_edge_building_comparison(passed)
         logical, intent(inout) :: passed
         
+        type(stb_fontinfo_pure_t) :: font_info
+        type(ttf_vertex_t), allocatable, target :: vertices(:)
+        type(stb_point_t), allocatable, target :: fortran_points(:)
+        integer, allocatable, target :: fortran_contour_lengths(:)
+        type(stb_edge_t), allocatable :: fortran_edges(:)
+        integer :: num_vertices, fortran_num_contours, fortran_num_edges
+        real(wp), parameter :: flatness = 0.35_wp
+        real(wp), parameter :: scale_x = 0.5_wp, scale_y = 0.5_wp
+        real(wp), parameter :: shift_x = 0.0_wp, shift_y = 0.0_wp
+        logical, parameter :: invert = .true.
+        
+        ! STB C results
+        type(c_ptr) :: stb_edges_ptr
+        integer :: stb_num_edges
+        type(stb_edge_t), pointer :: stb_edges_array(:)
+        logical :: edges_match
+        integer :: i
+        
         write(*,*) "--- COMPARISON 2: Edge Building ---"
-        write(*,*) "  ⚠️  TODO: Implement edge building comparison"
+        
+        if (.not. stb_init_font_pure(font_info, "/usr/share/fonts/TTF/DejaVuSans.ttf")) then
+            write(*,*) "❌ Failed to initialize font"
+            passed = .false.
+            return
+        end if
+        
+        ! Get glyph shape for letter 'A' (ascii 65)
+        num_vertices = stb_get_glyph_shape_pure(font_info, 65, vertices)
+        
+        ! Flatten curves
+        fortran_points = stb_flatten_curves(vertices, num_vertices, flatness, &
+                                          fortran_contour_lengths, fortran_num_contours)
+        
+        ! Test Fortran edge building
+        fortran_edges = stb_build_edges(fortran_points, fortran_contour_lengths, fortran_num_contours, &
+                                       scale_x, scale_y, shift_x, shift_y, invert)
+        fortran_num_edges = size(fortran_edges)
+        
+        ! Test STB C edge building
+        call stb_test_build_edges_exact(c_loc(fortran_points(1)), c_loc(fortran_contour_lengths(1)), &
+                                      fortran_num_contours, &
+                                      real(scale_x, c_float), real(scale_y, c_float), &
+                                      real(shift_x, c_float), real(shift_y, c_float), &
+                                      merge(1, 0, invert), &
+                                      stb_edges_ptr, stb_num_edges)
+        
+        ! Convert C pointer to Fortran array
+        if (stb_num_edges > 0) then
+            call c_f_pointer(stb_edges_ptr, stb_edges_array, [stb_num_edges])
+        end if
+        
+        write(*,*) "  Fortran: ", fortran_num_edges, "edges built"
+        write(*,*) "  STB C:   ", stb_num_edges, "edges built"
+        
+        ! Compare results
+        if (fortran_num_edges == stb_num_edges) then
+            write(*,*) "  ✅ Edge count matches!"
+            
+            ! Compare edge properties
+            edges_match = .true.
+            do i = 1, min(5, fortran_num_edges)
+                write(*,*) "  Fortran Edge", i, ": (", fortran_edges(i)%x0, ",", fortran_edges(i)%y0, &
+                          ") -> (", fortran_edges(i)%x1, ",", fortran_edges(i)%y1, &
+                          "), invert=", fortran_edges(i)%invert
+                          
+                write(*,*) "  STB C Edge", i, ": (", stb_edges_array(i)%x0, ",", stb_edges_array(i)%y0, &
+                          ") -> (", stb_edges_array(i)%x1, ",", stb_edges_array(i)%y1, &
+                          "), invert=", stb_edges_array(i)%invert
+                
+                ! Check for significant differences in coordinates
+                if (abs(fortran_edges(i)%x0 - stb_edges_array(i)%x0) > 0.001_wp .or. &
+                    abs(fortran_edges(i)%y0 - stb_edges_array(i)%y0) > 0.001_wp .or. &
+                    abs(fortran_edges(i)%x1 - stb_edges_array(i)%x1) > 0.001_wp .or. &
+                    abs(fortran_edges(i)%y1 - stb_edges_array(i)%y1) > 0.001_wp .or. &
+                    fortran_edges(i)%invert /= stb_edges_array(i)%invert) then
+                    
+                    edges_match = .false.
+                    write(*,*) "  ❌ Edge", i, "MISMATCH!"
+                end if
+            end do
+            
+            if (edges_match) then
+                write(*,*) "  ✅ Edge properties match!"
+            else
+                write(*,*) "  ❌ Edge properties MISMATCH!"
+                passed = .false.
+            end if
+        else
+            write(*,*) "  ❌ Edge count MISMATCH!"
+            passed = .false.
+        end if
+        
+        ! Cleanup
+        if (stb_num_edges > 0) then
+            call stb_free_edges(stb_edges_ptr)
+        end if
+        call stb_free_shape_pure(vertices)
+        call stb_cleanup_font_pure(font_info)
+        deallocate(fortran_points, fortran_contour_lengths, fortran_edges)
         
     end subroutine test_edge_building_comparison
 
@@ -184,15 +281,19 @@ contains
         ! STB C results
         type(c_ptr) :: stb_bitmap_ptr
         integer :: stb_pixel_count
+        integer(c_int8_t), pointer :: stb_pixels_array(:)
         
-        ! Test parameters (match bitmap content test)
+        ! Test parameters - use 'A' character
         real(wp), parameter :: scale_x = 0.5_wp, scale_y = 0.5_wp
         real(wp), parameter :: shift_x = 0.0_wp, shift_y = 0.0_wp
         integer, parameter :: width = 684, height = 747  ! Match bitmap content test
         integer, parameter :: x_off = 8, y_off = -747    ! Match bitmap content test offsets
         logical, parameter :: invert = .true.
+        real(wp), parameter :: flatness = 0.35_wp
+        integer, parameter :: char_code = 65  ! ASCII 'A'
         
         write(*,*) "--- COMPARISON 3: Complete Pipeline ---"
+        write(*,*) "  Testing with character 'A' (ASCII 65)"
         
         if (.not. stb_init_font_pure(font_info, "/usr/share/fonts/TTF/DejaVuSans.ttf")) then
             write(*,*) "❌ Failed to initialize font"
@@ -200,7 +301,8 @@ contains
             return
         end if
         
-        num_vertices = stb_get_glyph_shape_pure(font_info, 36, vertices)
+        num_vertices = stb_get_glyph_shape_pure(font_info, char_code, vertices)
+        write(*,*) "  Glyph 'A' has", num_vertices, "vertices"
         
         ! Test Fortran complete pipeline
         allocate(fortran_pixels(width * height))
@@ -211,7 +313,7 @@ contains
         fortran_bitmap%stride = width
         fortran_bitmap%pixels => fortran_pixels
         
-        call stbtt_rasterize(fortran_bitmap, 0.35_wp, vertices, num_vertices, &
+        call stbtt_rasterize(fortran_bitmap, flatness, vertices, num_vertices, &
                             scale_x, scale_y, shift_x, shift_y, x_off, y_off, invert, c_null_ptr)
         
         ! Count Fortran pixels
@@ -230,11 +332,37 @@ contains
         write(*,*) "  Fortran pixels: ", fortran_pixel_count
         write(*,*) "  STB C pixels:   ", stb_pixel_count
         
+        ! Compare pixel counts
         if (fortran_pixel_count == stb_pixel_count) then
             write(*,*) "  ✅ PIXEL COUNTS MATCH EXACTLY!"
         else
             write(*,*) "  ❌ PIXEL COUNT MISMATCH! Difference:", abs(fortran_pixel_count - stb_pixel_count)
+            write(*,*) "  Fortran/STB ratio:", real(fortran_pixel_count) / real(stb_pixel_count)
             passed = .false.
+        end if
+        
+        ! If we have STB results, do a deeper comparison
+        if (c_associated(stb_bitmap_ptr)) then
+            call c_f_pointer(stb_bitmap_ptr, stb_pixels_array, [width * height])
+            
+            ! Compare first few non-zero pixels from both implementations
+            write(*,*) "  First few non-zero pixel positions:"
+            
+            write(*,*) "  Fortran non-zero positions:"
+            do i = 1, width * height
+                if (fortran_pixels(i) /= 0) then
+                    write(*,'("    Position", I6, " value =", I4)') i, int(fortran_pixels(i))
+                    if (i >= 5) exit
+                end if
+            end do
+            
+            write(*,*) "  STB C non-zero positions:"
+            do i = 1, width * height
+                if (stb_pixels_array(i) /= 0) then
+                    write(*,'("    Position", I6, " value =", I4)') i, int(stb_pixels_array(i))
+                    if (i >= 5) exit
+                end if
+            end do
         end if
         
         ! Cleanup
