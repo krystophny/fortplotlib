@@ -9,6 +9,8 @@ Tests build code automatically. Just run
 - YOU MUST USE RED-GREEN TEST-DRIVEN DEVELOPMENT (TDD) FOR EVERY FUNCTION AND SUBROUTINE.
 - IF THERE ARE NO TESTS YET ADD TEST FOR EACH FUNCTION OR SUBROUTINE TO COMPARE TO REFERENCE STB C IMPLEMENTATION
 - UPDATE TODO.md AS YOU PROGRESS TO REFLECT CURRENT STATUS AND NEXT STEPS
+- COMMIT AND PUSH AFTER EACH GREEN TEST PASSES
+- MODULARIZE AS YOU GO, KEEPING CODE DRY (Don't Repeat Yourself) MODULES WITH A SINGLE RESPONSIBILITY PRINCIPLE (SRP)
 - You must place variable declarations on top of the subroutine or function.
 - Fortran has no unsigned integers, so be careful with types and sizes.
 - Fortran uses 1-based indexing per default (can be specified in declaration), so be careful with array indices.
@@ -62,15 +64,16 @@ All TrueType/TTC types and parsing logic are now in dedicated modules:
 - ✅ All tests in `test_stb_comparison.f90` pass for both TTF and TTC fonts
 
 ### Level 6: Basic Metrics and Horizontal Layout
-- [ ] `stb_get_codepoint_hmetrics_pure()` - Get horizontal character metrics (currently STUB)
-- [ ] `stb_scale_for_mapping_em_to_pixels_pure()` - Calculate scale factor for desired em size (currently STUB)
-- [ ] Parse `hmtx` table for glyph advance widths and left side bearings
+- ✅ `stb_get_codepoint_hmetrics_pure()` - Get horizontal character metrics
+- ✅ `stb_scale_for_mapping_em_to_pixels_pure()` - Calculate scale factor for desired em size
+- ✅ Parse `hmtx` table for glyph advance widths and left side bearings
+- ✅ RED-GREEN TDD tests added and passing for all metrics functions
 
 ### Level 7: Bounding Boxes and Font Metrics
 - [ ] `stb_get_font_bounding_box_pure()` - Get font bounding box (currently STUB)
 - [ ] `stb_get_codepoint_box_pure()` - Get character bounding box (currently STUB)
 - [ ] `stb_get_glyph_box_pure()` - Get glyph bounding box by glyph index (currently STUB)
-- [ ] `stb_get_glyph_hmetrics_pure()` - Get horizontal glyph metrics by glyph index (currently STUB)
+- ✅ `stb_get_glyph_hmetrics_pure()` - Get horizontal glyph metrics by glyph index (implemented in Level 6)
 
 ### Level 8: OS/2 Metrics
 - [ ] `stb_get_font_vmetrics_os2_pure()` - Get OS/2 table vertical metrics (currently STUB)

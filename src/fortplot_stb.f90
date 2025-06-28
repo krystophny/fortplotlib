@@ -220,10 +220,11 @@ contains
     end subroutine stb_get_font_vmetrics_pure
 
     subroutine stb_get_codepoint_hmetrics_pure(font_info, codepoint, advance_width, left_side_bearing)
-        !! Get horizontal character metrics (STUB)
+        !! Get horizontal character metrics
         type(stb_fontinfo_pure_t), intent(in) :: font_info
         integer, intent(in) :: codepoint
         integer, intent(out) :: advance_width, left_side_bearing
+        integer :: glyph_index
 
         if (.not. font_info%initialized) then
             advance_width = 0
@@ -231,13 +232,11 @@ contains
             return
         end if
 
-        ! STUB: Return placeholder values
-        advance_width = 0
-        left_side_bearing = 0
+        ! Map Unicode codepoint to glyph index
+        glyph_index = stb_find_glyph_index_pure(font_info, codepoint)
 
-        ! TODO: Implement using cmap + hmtx tables
-        ! TODO: Map Unicode codepoint to glyph index
-        ! TODO: Look up glyph metrics in hmtx table
+        ! Get glyph horizontal metrics
+        call stb_get_glyph_hmetrics_pure(font_info, glyph_index, advance_width, left_side_bearing)
 
     end subroutine stb_get_codepoint_hmetrics_pure
 
@@ -439,20 +438,34 @@ contains
     end function stb_get_font_offset_for_index_pure
 
     function stb_scale_for_mapping_em_to_pixels_pure(font_info, pixels) result(scale)
-        !! Calculate scale factor for desired em size (STUB)
+        !! Calculate scale factor for desired em size
         type(stb_fontinfo_pure_t), intent(in) :: font_info
         real(wp), intent(in) :: pixels
         real(wp) :: scale
+        integer :: units_per_em, head_table_idx, head_offset
 
         if (.not. font_info%initialized) then
             scale = 0.0_wp
             return
         end if
 
-        ! STUB: Return placeholder
-        scale = 0.0_wp
+        ! Find head table
+        head_table_idx = find_table(font_info%tables, 'head')
+        if (head_table_idx == 0) then
+            scale = 0.0_wp
+            return
+        end if
 
-        ! TODO: Implement using font head table
+        head_offset = font_info%tables(head_table_idx)%offset
+
+        ! Get unitsPerEm from head table at offset 18 (2-byte unsigned short)
+        units_per_em = read_be_uint16(font_info%font_data, head_offset + 18)
+
+        if (units_per_em > 0) then
+            scale = pixels / real(units_per_em, wp)
+        else
+            scale = 0.0_wp
+        end if
 
     end function stb_scale_for_mapping_em_to_pixels_pure
 
@@ -533,10 +546,11 @@ contains
 
     subroutine stb_get_glyph_hmetrics_pure(font_info, glyph_index, advanceWidth, &
                                           leftSideBearing)
-        !! Get horizontal glyph metrics by glyph index (STUB)
+        !! Get horizontal glyph metrics by glyph index
         type(stb_fontinfo_pure_t), intent(in) :: font_info
         integer, intent(in) :: glyph_index
         integer, intent(out) :: advanceWidth, leftSideBearing
+        integer :: hmtx_table_idx, hmtx_offset, num_hmetrics
 
         if (.not. font_info%initialized) then
             advanceWidth = 0
@@ -544,11 +558,31 @@ contains
             return
         end if
 
-        ! STUB: Return placeholder values
-        advanceWidth = 0
-        leftSideBearing = 0
+        ! Find hmtx table
+        hmtx_table_idx = find_table(font_info%tables, 'hmtx')
+        if (hmtx_table_idx == 0) then
+            ! No hmtx table found
+            advanceWidth = 0
+            leftSideBearing = 0
+            return
+        end if
 
-        ! TODO: Implement using hmtx table and glyph index
+        hmtx_offset = font_info%tables(hmtx_table_idx)%offset
+
+        ! Get number of horizontal metrics from hhea table
+        num_hmetrics = font_info%hhea_table%number_of_hmetrics
+
+        if (glyph_index < num_hmetrics) then
+            ! Read from longHorMetric entries (4 bytes each: 2-byte advance + 2-byte lsb)
+            advanceWidth = read_be_uint16(font_info%font_data, hmtx_offset + 4 * glyph_index)
+            leftSideBearing = read_be_int16(font_info%font_data, hmtx_offset + 4 * glyph_index + 2)
+        else
+            ! Read last advance width (reused for all remaining glyphs)
+            advanceWidth = read_be_uint16(font_info%font_data, hmtx_offset + 4 * (num_hmetrics - 1))
+            ! Read left side bearing from leftSideBearing array
+            leftSideBearing = read_be_int16(font_info%font_data, &
+                                          hmtx_offset + 4 * num_hmetrics + 2 * (glyph_index - num_hmetrics))
+        end if
 
     end subroutine stb_get_glyph_hmetrics_pure
 

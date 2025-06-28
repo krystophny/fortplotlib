@@ -257,8 +257,14 @@ contains
         ! Test Level 6: Basic Metrics and Horizontal Layout (TDD)
         call test_metrics_functions(stb_font, pure_font)
 
+        ! Test Level 7: Bounding Boxes and Font Metrics (TDD)
+        call test_bounding_box_functions(stb_font, pure_font)
+
         ! Test additional STB functions (bitmap rendering, etc.)
         call test_stb_extended_functions(stb_font)
+
+        ! Test Level 7: Bounding Boxes and Font Metrics (TDD)
+        call test_bounding_box_functions(stb_font, pure_font)
 
         call cleanup_fonts(stb_font, pure_font, stb_success, pure_success)
         success = .true.
@@ -605,13 +611,13 @@ contains
 
         ! Test 1: stb_get_codepoint_hmetrics comparison
         test_codepoint = iachar('A')
-        
+
         call stb_get_codepoint_hmetrics(stb_font, test_codepoint, stb_advance, stb_lsb)
         call stb_get_codepoint_hmetrics_pure(pure_font, test_codepoint, pure_advance, pure_lsb)
-        
+
         write(*,'(A,I0,A,I0,A,I0,A,I0)') "    Character 'A' hmetrics: STB=(", &
                                          stb_advance, ",", stb_lsb, "), Pure=(", pure_advance, ",", pure_lsb, ")"
-        
+
         metrics_match = (stb_advance == pure_advance .and. stb_lsb == pure_lsb)
         if (.not. metrics_match) then
             write(*,*) "    ❌ Horizontal metrics mismatch!"
@@ -622,10 +628,10 @@ contains
         ! Test 2: stb_scale_for_mapping_em_to_pixels comparison
         stb_em_scale = stb_scale_for_mapping_em_to_pixels(stb_font, 16.0_wp)
         pure_em_scale = stb_scale_for_mapping_em_to_pixels_pure(pure_font, 16.0_wp)
-        
+
         write(*,'(A,F8.6,A,F8.6)') "    EM scale for 16px: STB=", stb_em_scale, &
                                    ", Pure=", pure_em_scale
-        
+
         ! Allow small floating point differences
         if (abs(stb_em_scale - pure_em_scale) > 1e-6_wp) then
             write(*,*) "    ❌ EM scale mismatch!"
@@ -641,5 +647,72 @@ contains
         end if
 
     end subroutine test_metrics_functions
+
+    subroutine test_bounding_box_functions(stb_font, pure_font)
+        !! Test Level 7: Bounding Boxes and Font Metrics (TDD)
+        type(stb_fontinfo_t), intent(in) :: stb_font
+        type(stb_fontinfo_pure_t), intent(in) :: pure_font
+        integer :: stb_x0, stb_y0, stb_x1, stb_y1
+        integer :: pure_x0, pure_y0, pure_x1, pure_y1
+        integer :: test_codepoint, glyph_index
+        logical :: bbox_match
+
+        write(*,*) "  Testing bounding box functions (TDD)..."
+
+        ! Test 1: stb_get_font_bounding_box comparison
+        call stb_get_font_bounding_box(stb_font, stb_x0, stb_y0, stb_x1, stb_y1)
+        call stb_get_font_bounding_box_pure(pure_font, pure_x0, pure_y0, pure_x1, pure_y1)
+
+        write(*,'(A,4I6,A,4I6)') "    Font bbox: STB=(", stb_x0, stb_y0, stb_x1, stb_y1, &
+                                 "), Pure=(", pure_x0, pure_y0, pure_x1, pure_y1, ")"
+
+        bbox_match = (stb_x0 == pure_x0 .and. stb_y0 == pure_y0 .and. &
+                      stb_x1 == pure_x1 .and. stb_y1 == pure_y1)
+        if (.not. bbox_match) then
+            write(*,*) "    ❌ Font bounding box mismatch!"
+        else
+            write(*,*) "    ✅ Font bounding box matches"
+        end if
+
+        ! Test 2: stb_get_codepoint_box comparison
+        test_codepoint = iachar('A')
+        call stb_get_codepoint_box(stb_font, test_codepoint, stb_x0, stb_y0, stb_x1, stb_y1)
+        call stb_get_codepoint_box_pure(pure_font, test_codepoint, pure_x0, pure_y0, pure_x1, pure_y1)
+
+        write(*,'(A,4I6,A,4I6)') "    Char 'A' bbox: STB=(", stb_x0, stb_y0, stb_x1, stb_y1, &
+                                 "), Pure=(", pure_x0, pure_y0, pure_x1, pure_y1, ")"
+
+        if (.not. (stb_x0 == pure_x0 .and. stb_y0 == pure_y0 .and. &
+                   stb_x1 == pure_x1 .and. stb_y1 == pure_y1)) then
+            write(*,*) "    ❌ Character bounding box mismatch!"
+            bbox_match = .false.
+        else
+            write(*,*) "    ✅ Character bounding box matches"
+        end if
+
+        ! Test 3: stb_get_glyph_box comparison
+        glyph_index = stb_find_glyph_index(stb_font, test_codepoint)
+        call stb_get_glyph_box(stb_font, glyph_index, stb_x0, stb_y0, stb_x1, stb_y1)
+        call stb_get_glyph_box_pure(pure_font, glyph_index, pure_x0, pure_y0, pure_x1, pure_y1)
+
+        write(*,'(A,I0,A,4I6,A,4I6)') "    Glyph ", glyph_index, " bbox: STB=(", &
+                                       stb_x0, stb_y0, stb_x1, stb_y1, &
+                                       "), Pure=(", pure_x0, pure_y0, pure_x1, pure_y1, ")"
+
+        if (.not. (stb_x0 == pure_x0 .and. stb_y0 == pure_y0 .and. &
+                   stb_x1 == pure_x1 .and. stb_y1 == pure_y1)) then
+            write(*,*) "    ❌ Glyph bounding box mismatch!"
+            bbox_match = .false.
+        else
+            write(*,*) "    ✅ Glyph bounding box matches"
+        end if
+
+        if (bbox_match) then
+            write(*,*) "  ✅ All bounding box functions match"
+        else
+            write(*,*) "  ❌ Some bounding box functions failed"
+        end if
+
+    end subroutine test_bounding_box_functions
 
 end program test_stb_comparison
