@@ -4,9 +4,17 @@ module fortplot_stb
     !! Currently returns placeholder/error values - implementation is planned for future development
     use iso_c_binding
     use, intrinsic :: iso_fortran_env, only: wp => real64
+    use fortplot_truetype_types
+    use fortplot_truetype_parser
     implicit none
 
     private
+
+    ! Re-export types from types module
+    public :: stb_fontinfo_pure_t
+    public :: ttf_table_entry_t, ttf_header_t, ttf_head_table_t
+    public :: ttf_hhea_table_t, ttf_maxp_table_t, ttf_cmap_table_t
+    public :: ttf_cmap_subtable_t, ttc_header_t
     public :: stb_fontinfo_pure_t, stb_init_font_pure, stb_cleanup_font_pure
     public :: stb_get_codepoint_bitmap_pure, stb_free_bitmap_pure
     public :: stb_get_codepoint_hmetrics_pure, stb_get_font_vmetrics_pure
@@ -30,142 +38,6 @@ module fortplot_stb
     integer, parameter :: STB_PURE_SUCCESS = 1
     integer, parameter :: STB_PURE_ERROR = 0
     integer, parameter :: STB_PURE_NOT_IMPLEMENTED = -1
-
-    ! TrueType table directory entry
-    type :: ttf_table_entry_t
-        character(len=4) :: tag = ""
-        integer :: checksum = 0
-        integer :: offset = 0
-        integer :: length = 0
-    end type ttf_table_entry_t
-
-    ! TrueType font header
-    type :: ttf_header_t
-        integer :: sfnt_version = 0
-        integer :: num_tables = 0
-        integer :: search_range = 0
-        integer :: entry_selector = 0
-        integer :: range_shift = 0
-    end type ttf_header_t
-
-    ! TrueType head table
-    type :: ttf_head_table_t
-        integer :: major_version = 0
-        integer :: minor_version = 0
-        integer :: font_revision = 0
-        integer :: checksum_adjustment = 0
-        integer :: magic_number = 0
-        integer :: flags = 0
-        integer :: units_per_em = 0
-        integer :: created_high = 0
-        integer :: created_low = 0
-        integer :: modified_high = 0
-        integer :: modified_low = 0
-        integer :: x_min = 0
-        integer :: y_min = 0
-        integer :: x_max = 0
-        integer :: y_max = 0
-        integer :: mac_style = 0
-        integer :: lowest_rec_ppem = 0
-        integer :: font_direction_hint = 0
-        integer :: index_to_loc_format = 0
-        integer :: glyph_data_format = 0
-    end type ttf_head_table_t
-
-    ! TrueType hhea table
-    type :: ttf_hhea_table_t
-        integer :: major_version = 0
-        integer :: minor_version = 0
-        integer :: ascender = 0
-        integer :: descender = 0
-        integer :: line_gap = 0
-        integer :: advance_width_max = 0
-        integer :: min_left_side_bearing = 0
-        integer :: min_right_side_bearing = 0
-        integer :: x_max_extent = 0
-        integer :: caret_slope_rise = 0
-        integer :: caret_slope_run = 0
-        integer :: caret_offset = 0
-        integer :: reserved1 = 0
-        integer :: reserved2 = 0
-        integer :: reserved3 = 0
-        integer :: reserved4 = 0
-        integer :: metric_data_format = 0
-        integer :: number_of_hmetrics = 0
-    end type ttf_hhea_table_t
-
-    ! TrueType maxp table
-    type :: ttf_maxp_table_t
-        integer :: version = 0
-        integer :: num_glyphs = 0
-    end type ttf_maxp_table_t
-
-    ! TrueType Collection (TTC) header
-    type :: ttc_header_t
-        character(len=4) :: ttcTag = ""      ! 'ttcf'
-        integer :: majorVersion = 0
-        integer :: minorVersion = 0
-        integer :: numFonts = 0
-        integer, allocatable :: offsetTable(:)  ! Offsets to each font
-    end type ttc_header_t
-
-    ! TrueType cmap subtable entry
-    type :: ttf_cmap_subtable_t
-        integer :: platform_id = 0
-        integer :: encoding_id = 0
-        integer :: offset = 0
-        integer :: format = 0
-        integer :: length = 0
-        ! Format 4 specific data
-        integer :: seg_count = 0
-        integer, allocatable :: end_code(:)
-        integer, allocatable :: start_code(:)
-        integer, allocatable :: id_delta(:)
-        integer, allocatable :: id_range_offset(:)
-        integer, allocatable :: glyph_id_array(:)
-    end type ttf_cmap_subtable_t
-
-    ! TrueType cmap table
-    type :: ttf_cmap_table_t
-        integer :: version = 0
-        integer :: num_tables = 0
-        type(ttf_cmap_subtable_t), allocatable :: subtables(:)
-        integer :: preferred_subtable = 0  ! Index of preferred subtable for lookup
-    end type ttf_cmap_table_t
-
-    ! Pure Fortran font info structure
-    type :: stb_fontinfo_pure_t
-        logical :: initialized = .false.
-        character(len=256) :: font_file_path = ""
-        integer :: num_glyphs = 0
-
-        ! Font data
-        integer(c_int8_t), allocatable :: font_data(:)
-        integer :: data_size = 0
-
-        ! Parsed structures
-        type(ttf_header_t) :: header
-        type(ttf_table_entry_t), allocatable :: tables(:)
-
-        ! TTC support
-        logical :: is_ttc = .false.
-        type(ttc_header_t) :: ttc_header
-        integer :: font_index = 0   ! Font index within TTC (0-based)
-        integer :: font_offset = 0  ! Byte offset to this font within TTC
-
-        ! Parsed table data
-        type(ttf_head_table_t) :: head_table
-        type(ttf_hhea_table_t) :: hhea_table
-        type(ttf_maxp_table_t) :: maxp_table
-        type(ttf_cmap_table_t) :: cmap_table
-        logical :: head_parsed = .false.
-        logical :: hhea_parsed = .false.
-        logical :: maxp_parsed = .false.
-        logical :: cmap_parsed = .false.
-
-        ! Future: Glyph outline data
-        ! Future: Character mapping tables
-    end type stb_fontinfo_pure_t
 
 contains
 

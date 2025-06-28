@@ -403,4 +403,18 @@ Replace STB TrueType C library with a pure Fortran implementation that:
 - Document design decisions and trade-offs
 - Plan for incremental testing and validation
 
+---
+
+## 🆕 Modularization Note (June 2025)
+
+All TrueType/TTC types and parsing logic have been extracted into dedicated modules:
+- `src/fortplot_truetype_types.f90` — All TrueType/TTC-related type definitions (single source of truth)
+- `src/fortplot_truetype_parser.f90` — All TTF/TTC parsing and binary helper functions
+- `src/fortplot_stb.f90` — Main STB-compatible API and logic, now reusing the above modules for all type and parsing needs (DRY principle)
+
+This ensures:
+- No duplication of types or parsing logic (DRY)
+- All modules use the same type definitions and parsing routines
+- Easier maintenance and extension for future features
+
 **Ready to begin TDD implementation of pure Fortran TrueType parser and renderer.**
