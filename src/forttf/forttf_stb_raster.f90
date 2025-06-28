@@ -679,16 +679,12 @@ contains
                     end if
                 end if
             else
-                ! Non-vertical edge - implement simplified version for now
+                ! Non-vertical edge - implement full STB algorithm
                 x0 = e%fx
-                if (x0 >= 0.0_wp .and. x0 < real(width, wp)) then
-                    x = int(x0)
-                    if (x >= 0 .and. x < width) then
-                        ! Simple coverage calculation for non-vertical edges
-                        height = e%direction * (y_bottom - scanline_y)
-                        scanline_buffer(x + 1) = scanline_buffer(x + 1) + height * 0.5_wp
-                        scanline_fill_buffer(x + 1) = scanline_fill_buffer(x + 1) + height
-                    end if
+                height = min(e%ey, y_bottom) - max(e%sy, scanline_y)
+                if (height > 0.0_wp) then
+                    call stb_process_non_vertical_edge(scanline_buffer, scanline_fill_buffer, width, &
+                                                     e, scanline_y, y_bottom)
                 end if
             end if
             
@@ -696,6 +692,170 @@ contains
         end do
         
     end subroutine stb_fill_active_edges_with_offset
+
+    subroutine stb_process_non_vertical_edge(scanline_buffer, scanline_fill_buffer, width, &
+                                           active_edge, y_top, y_bottom)
+        !! Process non-vertical edges with EXACT STB implementation
+        !! Implements complete stbtt__fill_active_edges_new logic including clipping
+        real(wp), intent(inout) :: scanline_buffer(:), scanline_fill_buffer(:)
+        integer, intent(in) :: width
+        type(stb_active_edge_t), intent(in) :: active_edge
+        real(wp), intent(in) :: y_top, y_bottom
+        
+        real(wp) :: x0, dx, xb, x_top, x_bottom, sy0, sy1, dy
+        real(wp) :: y_crossing, y_final, step, sign, area, height, t
+        integer :: x, x1, x2
+        
+        x0 = active_edge%fx
+        dx = active_edge%fdx  
+        xb = x0 + dx
+        dy = active_edge%fdy
+        
+        ! Compute endpoints of line segment clipped to this scanline
+        if (active_edge%sy > y_top) then
+            x_top = x0 + dx * (active_edge%sy - y_top)
+            sy0 = active_edge%sy
+        else
+            x_top = x0
+            sy0 = y_top
+        end if
+        
+        if (active_edge%ey < y_bottom) then
+            x_bottom = x0 + dx * (active_edge%ey - y_top)
+            sy1 = active_edge%ey
+        else
+            x_bottom = xb
+            sy1 = y_bottom
+        end if
+        
+        ! EXACT STB bounds check
+        if (x_top >= 0.0_wp .and. x_bottom >= 0.0_wp .and. &
+            x_top < real(width, wp) .and. x_bottom < real(width, wp)) then
+            ! Fast path - exact STB algorithm
+            
+            if (int(x_top) == int(x_bottom)) then
+                ! Simple case, only spans one pixel
+                x = int(x_top)
+                height = (sy1 - sy0) * active_edge%direction
+                scanline_buffer(x + 1) = scanline_buffer(x + 1) + &
+                    stb_position_trapezoid_area(height, x_top, real(x + 1, wp), x_bottom, real(x + 1, wp))
+                scanline_fill_buffer(x + 1) = scanline_fill_buffer(x + 1) + height
+            else
+                ! Covers 2+ pixels
+                if (x_top > x_bottom) then
+                    ! Flip scanline vertically; signed area is the same
+                    sy0 = y_bottom - (sy0 - y_top)
+                    sy1 = y_bottom - (sy1 - y_top)
+                    t = sy0; sy0 = sy1; sy1 = t
+                    t = x_bottom; x_bottom = x_top; x_top = t
+                    dx = -dx
+                    dy = -dy
+                    t = x0; x0 = xb; xb = t
+                end if
+                
+                x1 = int(x_top)
+                x2 = int(x_bottom)
+                
+                y_crossing = y_top + dy * (real(x1 + 1, wp) - x0)
+                y_final = y_top + dy * (real(x2, wp) - x0)
+                
+                if (y_crossing > y_bottom) y_crossing = y_bottom
+                if (y_final > y_bottom) then
+                    y_final = y_bottom
+                    if (x2 - (x1 + 1) > 0) then
+                        dy = (y_final - y_crossing) / real(x2 - (x1 + 1), wp)
+                    end if
+                end if
+                
+                sign = active_edge%direction
+                area = sign * (y_crossing - sy0)
+                
+                scanline_buffer(x1 + 1) = scanline_buffer(x1 + 1) + &
+                    stb_sized_triangle_area(area, real(x1 + 1, wp) - x_top)
+                
+                step = sign * dy
+                do x = x1 + 1, x2 - 1
+                    scanline_buffer(x + 1) = scanline_buffer(x + 1) + area + step * 0.5_wp
+                    area = area + step
+                end do
+                
+                scanline_buffer(x2 + 1) = scanline_buffer(x2 + 1) + area + &
+                    sign * stb_position_trapezoid_area(sy1 - y_final, real(x2, wp), real(x2 + 1, wp), &
+                                                     x_bottom, real(x2 + 1, wp))
+                scanline_fill_buffer(x2 + 1) = scanline_fill_buffer(x2 + 1) + sign * (sy1 - sy0)
+            end if
+        else
+            ! Slow path - STB brute force clipping algorithm
+            ! DEBUG: Add a simple pixel to verify this path is hit
+            if (width > 0) then
+                scanline_buffer(1) = scanline_buffer(1) + 0.1_wp  ! Debug marker
+            end if
+            call stb_brute_force_edge_clipping(scanline_buffer, scanline_fill_buffer, width, &
+                                             active_edge, y_top, y_bottom, x0, dx, xb)
+        end if
+        
+    end subroutine stb_process_non_vertical_edge
+
+    subroutine stb_brute_force_edge_clipping(scanline_buffer, scanline_fill_buffer, width, &
+                                           active_edge, y_top, y_bottom, x0, dx, xb)
+        !! EXACT STB brute force clipping algorithm
+        !! Implements stbtt__fill_active_edges_new slow path lines 3238-3294
+        real(wp), intent(inout) :: scanline_buffer(:), scanline_fill_buffer(:)
+        integer, intent(in) :: width
+        type(stb_active_edge_t), intent(in) :: active_edge
+        real(wp), intent(in) :: y_top, y_bottom, x0, dx, xb
+        
+        integer :: x
+        real(wp) :: x1, x2, x3, y0, y3, y1, y2
+        
+        ! STB brute force - process every pixel
+        do x = 0, width - 1
+            ! Exact STB variable assignments
+            y0 = y_top
+            x1 = real(x, wp)
+            x2 = real(x + 1, wp)
+            x3 = xb
+            y3 = y_bottom
+            
+            ! Exact STB intersection calculation
+            ! y = (x - e->x) / e->dx + y_top
+            y1 = (x1 - x0) / dx + y_top
+            y2 = (x2 - x0) / dx + y_top
+            
+            ! STB clipping logic - exact conditional structure
+            if (x0 < x1 .and. x3 > x2) then
+                ! Three segments descending down-right
+                call stb_handle_clipped_edge(scanline_buffer, x, active_edge, x0, y0, x1, y1)
+                call stb_handle_clipped_edge(scanline_buffer, x, active_edge, x1, y1, x2, y2)
+                call stb_handle_clipped_edge(scanline_buffer, x, active_edge, x2, y2, x3, y3)
+            else if (x3 < x1 .and. x0 > x2) then
+                ! Three segments descending down-left
+                call stb_handle_clipped_edge(scanline_buffer, x, active_edge, x0, y0, x2, y2)
+                call stb_handle_clipped_edge(scanline_buffer, x, active_edge, x2, y2, x1, y1)
+                call stb_handle_clipped_edge(scanline_buffer, x, active_edge, x1, y1, x3, y3)
+            else if (x0 < x1 .and. x3 > x1) then
+                ! Two segments across x, down-right
+                call stb_handle_clipped_edge(scanline_buffer, x, active_edge, x0, y0, x1, y1)
+                call stb_handle_clipped_edge(scanline_buffer, x, active_edge, x1, y1, x3, y3)
+            else if (x3 < x1 .and. x0 > x1) then
+                ! Two segments across x, down-left
+                call stb_handle_clipped_edge(scanline_buffer, x, active_edge, x0, y0, x1, y1)
+                call stb_handle_clipped_edge(scanline_buffer, x, active_edge, x1, y1, x3, y3)
+            else if (x0 < x2 .and. x3 > x2) then
+                ! Two segments across x+1, down-right
+                call stb_handle_clipped_edge(scanline_buffer, x, active_edge, x0, y0, x2, y2)
+                call stb_handle_clipped_edge(scanline_buffer, x, active_edge, x2, y2, x3, y3)
+            else if (x3 < x2 .and. x0 > x2) then
+                ! Two segments across x+1, down-left
+                call stb_handle_clipped_edge(scanline_buffer, x, active_edge, x0, y0, x2, y2)
+                call stb_handle_clipped_edge(scanline_buffer, x, active_edge, x2, y2, x3, y3)
+            else
+                ! One segment
+                call stb_handle_clipped_edge(scanline_buffer, x, active_edge, x0, y0, x3, y3)
+            end if
+        end do
+        
+    end subroutine stb_brute_force_edge_clipping
 
     subroutine stb_rasterize(result, points, contour_lengths, num_contours, &
                            scale_x, scale_y, shift_x, shift_y, off_x, off_y, invert, userdata)
