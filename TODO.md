@@ -117,22 +117,128 @@ The critical bitmap rendering issue has been resolved! Pure Fortran implementati
 
 ---
 
-### 🎯 Level 12B: Rasterization Refinement (OPTIONAL)
+### 🎯 Level 12B: Exact STB Intermediate Function Matching - CRITICAL
 
-**Status: DEFERRED** - Core functionality restored, refinement can be done incrementally.
+**Status: IN PROGRESS** - Core bitmap rendering works but rasterization algorithm differs from STB.
 
-**Current State:** Pure Fortran generates filled bounding box shapes instead of precise outlines. This is functional for text rendering but could be improved for better visual quality.
+**CRITICAL ISSUE:** Current Pure Fortran generates 8,544 non-zero pixels vs STB's 1,817 pixels for letter 'A'. This indicates our rasterization algorithm differs from STB's internal pipeline.
 
-**Future Refinement Options:**
-- [ ] Implement precise outline tracing instead of bounding box filling
-- [ ] Add antialiasing for smooth edges
-- [ ] Support for quadratic/cubic curves  
-- [ ] Handle composite glyphs
-- [ ] Optimize performance for large fonts
+**REQUIREMENT:** Every intermediate function in STB's bitmap rendering pipeline must be ported and tested for exact matching.
+
+---
+
+## 🔬 STB Internal Pipeline Analysis & Testing Requirements
+
+### **Phase 12B.1: Data Structures & Constants - CRITICAL**
+- [ ] **stbtt__point**: Implement exact floating-point point structure
+- [ ] **stbtt__edge**: Implement edge structure with x0,y0,x1,y1,invert fields  
+- [ ] **stbtt__active_edge**: Implement active edge with fx,fdx,fdy,direction,sy,ey
+- [ ] **stbtt__bitmap**: Implement bitmap structure matching STB layout
+- [ ] **Vertex types**: STBTT_vmove=1, STBTT_vline=2, STBTT_vcurve=3, STBTT_vcubic=4
+- [ ] **Constants**: Default flatness=0.35f, max recursion=16, coverage=255
+- [ ] **TEST**: Verify all data structure layouts match STB exactly
+
+### **Phase 12B.2: Curve Flattening Pipeline - CRITICAL**  
+- [ ] **stbtt_FlattenCurves()**: Main curve-to-line conversion function
+- [ ] **stbtt__tesselate_curve()**: Quadratic Bézier tessellation with midpoint test
+- [ ] **stbtt__tesselate_cubic()**: Cubic Bézier tessellation with arc-length test
+- [ ] **stbtt__add_point()**: Point accumulation during tessellation
+- [ ] **Flatness tests**: Implement exact `dx*dx+dy*dy > objspace_flatness_squared`
+- [ ] **TEST**: Compare flattened curves point-by-point with STB output
+- [ ] **TEST**: Verify tessellation depth limits and recursion behavior
+
+### **Phase 12B.3: Edge Building & Sorting - CRITICAL**
+- [ ] **Edge conversion**: Convert flattened points to edges with winding
+- [ ] **stbtt__sort_edges()**: Implement exact STB edge sorting algorithm
+- [ ] **stbtt__sort_edges_quicksort()**: Quicksort implementation for edges  
+- [ ] **stbtt__sort_edges_ins_sort()**: Insertion sort for small edge arrays
+- [ ] **Edge winding**: Proper clockwise/counter-clockwise handling
+- [ ] **TEST**: Compare edge arrays before and after sorting with STB
+- [ ] **TEST**: Verify edge winding calculations match STB exactly
+
+### **Phase 12B.4: Active Edge Management - CRITICAL**
+- [ ] **stbtt__new_active()**: Active edge creation with slope calculations
+- [ ] **fdx calculation**: `fdx = (e->x1 - e->x0) / (e->y1 - e->y0)`
+- [ ] **fdy calculation**: `fdy = 1.0f/fdx` (inverse slope)  
+- [ ] **fx calculation**: `fx = e->x0 + fdx * (start_point - e->y0)`
+- [ ] **Active edge updates**: Position updates during scanline progression
+- [ ] **TEST**: Compare active edge lists at each scanline with STB
+- [ ] **TEST**: Verify slope and position calculations match exactly
+
+### **Phase 12B.5: Scanline Rasterization - CRITICAL**
+- [ ] **stbtt__rasterize_sorted_edges()**: Main scanline processing function
+- [ ] **stbtt__fill_active_edges_new()**: Anti-aliased edge filling
+- [ ] **stbtt__handle_clipped_edge()**: Edge clipping for scanline boundaries
+- [ ] **Coverage calculation**: Exact pixel coverage computation
+- [ ] **Sub-pixel positioning**: Floating-point anti-aliasing
+- [ ] **TEST**: Compare scanline buffers at each Y coordinate with STB
+- [ ] **TEST**: Verify pixel coverage values match STB exactly
+
+### **Phase 12B.6: Area Calculation Functions - CRITICAL** 
+- [ ] **stbtt__sized_trapezoid_area()**: Trapezoid area for anti-aliasing
+- [ ] **stbtt__position_trapezoid_area()**: Positioned trapezoid calculation
+- [ ] **stbtt__sized_triangle_area()**: Triangle area for partial coverage
+- [ ] **Coverage accumulation**: Exact floating-point accumulation
+- [ ] **Final quantization**: Convert coverage to 0-255 pixel values
+- [ ] **TEST**: Compare area calculations for individual shapes with STB
+- [ ] **TEST**: Verify coverage-to-pixel conversion matches exactly
+
+### **Phase 12B.7: Memory Management - HIGH**
+- [ ] **stbtt__hheap**: Implement STB's heap allocator for edges/vertices  
+- [ ] **stbtt__hheap_alloc()**: Custom allocation for intermediate structures
+- [ ] **stbtt__hheap_cleanup()**: Proper cleanup of temporary allocations
+- [ ] **Stack vs heap**: Use stack for small scanline buffers (<64 pixels)
+- [ ] **TEST**: Verify memory allocation patterns match STB behavior
+
+### **Phase 12B.8: Integration & Pipeline Testing - CRITICAL**
+- [ ] **End-to-end pipeline**: Test complete rendering pipeline against STB
+- [ ] **stbtt_Rasterize()**: Main entry point with exact parameter handling
+- [ ] **Coordinate transformations**: Exact scale_x, scale_y, shift_x, shift_y handling
+- [ ] **Offset handling**: Proper x_off, y_off application
+- [ ] **Invert flag**: Correct winding direction handling
+- [ ] **TEST**: Pixel-perfect bitmap comparison for all ASCII characters
+- [ ] **TEST**: Verify intermediate results at every pipeline stage
+
+---
+
+## 🧪 Comprehensive Testing Strategy
+
+### **Intermediate Function Testing (MANDATORY)**
+Every STB internal function must have a corresponding test:
+
+```fortran
+! Curve flattening tests
+test_exact_flatten_curves_vs_stb()
+test_exact_tesselate_curve_vs_stb() 
+test_exact_tesselate_cubic_vs_stb()
+
+! Edge processing tests  
+test_exact_edge_building_vs_stb()
+test_exact_edge_sorting_vs_stb()
+test_exact_active_edge_creation_vs_stb()
+
+! Rasterization tests
+test_exact_scanline_rasterization_vs_stb()
+test_exact_pixel_coverage_vs_stb()
+test_exact_area_calculations_vs_stb()
+
+! Pipeline integration tests
+test_exact_complete_pipeline_vs_stb()
+test_exact_coordinate_transforms_vs_stb()
+```
+
+### **Testing Methodology**
+1. **Extract STB intermediate results** using debug prints/logging
+2. **Compare Fortran intermediate results** at identical pipeline stages  
+3. **Verify floating-point precision** matches STB calculations
+4. **Test edge cases**: tiny curves, degenerate shapes, extreme coordinates
+5. **Performance comparison**: Ensure Fortran performance is reasonable
 
 **Testing Requirements Going Forward:**
 - [x] **Content-based tests**: Compare actual bitmap pixels, not just dimensions ✅ WORKING
 - [x] **Character coverage**: Test full ASCII character set ✅ WORKING (10 characters validated)
+- [ ] **Intermediate pipeline**: Test every STB internal function for exact matching ⚠️ CRITICAL
+- [ ] **Pixel-perfect output**: Achieve identical bitmap output to STB ⚠️ CRITICAL  
 - [ ] **Visual validation**: Generate test images showing rendered text
 - [ ] **Unicode subset**: Test beyond ASCII characters
 - [ ] **Edge cases**: Empty glyphs, composite glyphs, malformed fonts

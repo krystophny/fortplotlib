@@ -3,6 +3,7 @@ module forttf_types
     !! This module contains all TrueType file format types used across
     !! the parser and main forttf modules to avoid duplication (DRY principle)
     use iso_c_binding
+    use, intrinsic :: iso_fortran_env, only: wp => real64
     implicit none
 
     private
@@ -15,6 +16,9 @@ module forttf_types
     public :: ttf_loca_table_t, ttf_glyf_header_t
     public :: ttf_vertex_t
     public :: TTF_VERTEX_MOVE, TTF_VERTEX_LINE, TTF_VERTEX_CURVE, TTF_VERTEX_CUBIC
+    ! STB rasterization data structures
+    public :: stb_point_t, stb_edge_t, stb_active_edge_t, stb_bitmap_t
+    public :: TTF_FLATNESS_IN_PIXELS, TTF_MAX_RECURSION_DEPTH, TTF_COVERAGE_SCALE, TTF_STACK_BUFFER_SIZE
 
     ! TrueType table directory entry
     type :: ttf_table_entry_t
@@ -206,11 +210,19 @@ module forttf_types
         logical :: glyf_table_available = .false.
     end type stb_fontinfo_pure_t
 
-    ! Vertex type constants (matching STB)
-    integer, parameter :: TTF_VERTEX_MOVE = 1
-    integer, parameter :: TTF_VERTEX_LINE = 2
-    integer, parameter :: TTF_VERTEX_CURVE = 3
-    integer, parameter :: TTF_VERTEX_CUBIC = 4
+    ! Vertex type constants matching STB TrueType exactly
+    ! These MUST match stb_truetype.h definitions:
+    ! STBTT_vmove=1, STBTT_vline=2, STBTT_vcurve=3, STBTT_vcubic=4
+    integer, parameter :: TTF_VERTEX_MOVE = 1   ! STBTT_vmove - Move to point
+    integer, parameter :: TTF_VERTEX_LINE = 2   ! STBTT_vline - Line to point
+    integer, parameter :: TTF_VERTEX_CURVE = 3  ! STBTT_vcurve - Quadratic curve to point  
+    integer, parameter :: TTF_VERTEX_CUBIC = 4  ! STBTT_vcubic - Cubic curve to point
+    
+    ! STB rasterization constants - MUST match stb_truetype.h exactly
+    real(wp), parameter :: TTF_FLATNESS_IN_PIXELS = 0.35_wp  ! Default flatness
+    integer, parameter :: TTF_MAX_RECURSION_DEPTH = 16       ! Max curve tessellation depth
+    integer, parameter :: TTF_COVERAGE_SCALE = 255           ! Pixel coverage scale
+    integer, parameter :: TTF_STACK_BUFFER_SIZE = 64         ! Stack vs heap threshold
 
     ! TrueType glyph vertex for outline paths
     type :: ttf_vertex_t
@@ -219,5 +231,39 @@ module forttf_types
         integer :: cx1 = 0, cy1 = 0             ! Control point 2 (for cubic curves)
         integer :: type = 0                     ! Vertex type (MOVE, LINE, CURVE, CUBIC)
     end type ttf_vertex_t
+
+    ! ===============================================
+    ! STB Rasterization Data Structures (exact matching)
+    ! ===============================================
+    
+    ! Point structure for flattened curves (matches stbtt__point)
+    type :: stb_point_t
+        real(wp) :: x = 0.0_wp  ! X coordinate (floating point)
+        real(wp) :: y = 0.0_wp  ! Y coordinate (floating point)
+    end type stb_point_t
+    
+    ! Edge structure for rasterization (matches stbtt__edge)
+    type :: stb_edge_t
+        real(wp) :: x0 = 0.0_wp, y0 = 0.0_wp    ! Start point
+        real(wp) :: x1 = 0.0_wp, y1 = 0.0_wp    ! End point
+        integer :: invert = 0                   ! Winding direction flag
+    end type stb_edge_t
+    
+    ! Active edge structure for scanline rasterization (matches stbtt__active_edge)
+    type :: stb_active_edge_t
+        type(stb_active_edge_t), pointer :: next => null()  ! Linked list pointer
+        real(wp) :: fx = 0.0_wp        ! Current X position
+        real(wp) :: fdx = 0.0_wp       ! X derivative (slope)
+        real(wp) :: fdy = 0.0_wp       ! Y derivative (inverse slope)
+        real(wp) :: direction = 0.0_wp ! Winding direction
+        real(wp) :: sy = 0.0_wp        ! Start Y coordinate
+        real(wp) :: ey = 0.0_wp        ! End Y coordinate
+    end type stb_active_edge_t
+    
+    ! Bitmap structure for rasterization output (matches stbtt__bitmap)
+    type :: stb_bitmap_t
+        integer :: w = 0, h = 0, stride = 0                ! Width, height, stride
+        integer(c_int8_t), pointer :: pixels(:) => null()  ! Pixel data
+    end type stb_bitmap_t
 
 end module forttf_types
