@@ -1,10 +1,10 @@
-module fortplot_stb_core
-    !! Core font initialization and cleanup functionality
+module forttf_core
+    !! Core font initialization and cleanup functionality (derived from stb_truetype.h)
     !! This module handles font initialization, cleanup, and TTC support
     use iso_c_binding
     use, intrinsic :: iso_fortran_env, only: wp => real64
-    use fortplot_stb_types
-    use fortplot_stb_parser
+    use forttf_types
+    use forttf_parser
     implicit none
 
     private
@@ -226,4 +226,4 @@ contains
 
     end function stb_get_font_offset_for_index_pure
 
-end module fortplot_stb_core
+end module forttf_core

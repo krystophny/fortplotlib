@@ -1,10 +1,10 @@
-module fortplot_stb_mapping
-    !! Pure Fortran implementation of TrueType font character mapping functionality
+module forttf_mapping
+    !! Pure Fortran implementation of TrueType font character mapping functionality (derived from stb_truetype.h)
     !! Handles character-to-glyph mapping and glyph index lookups
     use iso_c_binding
     use, intrinsic :: iso_fortran_env, only: wp => real64
-    use fortplot_stb_types
-    use fortplot_stb_parser
+    use forttf_types
+    use forttf_parser
     implicit none
 
     private
@@ -72,4 +72,4 @@ contains
 
     end function lookup_format4
 
-end module fortplot_stb_mapping
+end module forttf_mapping

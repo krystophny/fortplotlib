@@ -1,9 +1,9 @@
-module test_utils
-    !! Common test utilities for STB TrueType font testing
+module test_forttf_utils
+    !! Common test utilities for forttf TrueType font testing (derived from stb_truetype.h)
     !! Provides font discovery, initialization helpers, and common test data
     use fortplot_stb_truetype
-    use fortplot_stb
-    use fortplot_stb_parser, only: read_truetype_file
+    use forttf
+    use forttf_parser, only: read_truetype_file
     use iso_c_binding
     use, intrinsic :: iso_fortran_env, only: wp => real64
     implicit none
@@ -105,4 +105,4 @@ contains
 
     end function init_both_fonts
 
-end module test_utils
+end module test_forttf_utils

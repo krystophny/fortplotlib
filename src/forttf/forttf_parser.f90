@@ -1,5 +1,5 @@
-module fortplot_stb_parser
-    !! Pure Fortran TrueType and TTC file parser
+module forttf_parser
+    !! Pure Fortran TrueType and TTC file parser (derived from stb_truetype.h)
     !! This module handles low-level TrueType file format parsing including:
     !! - TTF/TTC file detection and loading
     !! - TrueType table directory parsing
@@ -7,7 +7,7 @@ module fortplot_stb_parser
     !! - TrueType Collection (TTC) support
     use iso_c_binding
     use, intrinsic :: iso_fortran_env, only: wp => real64
-    use fortplot_stb_types
+    use forttf_types
     implicit none
 
     private
@@ -849,4 +849,4 @@ contains
     ! function parse_loca_table(...
     ! function parse_glyf_header(...
 
-end module fortplot_stb_parser
+end module forttf_parser

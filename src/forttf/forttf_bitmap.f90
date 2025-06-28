@@ -1,12 +1,12 @@
-module fortplot_stb_bitmap
-    !! Pure Fortran implementation of TrueType font bitmap rendering functionality
+module forttf_bitmap
+    !! Pure Fortran implementation of TrueType font bitmap rendering functionality (derived from stb_truetype.h)
     !! Handles bitmap rendering, subpixel rendering, and bounding box calculations
     use iso_c_binding
     use, intrinsic :: iso_fortran_env, only: wp => real64
-    use fortplot_stb_types
-    use fortplot_stb_parser
-    use fortplot_stb_mapping
-    use fortplot_stb_metrics
+    use forttf_types
+    use forttf_parser
+    use forttf_mapping
+    use forttf_metrics
     implicit none
 
     ! C memory management interface
@@ -377,4 +377,4 @@ contains
 
     end subroutine create_simple_bitmap
 
-end module fortplot_stb_bitmap
+end module forttf_bitmap

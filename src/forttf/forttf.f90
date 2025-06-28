@@ -1,15 +1,15 @@
-module fortplot_stb
-    !! Pure Fortran implementation of TrueType font functionality (STUB MODULE)
-    !! This module provides stubs for a future pure Fortran port that can replace stb_truetype.h dependency
-    !! Currently returns placeholder/error values - implementation is planned for future development
+module forttf
+    !! Pure Fortran TrueType font implementation (derived from stb_truetype.h)
+    !! This module provides a pure Fortran port of TrueType functionality
+    !! Compatible API with STB TrueType for drop-in replacement
     use iso_c_binding
     use, intrinsic :: iso_fortran_env, only: wp => real64
-    use fortplot_stb_types
-    use fortplot_stb_parser
-    use fortplot_stb_core
-    use fortplot_stb_metrics
-    use fortplot_stb_mapping
-    use fortplot_stb_bitmap
+    use forttf_types
+    use forttf_parser
+    use forttf_core
+    use forttf_metrics
+    use forttf_mapping
+    use forttf_bitmap
     implicit none
 
     private
@@ -45,4 +45,4 @@ module fortplot_stb
 
 contains
 
-end module fortplot_stb
+end module forttf

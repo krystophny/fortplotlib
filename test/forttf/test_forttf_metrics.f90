@@ -1,8 +1,8 @@
-module test_stb_metrics
-    !! Metrics comparison tests for STB TrueType vs Pure Fortran
+module test_forttf_metrics
+    !! Metrics comparison tests for STB TrueType vs Pure Fortran forttf (derived from stb_truetype.h)
     !! Tests horizontal metrics, vertical metrics, OS/2 metrics, and kerning
     use fortplot_stb_truetype
-    use fortplot_stb
+    use forttf
     use iso_c_binding
     use, intrinsic :: iso_fortran_env, only: wp => real64
     implicit none

@@ -1,7 +1,7 @@
-module fortplot_stb_types
-    !! Pure Fortran TrueType data types and structures
+module forttf_types
+    !! Pure Fortran TrueType data types and structures (derived from stb_truetype.h)
     !! This module contains all TrueType file format types used across
-    !! the parser and main STB modules to avoid duplication (DRY principle)
+    !! the parser and main forttf modules to avoid duplication (DRY principle)
     use iso_c_binding
     implicit none
 
@@ -202,4 +202,4 @@ module fortplot_stb_types
         ! Glyph data follows (simple or composite)
     end type ttf_glyf_header_t
 
-end module fortplot_stb_types
+end module forttf_types

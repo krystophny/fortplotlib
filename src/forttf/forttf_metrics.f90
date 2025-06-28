@@ -1,11 +1,11 @@
-module fortplot_stb_metrics
-    !! Pure Fortran implementation of TrueType font metrics functionality
+module forttf_metrics
+    !! Pure Fortran implementation of TrueType font metrics functionality (derived from stb_truetype.h)
     !! Handles horizontal metrics, vertical metrics, OS/2 metrics, and kerning
     use iso_c_binding
     use, intrinsic :: iso_fortran_env, only: wp => real64
-    use fortplot_stb_types
-    use fortplot_stb_parser
-    use fortplot_stb_mapping
+    use forttf_types
+    use forttf_parser
+    use forttf_mapping
     implicit none
 
     private
@@ -438,4 +438,4 @@ contains
 
     end function stb_get_kerning_table_pure
 
-end module fortplot_stb_metrics
+end module forttf_metrics
