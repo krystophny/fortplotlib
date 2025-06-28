@@ -155,10 +155,11 @@ static fortran_edge_t* convert_stb_edges_to_fortran(stbtt__edge *stb_edges, int 
 
 /*
  * Test wrapper for edge building from Fortran double-precision points
+ * Returns Fortran-compatible edge data
  */
 void stb_test_build_edges_from_fortran_points(fortran_point_t *fortran_pts, int *wcount, int windings,
                                              float scale_x, float scale_y, float shift_x, float shift_y, 
-                                             int invert, stbtt__edge **edges_out, int *num_edges_out) {
+                                             int invert, fortran_edge_t **edges_out, int *num_edges_out) {
     // Count total points
     int total_points = 0;
     for (int i = 0; i < windings; i++) {
@@ -180,8 +181,7 @@ void stb_test_build_edges_from_fortran_points(fortran_point_t *fortran_pts, int 
     
     // Convert STB edges to Fortran format
     if (*num_edges_out > 0 && stb_edges) {
-        fortran_edge_t *fortran_edges = convert_stb_edges_to_fortran(stb_edges, *num_edges_out);
-        *edges_out = (stbtt__edge*)fortran_edges;  // Cast for interface compatibility
+        *edges_out = convert_stb_edges_to_fortran(stb_edges, *num_edges_out);
         free(stb_edges);  // Free original STB edges
     } else {
         *edges_out = NULL;
@@ -315,6 +315,10 @@ void stb_free_contour_lengths(int *lengths) {
 }
 
 void stb_free_edges(stbtt__edge *edges) {
+    free(edges);
+}
+
+void stb_free_fortran_edges(fortran_edge_t *edges) {
     free(edges);
 }
 
