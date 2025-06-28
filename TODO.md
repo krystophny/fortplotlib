@@ -6,9 +6,7 @@ This TODO list tracks the remaining steps to achieve a pure Fortran replacement 
 - `fpm test --target test_forttf_metrics` — Run metrics comparison tests
 - `fpm test --target test_forttf_mapping` — Run character mapping tests  
 - `fpm test --target test_forttf_bitmap` — Run bitmap rendering tests
-- `fpm test` — Run all tests (builds code automatically)
-
-**Note:** The old `test_stb_comparison` is no longer needed. Individual focused test modules now handle comprehensive testing.
+- `fpm test --target test_forttf_*` — Run all tests (builds code automatically)
 
 ## !! Important Notes
 - YOU MUST USE RED-GREEN TEST-DRIVEN DEVELOPMENT (TDD) FOR EVERY FUNCTION AND SUBROUTINE.
@@ -46,16 +44,6 @@ This TODO list tracks the remaining steps to achieve a pure Fortran replacement 
 - ✅ **Test Architecture**: Focused modular test suite with comprehensive coverage
 - 🎯 **Next Priority**: Implement kerning table parsing (Level 9.5)
 - 🔄 **Following**: Complete bitmap rendering implementation (Level 10)
-
-**Available Test Commands:**
-- `fpm test --target test_forttf_metrics` — Metrics validation
-- `fpm test --target test_forttf_mapping` — Character mapping validation  
-- `fpm test --target test_forttf_bitmap` — Bitmap functionality validation
-
-You can run all tests for forttf by 
-
-`fpm test --target test_forttf_*`
----
 
 ## 📝 Remaining TODOs
 
