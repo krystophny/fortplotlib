@@ -227,7 +227,7 @@ contains
         fortran_edges = stb_build_edges(fortran_points, fortran_contour_lengths, fortran_num_contours, &
                                        scale_x, scale_y, shift_x, shift_y, invert)
         fortran_num_edges = size(fortran_edges)
-        
+
         ! Test STB C edge building
         call stb_test_build_edges_from_fortran_points(c_loc(fortran_points(1)), &
                                       c_loc(fortran_contour_lengths(1)), fortran_num_contours, &

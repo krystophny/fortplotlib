@@ -192,6 +192,19 @@ void stb_test_build_edges_from_fortran_points(fortran_point_t *fortran_pts, int 
 }
 
 /*
+ * C-compatible wrapper for Fortran interface (returns void* instead of fortran_edge_t**)
+ */
+void stb_test_build_edges_from_fortran_points_c(fortran_point_t *fortran_pts, int *wcount, int windings,
+                                               float scale_x, float scale_y, float shift_x, float shift_y, 
+                                               int invert, void **edges_out, int *num_edges_out) {
+    fortran_edge_t *fortran_edges;
+    stb_test_build_edges_from_fortran_points(fortran_pts, wcount, windings, 
+                                            scale_x, scale_y, shift_x, shift_y, 
+                                            invert, &fortran_edges, num_edges_out);
+    *edges_out = (void*)fortran_edges;
+}
+
+/*
  * Test wrapper for edge building from stbtt__rasterize 
  */
 void stb_test_build_edges_exact(stbtt__point *pts, int *wcount, int windings,

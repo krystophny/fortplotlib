@@ -365,6 +365,8 @@ contains
         ! Resize to actual number of edges
         if (num_edges > 0) then
             edges = edges(1:num_edges)
+            ! Sort edges to match STB behavior (matches stbtt__sort_edges call in STB)
+            call stb_sort_edges(edges, num_edges)
         else
             deallocate(edges)
             allocate(edges(0))
