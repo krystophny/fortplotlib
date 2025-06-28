@@ -8,6 +8,7 @@ Tests build code automatically. Just run
 ## !! Important Notes
 - YOU MUST USE RED-GREEN TEST-DRIVEN DEVELOPMENT (TDD) FOR EVERY FUNCTION AND SUBROUTINE.
 - IF THERE ARE NO TESTS YET ADD TEST FOR EACH FUNCTION OR SUBROUTINE TO COMPARE TO REFERENCE STB C IMPLEMENTATION
+- UPDATE TODO.md AS YOU PROGRESS TO REFLECT CURRENT STATUS AND NEXT STEPS
 - You must place variable declarations on top of the subroutine or function.
 - Fortran has no unsigned integers, so be careful with types and sizes.
 - Fortran uses 1-based indexing per default (can be specified in declaration), so be careful with array indices.
