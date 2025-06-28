@@ -103,19 +103,22 @@ All test commands build the code automatically. To build, just run the tests.
   - **Description:** Handles edges that are clipped at the scanline boundaries.
 
 ### **1.2: Area Calculation for Anti-Aliasing**
-- [ ] **Port `stbtt__sized_trapezoid_area()`**
-  - **C Reference:** `thirdparty/stb_truetype.h`, line 3197
+- [x] **Port `stbtt__sized_trapezoid_area()`** ✅ **COMPLETED & VALIDATED**
+  - **C Reference:** `thirdparty/stb_truetype.h`, line 3065
   - **Fortran Target:** `stb_sized_trapezoid_area()` in `forttf_stb_raster.f90`
+  - **Test:** `test_forttf_area_functions.f90` - matches STB C reference exactly
   - **Description:** Calculates the area of a trapezoid for anti-aliasing coverage.
 
-- [ ] **Port `stbtt__position_trapezoid_area()`**
-  - **C Reference:** `thirdparty/stb_truetype.h`, line 3185
+- [x] **Port `stbtt__position_trapezoid_area()`** ✅ **COMPLETED & VALIDATED**
+  - **C Reference:** `thirdparty/stb_truetype.h`, line 3072
   - **Fortran Target:** `stb_position_trapezoid_area()` in `forttf_stb_raster.f90`
+  - **Test:** `test_forttf_area_functions.f90` - matches STB C reference exactly
   - **Description:** Calculates trapezoid area with sub-pixel positioning.
 
-- [ ] **Port `stbtt__sized_triangle_area()`**
-  - **C Reference:** `thirdparty/stb_truetype.h`, line 3192
+- [x] **Port `stbtt__sized_triangle_area()`** ✅ **COMPLETED & VALIDATED**
+  - **C Reference:** `thirdparty/stb_truetype.h`, line 3077
   - **Fortran Target:** `stb_sized_triangle_area()` in `forttf_stb_raster.f90`
+  - **Test:** `test_forttf_area_functions.f90` - matches STB C reference exactly
   - **Description:** Calculates the area of a triangle for partial coverage at the edges of shapes.
 
 ---
