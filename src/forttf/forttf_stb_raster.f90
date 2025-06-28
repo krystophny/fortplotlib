@@ -13,6 +13,11 @@ module forttf_stb_raster
     public :: stb_tesselate_curve
     public :: stb_tesselate_cubic
     public :: stb_add_point
+    ! Edge building and sorting
+    public :: stb_build_edges
+    public :: stb_sort_edges
+    public :: stb_sort_edges_quicksort
+    public :: stb_sort_edges_ins_sort
 
 contains
 
@@ -256,5 +261,155 @@ contains
         end if
         
     end subroutine stb_tesselate_cubic
+
+    function stb_build_edges(points, contour_lengths, num_contours, &
+                            scale_x, scale_y, shift_x, shift_y, invert) result(edges)
+        !! Build edges from flattened points (matches STB edge building)
+        type(stb_point_t), intent(in) :: points(:)
+        integer, intent(in) :: contour_lengths(:)
+        integer, intent(in) :: num_contours
+        real(wp), intent(in) :: scale_x, scale_y, shift_x, shift_y
+        logical, intent(in) :: invert
+        type(stb_edge_t), allocatable :: edges(:)
+        
+        integer :: max_edges, num_edges, contour, point_idx, i
+        integer :: contour_start, contour_end
+        real(wp) :: x0, y0, x1, y1
+        integer :: winding
+        
+        ! Estimate maximum edges (one per point minus one per contour)
+        max_edges = size(points)
+        allocate(edges(max_edges))
+        num_edges = 0
+        
+        ! Set winding direction based on invert flag
+        winding = merge(1, 0, invert)
+        
+        point_idx = 1
+        do contour = 1, num_contours
+            contour_start = point_idx
+            contour_end = point_idx + contour_lengths(contour) - 1
+            
+            ! Build edges for this contour (including closing edge)
+            do i = contour_start, contour_end
+                ! Get current and next point (wrap around for closing edge)
+                if (i < contour_end) then
+                    x0 = points(i)%x * scale_x + shift_x
+                    y0 = points(i)%y * scale_y + shift_y
+                    x1 = points(i + 1)%x * scale_x + shift_x
+                    y1 = points(i + 1)%y * scale_y + shift_y
+                else
+                    ! Closing edge: last point to first point
+                    x0 = points(contour_end)%x * scale_x + shift_x
+                    y0 = points(contour_end)%y * scale_y + shift_y
+                    x1 = points(contour_start)%x * scale_x + shift_x
+                    y1 = points(contour_start)%y * scale_y + shift_y
+                end if
+                
+                ! Only add non-horizontal edges (matches STB behavior)
+                if (abs(y1 - y0) > epsilon(1.0_wp)) then
+                    num_edges = num_edges + 1
+                    if (y0 < y1) then
+                        ! Edge goes down - normal orientation
+                        edges(num_edges) = stb_edge_t(x0=x0, y0=y0, x1=x1, y1=y1, invert=winding)
+                    else
+                        ! Edge goes up - reverse orientation
+                        edges(num_edges) = stb_edge_t(x0=x1, y0=y1, x1=x0, y1=y0, invert=1-winding)
+                    end if
+                end if
+            end do
+            
+            point_idx = contour_end + 1
+        end do
+        
+        ! Resize to actual number of edges
+        if (num_edges > 0) then
+            edges = edges(1:num_edges)
+        else
+            deallocate(edges)
+            allocate(edges(0))
+        end if
+        
+    end function stb_build_edges
+    
+    subroutine stb_sort_edges(edges, n)
+        !! Sort edges by y0 coordinate (matches stbtt__sort_edges)
+        type(stb_edge_t), intent(inout) :: edges(:)
+        integer, intent(in) :: n
+        
+        ! Use quicksort for larger arrays, insertion sort for smaller
+        if (n > 12) then
+            call stb_sort_edges_quicksort(edges, n)
+        else
+            call stb_sort_edges_ins_sort(edges, n)
+        end if
+        
+    end subroutine stb_sort_edges
+    
+    recursive subroutine stb_sort_edges_quicksort(edges, n)
+        !! Quicksort implementation for edges (matches stbtt__sort_edges_quicksort)
+        type(stb_edge_t), intent(inout) :: edges(:)
+        integer, intent(in) :: n
+        
+        type(stb_edge_t) :: pivot, temp
+        integer :: i, j
+        
+        if (n <= 1) return
+        
+        ! Choose pivot (middle element)
+        pivot = edges((n + 1) / 2)
+        
+        ! Partition
+        i = 1
+        j = n
+        do while (i <= j)
+            do while (i <= n .and. edges(i)%y0 < pivot%y0)
+                i = i + 1
+            end do
+            do while (j >= 1 .and. edges(j)%y0 > pivot%y0)
+                j = j - 1
+            end do
+            
+            if (i <= j) then
+                ! Swap elements
+                temp = edges(i)
+                edges(i) = edges(j)
+                edges(j) = temp
+                i = i + 1
+                j = j - 1
+            end if
+        end do
+        
+        ! Recursively sort partitions
+        if (j > 1) call stb_sort_edges_quicksort(edges(1:j), j)
+        if (i < n) call stb_sort_edges_quicksort(edges(i:n), n - i + 1)
+        
+    end subroutine stb_sort_edges_quicksort
+    
+    subroutine stb_sort_edges_ins_sort(edges, n)
+        !! Insertion sort for small edge arrays (matches stbtt__sort_edges_ins_sort)
+        type(stb_edge_t), intent(inout) :: edges(:)
+        integer, intent(in) :: n
+        
+        type(stb_edge_t) :: key
+        integer :: i, j
+        
+        if (n <= 1) return
+        
+        do i = 2, n
+            key = edges(i)
+            j = i - 1
+            
+            ! Move elements greater than key one position ahead
+            do while (j >= 1)
+                if (edges(j)%y0 <= key%y0) exit
+                edges(j + 1) = edges(j)
+                j = j - 1
+            end do
+            
+            edges(j + 1) = key
+        end do
+        
+    end subroutine stb_sort_edges_ins_sort
 
 end module forttf_stb_raster
