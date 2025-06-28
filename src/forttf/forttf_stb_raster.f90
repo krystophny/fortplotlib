@@ -26,6 +26,11 @@ module forttf_stb_raster
     public :: stb_fill_active_edges
     public :: stb_rasterize
     public :: stb_rasterize_sorted_edges
+    ! Area calculation functions for anti-aliasing
+    public :: stb_sized_trapezoid_area
+    public :: stb_position_trapezoid_area
+    public :: stb_sized_triangle_area
+    public :: stb_handle_clipped_edge
 
 contains
 
@@ -668,17 +673,19 @@ contains
             call stb_remove_completed_edges(active_head, scan_y_top)
 
             ! Insert all edges that start before the bottom of this scanline
-            do while (edge_idx <= n .and. e(edge_idx)%y0 <= scan_y_bottom)
-                if (e(edge_idx)%y0 /= e(edge_idx)%y1) then
-                    allocate(new_edge_ptr)
-                    new_edge_ptr = stb_new_active_edge(e(edge_idx), off_x, scan_y_top)
-                    if (new_edge_ptr%ey < scan_y_top) then
-                        new_edge_ptr%ey = scan_y_top
+            if (n > 0) then
+                do while (edge_idx <= n .and. e(edge_idx)%y0 <= scan_y_bottom)
+                    if (e(edge_idx)%y0 /= e(edge_idx)%y1) then
+                        allocate(new_edge_ptr)
+                        new_edge_ptr = stb_new_active_edge(e(edge_idx), off_x, scan_y_top)
+                        if (new_edge_ptr%ey < scan_y_top) then
+                            new_edge_ptr%ey = scan_y_top
+                        end if
+                        call stb_insert_active_edge(active_head, new_edge_ptr)
                     end if
-                    call stb_insert_active_edge(active_head, new_edge_ptr)
-                end if
-                edge_idx = edge_idx + 1
-            end do
+                    edge_idx = edge_idx + 1
+                end do
+            end if
 
             ! Process all active edges
             if (associated(active_head%next)) then
@@ -710,5 +717,86 @@ contains
         deallocate(active_head)
 
     end subroutine stb_rasterize_sorted_edges
+
+    ! === STB Area Calculation Functions for Anti-Aliasing ===
+    
+    pure function stb_sized_trapezoid_area(height, top_width, bottom_width) result(area)
+        !! Calculate the area of a trapezoid for anti-aliasing coverage (matches stbtt__sized_trapezoid_area)
+        real(wp), intent(in) :: height, top_width, bottom_width
+        real(wp) :: area
+        
+        ! STB algorithm: (top_width + bottom_width) / 2.0 * height
+        area = (top_width + bottom_width) * 0.5_wp * height
+        
+    end function stb_sized_trapezoid_area
+    
+    pure function stb_position_trapezoid_area(height, tx0, tx1, bx0, bx1) result(area)
+        !! Calculate trapezoid area with sub-pixel positioning (matches stbtt__position_trapezoid_area)
+        real(wp), intent(in) :: height, tx0, tx1, bx0, bx1
+        real(wp) :: area
+        
+        ! STB algorithm: call sized_trapezoid_area with computed widths
+        area = stb_sized_trapezoid_area(height, tx1 - tx0, bx1 - bx0)
+        
+    end function stb_position_trapezoid_area
+    
+    pure function stb_sized_triangle_area(height, width) result(area)
+        !! Calculate the area of a triangle for partial coverage at edges (matches stbtt__sized_triangle_area)
+        real(wp), intent(in) :: height, width
+        real(wp) :: area
+        
+        ! STB algorithm: height * width / 2
+        area = height * width * 0.5_wp
+        
+    end function stb_sized_triangle_area
+    
+    subroutine stb_handle_clipped_edge(scanline, x, e, x0, y0, x1, y1)
+        !! Handle edges that are clipped at scanline boundaries (matches stbtt__handle_clipped_edge)
+        real(wp), intent(inout) :: scanline(:)
+        integer, intent(in) :: x
+        type(stb_active_edge_t), intent(in) :: e
+        real(wp), intent(in) :: x0, y0, x1, y1
+        
+        real(wp) :: adj_x0, adj_y0, adj_x1, adj_y1
+        
+        ! Early exit for horizontal edges
+        if (abs(y1 - y0) < epsilon(1.0_wp)) return
+        
+        ! Ensure y0 < y1 (STB assumption)
+        if (y0 > y1) return
+        
+        ! Clip to edge bounds
+        adj_x0 = x0
+        adj_y0 = y0
+        adj_x1 = x1
+        adj_y1 = y1
+        
+        ! Clip to edge start Y
+        if (adj_y0 < e%sy) then
+            adj_x0 = adj_x0 + (adj_x1 - adj_x0) * (e%sy - adj_y0) / (adj_y1 - adj_y0)
+            adj_y0 = e%sy
+        end if
+        
+        ! Clip to edge end Y
+        if (adj_y1 > e%ey) then
+            adj_x1 = adj_x1 + (adj_x1 - adj_x0) * (e%ey - adj_y1) / (adj_y1 - adj_y0)
+            adj_y1 = e%ey
+        end if
+        
+        ! Handle different cases based on X positions
+        if (adj_x0 <= real(x, wp) .and. adj_x1 <= real(x, wp)) then
+            ! Both endpoints left of pixel
+            scanline(x + 1) = scanline(x + 1) + e%direction * (adj_y1 - adj_y0)
+        else if (adj_x0 >= real(x + 1, wp) .and. adj_x1 >= real(x + 1, wp)) then
+            ! Both endpoints right of pixel - no contribution
+            return
+        else
+            ! Edge crosses pixel - calculate partial coverage
+            ! STB algorithm: coverage = 1 - average x position
+            scanline(x + 1) = scanline(x + 1) + e%direction * (adj_y1 - adj_y0) * &
+                             (1.0_wp - ((adj_x0 - real(x, wp)) + (adj_x1 - real(x, wp))) * 0.5_wp)
+        end if
+        
+    end subroutine stb_handle_clipped_edge
 
 end module forttf_stb_raster

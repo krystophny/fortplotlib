@@ -3,7 +3,7 @@ program test_forttf_stb_rasterization
 
     logical :: test_passed
 
-    call test_rasterize_sorted_edges_modifies_bitmap(test_passed)
+    call test_rasterize_sorted_edges_handles_empty_edges(test_passed)
 
     if (test_passed) then
         print *, "Test passed!"
@@ -14,7 +14,7 @@ program test_forttf_stb_rasterization
 
 contains
 
-    subroutine test_rasterize_sorted_edges_modifies_bitmap(passed)
+    subroutine test_rasterize_sorted_edges_handles_empty_edges(passed)
         use forttf_stb_raster, only: stb_rasterize_sorted_edges
         use forttf_types, only: stb_bitmap_t, stb_edge_t
         use iso_c_binding, only: c_null_ptr, c_int8_t
@@ -36,8 +36,9 @@ contains
 
         call stb_rasterize_sorted_edges(bitmap, edges, 0, 1, 0, 0, c_null_ptr)
 
-        passed = any(pixels /= 0)
+        ! With zero edges, no pixels should be modified
+        passed = all(pixels == 0)
 
-    end subroutine test_rasterize_sorted_edges_modifies_bitmap
+    end subroutine test_rasterize_sorted_edges_handles_empty_edges
 
 end program test_forttf_stb_rasterization
