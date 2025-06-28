@@ -252,3 +252,81 @@ int stb_wrapper_load_font_from_file(stb_fontinfo_wrapper_t *wrapper, const char 
     
     return result;
 }
+
+/*
+ * Get number of fonts in font file/data
+ */
+int stb_wrapper_get_number_of_fonts(const unsigned char *data, int data_size) {
+    if (!data || data_size <= 0) {
+        return 0;
+    }
+    
+    return stbtt_GetNumberOfFonts(data);
+}
+
+/*
+ * Get font offset for multi-font files
+ */
+int stb_wrapper_get_font_offset_for_index(const unsigned char *data, int index) {
+    if (!data) {
+        return -1;
+    }
+    
+    return stbtt_GetFontOffsetForIndex(data, index);
+}
+
+/*
+ * Calculate scale factor for desired em size
+ */
+float stb_wrapper_scale_for_mapping_em_to_pixels(const stb_fontinfo_wrapper_t *wrapper, float pixels) {
+    if (!wrapper || !wrapper->private_data) {
+        return 0.0f;
+    }
+    
+    stb_font_context_t *context = (stb_font_context_t*)wrapper->private_data;
+    return stbtt_ScaleForMappingEmToPixels(&context->font_info, pixels);
+}
+
+/*
+ * Get font bounding box in unscaled coordinates
+ */
+void stb_wrapper_get_font_bounding_box(const stb_fontinfo_wrapper_t *wrapper, int *x0, int *y0, int *x1, int *y1) {
+    if (!wrapper || !wrapper->private_data || !x0 || !y0 || !x1 || !y1) {
+        if (x0) *x0 = 0;
+        if (y0) *y0 = 0;
+        if (x1) *x1 = 0;
+        if (y1) *y1 = 0;
+        return;
+    }
+    
+    stb_font_context_t *context = (stb_font_context_t*)wrapper->private_data;
+    stbtt_GetFontBoundingBox(&context->font_info, x0, y0, x1, y1);
+}
+
+/*
+ * Get character bounding box in unscaled coordinates
+ */
+void stb_wrapper_get_codepoint_box(const stb_fontinfo_wrapper_t *wrapper, int codepoint, int *x0, int *y0, int *x1, int *y1) {
+    if (!wrapper || !wrapper->private_data || !x0 || !y0 || !x1 || !y1) {
+        if (x0) *x0 = 0;
+        if (y0) *y0 = 0;
+        if (x1) *x1 = 0;
+        if (y1) *y1 = 0;
+        return;
+    }
+    
+    stb_font_context_t *context = (stb_font_context_t*)wrapper->private_data;
+    stbtt_GetCodepointBox(&context->font_info, codepoint, x0, y0, x1, y1);
+}
+
+/*
+ * Get kerning advance between two characters
+ */
+int stb_wrapper_get_codepoint_kern_advance(const stb_fontinfo_wrapper_t *wrapper, int ch1, int ch2) {
+    if (!wrapper || !wrapper->private_data) {
+        return 0;
+    }
+    
+    stb_font_context_t *context = (stb_font_context_t*)wrapper->private_data;
+    return stbtt_GetCodepointKernAdvance(&context->font_info, ch1, ch2);
+}

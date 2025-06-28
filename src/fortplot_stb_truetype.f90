@@ -11,6 +11,9 @@ module fortplot_stb_truetype
     public :: stb_get_codepoint_hmetrics, stb_get_font_vmetrics
     public :: stb_scale_for_pixel_height, stb_get_codepoint_bitmap_box
     public :: stb_find_glyph_index, stb_make_codepoint_bitmap
+    public :: stb_get_number_of_fonts, stb_get_font_offset_for_index
+    public :: stb_scale_for_mapping_em_to_pixels, stb_get_font_bounding_box
+    public :: stb_get_codepoint_box, stb_get_codepoint_kern_advance
     public :: STB_SUCCESS, STB_ERROR
     
     ! Constants
@@ -120,6 +123,52 @@ module fortplot_stb_truetype
             import :: c_ptr
             type(c_ptr), value :: bitmap
         end subroutine stb_wrapper_free_bitmap
+        
+        ! Additional core functions
+        function stb_wrapper_get_number_of_fonts(data, data_size) bind(C, name="stb_wrapper_get_number_of_fonts")
+            import :: c_int, c_ptr
+            type(c_ptr), value :: data
+            integer(c_int), value :: data_size
+            integer(c_int) :: stb_wrapper_get_number_of_fonts
+        end function stb_wrapper_get_number_of_fonts
+        
+        function stb_wrapper_get_font_offset_for_index(data, index) bind(C, name="stb_wrapper_get_font_offset_for_index")
+            import :: c_int, c_ptr
+            type(c_ptr), value :: data
+            integer(c_int), value :: index
+            integer(c_int) :: stb_wrapper_get_font_offset_for_index
+        end function stb_wrapper_get_font_offset_for_index
+        
+        function stb_wrapper_scale_for_mapping_em_to_pixels(font_info, pixels) &
+                 bind(C, name="stb_wrapper_scale_for_mapping_em_to_pixels")
+            import :: c_float, stb_fontinfo_t
+            type(stb_fontinfo_t), intent(in) :: font_info
+            real(c_float), value :: pixels
+            real(c_float) :: stb_wrapper_scale_for_mapping_em_to_pixels
+        end function stb_wrapper_scale_for_mapping_em_to_pixels
+        
+        subroutine stb_wrapper_get_font_bounding_box(font_info, x0, y0, x1, y1) &
+                   bind(C, name="stb_wrapper_get_font_bounding_box")
+            import :: c_int, stb_fontinfo_t
+            type(stb_fontinfo_t), intent(in) :: font_info
+            integer(c_int), intent(out) :: x0, y0, x1, y1
+        end subroutine stb_wrapper_get_font_bounding_box
+        
+        subroutine stb_wrapper_get_codepoint_box(font_info, codepoint, x0, y0, x1, y1) &
+                   bind(C, name="stb_wrapper_get_codepoint_box")
+            import :: c_int, stb_fontinfo_t
+            type(stb_fontinfo_t), intent(in) :: font_info
+            integer(c_int), value :: codepoint
+            integer(c_int), intent(out) :: x0, y0, x1, y1
+        end subroutine stb_wrapper_get_codepoint_box
+        
+        function stb_wrapper_get_codepoint_kern_advance(font_info, ch1, ch2) &
+                 bind(C, name="stb_wrapper_get_codepoint_kern_advance")
+            import :: c_int, stb_fontinfo_t
+            type(stb_fontinfo_t), intent(in) :: font_info
+            integer(c_int), value :: ch1, ch2
+            integer(c_int) :: stb_wrapper_get_codepoint_kern_advance
+        end function stb_wrapper_get_codepoint_kern_advance
         
     end interface
     
@@ -304,5 +353,105 @@ contains
         end if
         
     end subroutine stb_free_bitmap
+
+    function stb_get_number_of_fonts(font_data, data_size) result(num_fonts)
+        !! Get number of fonts in font file/data
+        type(c_ptr), intent(in) :: font_data
+        integer, intent(in) :: data_size
+        integer :: num_fonts
+        
+        if (.not. c_associated(font_data) .or. data_size <= 0) then
+            num_fonts = 0
+            return
+        end if
+        
+        num_fonts = int(stb_wrapper_get_number_of_fonts(font_data, int(data_size, c_int)))
+        
+    end function stb_get_number_of_fonts
+    
+    function stb_get_font_offset_for_index(font_data, index) result(offset)
+        !! Get font offset for multi-font files
+        type(c_ptr), intent(in) :: font_data
+        integer, intent(in) :: index
+        integer :: offset
+        
+        if (.not. c_associated(font_data)) then
+            offset = -1
+            return
+        end if
+        
+        offset = int(stb_wrapper_get_font_offset_for_index(font_data, int(index, c_int)))
+        
+    end function stb_get_font_offset_for_index
+    
+    function stb_scale_for_mapping_em_to_pixels(font_info, pixels) result(scale)
+        !! Calculate scale factor for desired em size
+        type(stb_fontinfo_t), intent(in) :: font_info
+        real(wp), intent(in) :: pixels
+        real(wp) :: scale
+        
+        if (.not. c_associated(font_info%private_data)) then
+            scale = 0.0_wp
+            return
+        end if
+        
+        scale = real(stb_wrapper_scale_for_mapping_em_to_pixels(font_info, &
+                                                               real(pixels, c_float)), wp)
+        
+    end function stb_scale_for_mapping_em_to_pixels
+    
+    subroutine stb_get_font_bounding_box(font_info, x0, y0, x1, y1)
+        !! Get font bounding box in unscaled coordinates
+        type(stb_fontinfo_t), intent(in) :: font_info
+        integer, intent(out) :: x0, y0, x1, y1
+        integer(c_int) :: c_x0, c_y0, c_x1, c_y1
+        
+        if (.not. c_associated(font_info%private_data)) then
+            x0 = 0; y0 = 0; x1 = 0; y1 = 0
+            return
+        end if
+        
+        call stb_wrapper_get_font_bounding_box(font_info, c_x0, c_y0, c_x1, c_y1)
+        
+        x0 = int(c_x0); y0 = int(c_y0)
+        x1 = int(c_x1); y1 = int(c_y1)
+        
+    end subroutine stb_get_font_bounding_box
+    
+    subroutine stb_get_codepoint_box(font_info, codepoint, x0, y0, x1, y1)
+        !! Get character bounding box in unscaled coordinates
+        type(stb_fontinfo_t), intent(in) :: font_info
+        integer, intent(in) :: codepoint
+        integer, intent(out) :: x0, y0, x1, y1
+        integer(c_int) :: c_x0, c_y0, c_x1, c_y1
+        
+        if (.not. c_associated(font_info%private_data)) then
+            x0 = 0; y0 = 0; x1 = 0; y1 = 0
+            return
+        end if
+        
+        call stb_wrapper_get_codepoint_box(font_info, int(codepoint, c_int), &
+                                           c_x0, c_y0, c_x1, c_y1)
+        
+        x0 = int(c_x0); y0 = int(c_y0)
+        x1 = int(c_x1); y1 = int(c_y1)
+        
+    end subroutine stb_get_codepoint_box
+    
+    function stb_get_codepoint_kern_advance(font_info, ch1, ch2) result(kern_advance)
+        !! Get kerning advance between two characters
+        type(stb_fontinfo_t), intent(in) :: font_info
+        integer, intent(in) :: ch1, ch2
+        integer :: kern_advance
+        
+        if (.not. c_associated(font_info%private_data)) then
+            kern_advance = 0
+            return
+        end if
+        
+        kern_advance = int(stb_wrapper_get_codepoint_kern_advance(font_info, &
+                                                              int(ch1, c_int), int(ch2, c_int)))
+        
+    end function stb_get_codepoint_kern_advance
 
 end module fortplot_stb_truetype

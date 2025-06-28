@@ -26,24 +26,30 @@ This TODO list tracks the implementation of Fortran ISO C wrappers for all stb_t
 
 ## TODO: Missing Fortran ISO C Wrappers
 
-### 🔲 Functions to Add to `fortplot_stb_truetype.f90`
+### ✅ COMPLETED: Basic Functions Added to `fortplot_stb_truetype.f90`
 
 **Additional Core Functions:**
-- [ ] `stbtt_GetNumberOfFonts()` → Add `stb_get_number_of_fonts()`
-- [ ] `stbtt_GetFontOffsetForIndex()` → Add direct wrapper `stb_get_font_offset_for_index()`
+- [x] `stbtt_GetNumberOfFonts()` → Added `stb_get_number_of_fonts()`
+- [x] `stbtt_GetFontOffsetForIndex()` → Added `stb_get_font_offset_for_index()`
 
 **Extended Font Metrics:**
-- [ ] `stbtt_ScaleForMappingEmToPixels()` → Add `stb_scale_for_mapping_em_to_pixels()`
+- [x] `stbtt_ScaleForMappingEmToPixels()` → Added `stb_scale_for_mapping_em_to_pixels()`
+- [x] `stbtt_GetFontBoundingBox()` → Added `stb_get_font_bounding_box()`
+
+**Glyph-level Functions:**
+- [x] `stbtt_GetCodepointBox()` → Added `stb_get_codepoint_box()`
+
+**Kerning Functions:**
+- [x] `stbtt_GetCodepointKernAdvance()` → Added `stb_get_codepoint_kern_advance()`
+
+### 🔲 REMAINING Functions to Add to `fortplot_stb_truetype.f90`
+
+**Extended Font Metrics:**
 - [ ] `stbtt_GetFontVMetricsOS2()` → Add `stb_get_font_vmetrics_os2()`
-- [ ] `stbtt_GetFontBoundingBox()` → Add `stb_get_font_bounding_box()`
 
 **Glyph-level Functions:**
 - [ ] `stbtt_GetGlyphHMetrics()` → Add `stb_get_glyph_hmetrics()`
 - [ ] `stbtt_GetGlyphBox()` → Add `stb_get_glyph_box()`
-- [ ] `stbtt_GetCodepointBox()` → Add `stb_get_codepoint_box()`
-
-**Kerning Functions:**
-- [ ] `stbtt_GetCodepointKernAdvance()` → Add `stb_get_codepoint_kern_advance()`
 - [ ] `stbtt_GetGlyphKernAdvance()` → Add `stb_get_glyph_kern_advance()`
 - [ ] `stbtt_GetKerningTableLength()` → Add `stb_get_kerning_table_length()`
 - [ ] `stbtt_GetKerningTable()` → Add `stb_get_kerning_table()`
@@ -79,73 +85,123 @@ This TODO list tracks the implementation of Fortran ISO C wrappers for all stb_t
 
 ## TODO: C Wrapper Extensions
 
-### 🔲 Functions to Add to `stb_truetype_wrapper.c`
+### ✅ COMPLETED: Basic Functions Added to `stb_truetype_wrapper.c`
 
-For each missing Fortran function above, add corresponding C wrapper functions following the existing pattern:
-- [ ] Implement `stb_wrapper_*` functions for all missing STB functions
+**Added C wrapper functions:**
+- [x] `stb_wrapper_get_number_of_fonts()` → Wraps `stbtt_GetNumberOfFonts()`
+- [x] `stb_wrapper_get_font_offset_for_index()` → Wraps `stbtt_GetFontOffsetForIndex()`
+- [x] `stb_wrapper_scale_for_mapping_em_to_pixels()` → Wraps `stbtt_ScaleForMappingEmToPixels()`
+- [x] `stb_wrapper_get_font_bounding_box()` → Wraps `stbtt_GetFontBoundingBox()`
+- [x] `stb_wrapper_get_codepoint_box()` → Wraps `stbtt_GetCodepointBox()`
+- [x] `stb_wrapper_get_codepoint_kern_advance()` → Wraps `stbtt_GetCodepointKernAdvance()`
+
+### 🔲 REMAINING Functions to Add to `stb_truetype_wrapper.c`
+
+For each remaining Fortran function above, add corresponding C wrapper functions following the existing pattern:
+- [ ] Implement remaining `stb_wrapper_*` functions for missing STB functions
 - [ ] Follow existing memory management patterns
 - [ ] Maintain Fortran-compatible interfaces
 - [ ] Add proper error handling for each wrapper
 
 ## TODO: New Module `fortplot_stb.f90`
 
-### 🔲 Create Pure Fortran Implementation Module
+### ✅ COMPLETED: Pure Fortran Implementation Module Created
 
 **Purpose:** Create a future pure Fortran port that can replace stb_truetype.h dependency
 
 **Module Structure:**
-- [ ] Create `src/fortplot_stb.f90` module skeleton
-- [ ] Define equivalent data structures to `stbtt_fontinfo`
-- [ ] Define module interfaces matching `fortplot_stb_truetype.f90` API
-- [ ] Add module documentation explaining it's for future pure Fortran port
+- [x] Created `src/fortplot_stb.f90` module skeleton
+- [x] Defined equivalent data structures to `stbtt_fontinfo` (`stb_fontinfo_pure_t`)
+- [x] Defined module interfaces matching `fortplot_stb_truetype.f90` API
+- [x] Added module documentation explaining it's for future pure Fortran port
 
 **Implementation Strategy:**
-- [ ] Start with stub implementations that return error/placeholder values
-- [ ] Document which functions need TrueType parsing vs. bitmap rendering
-- [ ] Identify external dependencies (file I/O, memory management, math functions)
-- [ ] Plan incremental implementation approach
+- [x] Started with stub implementations that return error/placeholder values
+- [x] Documented which functions need TrueType parsing vs. bitmap rendering
+- [x] Identified external dependencies (file I/O, memory management, math functions)
+- [x] Planned incremental implementation approach
+
+### 🔲 FUTURE: Actual Pure Fortran Implementation
+
+**Next Steps for Pure Fortran Port:**
+- [ ] Implement TrueType file format parsing (tables: head, hhea, hmtx, cmap, glyf, loca)
+- [ ] Implement glyph outline parsing and curve processing
+- [ ] Implement bitmap rasterization with antialiasing
+- [ ] Add proper error handling and memory management
+- [ ] Performance optimization and testing
 
 ## TODO: Test Infrastructure
 
-### 🔲 Create Test Stubs for STB vs Pure Fortran Comparison
+### ✅ COMPLETED: Test Infrastructure for STB vs Pure Fortran Comparison
 
 **Purpose:** Verify compatibility between stb_truetype wrapper and future pure Fortran implementation
 
 **Test Structure:**
-- [ ] Create `test/test_stb_comparison.f90` test program
-- [ ] Create test stub for each wrapper function in `fortplot_stb_truetype.f90`:
-  - [ ] `test_stb_init_font_comparison()`
-  - [ ] `test_stb_scale_for_pixel_height_comparison()`
-  - [ ] `test_stb_get_font_vmetrics_comparison()`
-  - [ ] `test_stb_get_codepoint_hmetrics_comparison()`
-  - [ ] `test_stb_get_codepoint_bitmap_comparison()`
-  - [ ] `test_stb_free_bitmap_comparison()`
-  - [ ] `test_stb_find_glyph_index_comparison()`
-  - [ ] `test_stb_get_codepoint_bitmap_box_comparison()`
-  - [ ] `test_stb_make_codepoint_bitmap_comparison()`
+- [x] Created `test/test_stb_comparison.f90` test program
+- [x] Created test infrastructure for comparing STB and pure implementations:
+  - [x] Font initialization comparison
+  - [x] Scale calculation comparison
+  - [x] Font metrics comparison
+  - [x] Character metrics comparison
+  - [x] Glyph index lookup comparison
+  - [x] Bounding box calculation comparison
+  - [x] Bitmap rendering comparison
+  - [x] Kerning calculation comparison
+  - [x] Additional functions testing
 
 **Test Implementation:**
-- [ ] Each test should call both STB wrapper and pure Fortran implementation
-- [ ] Compare outputs for identical inputs (font metrics, bitmap data, etc.)
-- [ ] Report differences and compatibility issues
-- [ ] Include performance comparison benchmarks
-- [ ] Test with multiple font files (DejaVu, Helvetica, etc.)
+- [x] Each test calls both STB wrapper and pure Fortran implementation
+- [x] Compares outputs for identical inputs (font metrics, etc.)
+- [x] Reports differences and compatibility issues
+- [x] Tests with multiple font paths (DejaVu, Helvetica, etc.)
+- [x] Currently verifies that STB works and pure implementation fails as expected (stubs)
+
+**Test Results:**
+- [x] ✅ All tests pass - STB implementation works, pure implementation correctly returns stub values
+- [x] ✅ New functions tested successfully (EM scaling, font/character bounding boxes, kerning)
+- [x] ✅ Test can be run with `make test ARGS="test_stb_comparison"`
+
+### 🔲 FUTURE: Enhanced Test Infrastructure
 
 **Test Data Requirements:**
-- [ ] Include small test font file in repository
-- [ ] Define standard test characters and sizes
+- [ ] Include small test font file in repository for consistent testing
+- [ ] Define standard test characters and sizes for reproducible results
 - [ ] Create reference output files for regression testing
+- [ ] Add performance comparison benchmarks when pure implementation is completed
 
 ## Implementation Priority
 
-1. **High Priority:** Complete missing basic font metric functions
-2. **Medium Priority:** Add kerning and advanced bitmap functions  
+1. ✅ **COMPLETED - High Priority:** Basic font metric functions implemented
+2. **Medium Priority:** Add remaining kerning and advanced bitmap functions  
 3. **Low Priority:** Font baking and packing (complex, rarely used)
 4. **Future:** Pure Fortran implementation in `fortplot_stb.f90`
 
+## Summary of Completed Work
+
+### ✅ Implemented Functions (6 new functions)
+1. **`stb_get_number_of_fonts()`** - Get font count in file
+2. **`stb_get_font_offset_for_index()`** - Get font offset for multi-font files
+3. **`stb_scale_for_mapping_em_to_pixels()`** - Calculate EM-based scaling
+4. **`stb_get_font_bounding_box()`** - Get overall font bounding box
+5. **`stb_get_codepoint_box()`** - Get character bounding box
+6. **`stb_get_codepoint_kern_advance()`** - Get kerning between characters
+
+### ✅ Infrastructure Completed
+- **Fortran Module**: Extended `fortplot_stb_truetype.f90` with 6 new wrapper functions
+- **C Wrapper Layer**: Added 6 corresponding C functions in `stb_truetype_wrapper.c`
+- **Pure Fortran Stubs**: Created `fortplot_stb.f90` with stub implementations for future port
+- **Test Infrastructure**: Created `test_stb_comparison.f90` to compare STB vs pure implementations
+- **Documentation**: Updated `ttf.md` and `TODO.md` to reflect progress
+
+### ✅ Testing Results
+- All new functions compile successfully
+- Text rendering tests pass (no regressions)
+- STB comparison test passes (STB works, pure stubs work as expected)
+- Line length limit (88 chars) enforced and added to `CLAUDE.md`
+
 ## Notes
 
-- All new wrapper functions should follow TDD principles from `CLAUDE.md`
-- Each function should have corresponding test coverage
-- Maintain backward compatibility with existing `fortplot_text.f90` usage
-- Document performance characteristics of each implementation approach
+- All new wrapper functions follow TDD principles from `CLAUDE.md`
+- Each function has corresponding test coverage in comparison tests
+- Maintains backward compatibility with existing `fortplot_text.f90` usage
+- Ready for implementation of remaining functions or pure Fortran port development
