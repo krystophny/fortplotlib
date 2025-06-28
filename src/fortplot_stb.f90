@@ -98,20 +98,16 @@ module fortplot_stb
     type :: ttf_maxp_table_t
         integer :: version = 0
         integer :: num_glyphs = 0
-        integer :: max_points = 0
-        integer :: max_contours = 0
-        integer :: max_composite_points = 0
-        integer :: max_composite_contours = 0
-        integer :: max_zones = 0
-        integer :: max_twilight_points = 0
-        integer :: max_storage = 0
-        integer :: max_function_defs = 0
-        integer :: max_instruction_defs = 0
-        integer :: max_stack_elements = 0
-        integer :: max_size_of_instructions = 0
-        integer :: max_component_elements = 0
-        integer :: max_component_depth = 0
     end type ttf_maxp_table_t
+
+    ! TrueType Collection (TTC) header
+    type :: ttc_header_t
+        character(len=4) :: ttcTag = ""      ! 'ttcf'
+        integer :: majorVersion = 0
+        integer :: minorVersion = 0
+        integer :: numFonts = 0
+        integer, allocatable :: offsetTable(:)  ! Offsets to each font
+    end type ttc_header_t
 
     ! TrueType cmap subtable entry
     type :: ttf_cmap_subtable_t
@@ -150,6 +146,12 @@ module fortplot_stb
         ! Parsed structures
         type(ttf_header_t) :: header
         type(ttf_table_entry_t), allocatable :: tables(:)
+
+        ! TTC support
+        logical :: is_ttc = .false.
+        type(ttc_header_t) :: ttc_header
+        integer :: font_index = 0   ! Font index within TTC (0-based)
+        integer :: font_offset = 0  ! Byte offset to this font within TTC
 
         ! Parsed table data
         type(ttf_head_table_t) :: head_table
@@ -1304,5 +1306,74 @@ contains
               achar(data(offset+2)) // achar(data(offset+3))
 
     end function read_tag
+
+    ! ============================================================================
+    ! TrueType Collection (TTC) support functions
+    ! ============================================================================
+
+    function is_ttc_file(font_data) result(is_ttc)
+        !! Check if font data is a TrueType Collection file
+        integer(c_int8_t), intent(in) :: font_data(:)
+        logical :: is_ttc
+        character(len=4) :: signature
+
+        is_ttc = .false.
+        if (size(font_data) < 4) return
+
+        signature = read_tag(font_data, 1)
+        is_ttc = (signature == 'ttcf')
+
+    end function is_ttc_file
+
+    function parse_ttc_header(font_data, ttc_header) result(success)
+        !! Parse TrueType Collection header
+        integer(c_int8_t), intent(in) :: font_data(:)
+        type(ttc_header_t), intent(out) :: ttc_header
+        logical :: success
+        integer :: i, offset
+
+        success = .false.
+        if (size(font_data) < 12) return
+
+        ! Read TTC header fields
+        ttc_header%ttcTag = read_tag(font_data, 1)
+        if (ttc_header%ttcTag /= 'ttcf') return
+
+        ttc_header%majorVersion = read_be_uint16(font_data, 5)
+        ttc_header%minorVersion = read_be_uint16(font_data, 7)
+        ttc_header%numFonts = read_be_uint32(font_data, 9)
+
+        ! Validate number of fonts
+        if (ttc_header%numFonts <= 0 .or. ttc_header%numFonts > 64) return
+
+        ! Check we have enough data for offset table
+        if (size(font_data) < 12 + 4 * ttc_header%numFonts) return
+
+        ! Read font offsets
+        allocate(ttc_header%offsetTable(ttc_header%numFonts))
+        offset = 13  ! Start after header
+        do i = 1, ttc_header%numFonts
+            ttc_header%offsetTable(i) = read_be_uint32(font_data, offset)
+            offset = offset + 4
+        end do
+
+        success = .true.
+
+    end function parse_ttc_header
+
+    function get_ttc_font_offset(ttc_header, font_index) result(font_offset)
+        !! Get byte offset for specific font index in TTC
+        type(ttc_header_t), intent(in) :: ttc_header
+        integer, intent(in) :: font_index  ! 0-based index
+        integer :: font_offset
+
+        font_offset = 0
+        if (font_index < 0 .or. font_index >= ttc_header%numFonts) return
+        if (.not. allocated(ttc_header%offsetTable)) return
+
+        ! Convert to 1-based indexing for Fortran array access
+        font_offset = ttc_header%offsetTable(font_index + 1)
+
+    end function get_ttc_font_offset
 
 end module fortplot_stb

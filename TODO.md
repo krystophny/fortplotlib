@@ -168,9 +168,13 @@ Replace STB TrueType C library with a pure Fortran implementation that:
 **Goal:** Add support for TrueType Collection (.ttc) files
 
 **Current Status:**
-- ✅ STB supports TTC files perfectly (confirmed)
+- ✅ **STB supports TTC files perfectly (CONFIRMED)** - Has full TTC functionality in `thirdparty/stb_truetype.h`
+- ✅ **STB TTC Functions Identified:**
+  - `stbtt_GetNumberOfFonts(data)` - Returns number of fonts in TTC file
+  - `stbtt_GetFontOffsetForIndex(data, index)` - Gets byte offset for specific font
+  - `stbtt_InitFont(info, data, offset)` - Initializes font using TTC offset
 - ❌ Pure Fortran only supports TTF files
-- 🎯 **Target:** Implement TTC parsing to match STB capability
+- 🎯 **Target:** Port STB's TTC functionality to achieve feature parity
 
 **TTC Format Overview:**
 - TTC files contain multiple TTF fonts in a single file
@@ -179,11 +183,12 @@ Replace STB TrueType C library with a pure Fortran implementation that:
 - STB's `stbtt_InitFont()` takes a font index parameter for TTC files
 
 **Functions to implement:**
-1. [ ] `is_ttc_file()` - Detect TTC file format ('ttcf' signature)
-2. [ ] `parse_ttc_header()` - Parse TTC header (version, numFonts, offsets)
-3. [ ] `get_ttc_font_offset()` - Get offset for specific font index
-4. [ ] Modify `read_truetype_file()` to handle font index parameter
-5. [ ] Update all parsing functions to work with font-specific offsets
+1. [ ] `is_ttc_file()` - Detect TTC file format ('ttcf' signature) ✅ **STB: `stbtt_tag(data, "ttcf")`**
+2. [ ] `parse_ttc_header()` - Parse TTC header (version, numFonts, offsets) ✅ **STB: Internal TTC parsing**
+3. [ ] `get_ttc_font_offset()` - Get offset for specific font index ✅ **STB: `stbtt_GetFontOffsetForIndex()`**
+4. [ ] `get_number_of_fonts()` - Count fonts in TTC ✅ **STB: `stbtt_GetNumberOfFonts()`**
+5. [ ] Modify `stb_init_font_pure()` to handle font index parameter ✅ **STB: `stbtt_InitFont()` with offset**
+6. [ ] Update all parsing functions to work with font-specific offsets
 
 **TDD Strategy - RED-GREEN-REFACTOR:**
 1. **RED**: Modify test to expect TTC font parsing success
@@ -197,10 +202,12 @@ Replace STB TrueType C library with a pure Fortran implementation that:
 - Characters A,B,M,W,g,j,!,?,1,@ should map correctly for all fonts
 
 **Implementation Notes:**
-- TTC header: 'ttcf' (4 bytes) + version (4 bytes) + numFonts (4 bytes) + offsets array
-- Each offset points to a complete TTF font data structure
-- Keep existing TTF parsing logic, just add offset handling
-- Fortran arrays are 1-based: offsets(1:numFonts)
+- **STB TTC Format Support:** STB fully supports TTC v1.0 (`0x00010000`) and v2.0 (`0x00020000`)
+- **STB Usage Pattern:** `offset = stbtt_GetFontOffsetForIndex(data, index); stbtt_InitFont(&font, data, offset);`
+- **TTC header structure:** 'ttcf' (4 bytes) + version (4 bytes) + numFonts (4 bytes) + offsets array
+- **Critical insight:** Each offset points to a complete TTF font data structure within the TTC file
+- **Fortran adaptation:** Keep existing TTF parsing logic, just add offset handling and 1-based indexing
+- **Memory layout:** TTC files contain multiple complete TTF fonts, each starting at its designated offset
 
 #### 🔲 Level 6: Extended Metrics
 **Goal:** Support OS/2 metrics and bounding boxes
