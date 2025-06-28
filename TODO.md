@@ -13,7 +13,7 @@ This TODO list outlines the systematic Test-Driven Dev#### ✅ Level 3: Characte
 - ✅ **Level 1 & 2 COMPLETE:** Binary file operations and table parsing implemented
 - ✅ **Level 3 COMPLETE:** Character mapping working - glyph index 36 for 'A' ✅
 - ✅ **Level 4 COMPLETE:** Font scaling working - scale factors match STB exactly ✅
-- 🎯 **Next Step:** Move to Phase 4 - Advanced Metrics and Kerning (Level 5)
+- 🎯 **Next Step:** Level 5 - TTC (TrueType Collection) Support
 
 **Latest Test Results:**
 ```
@@ -143,7 +143,45 @@ Replace STB TrueType C library with a pure Fortran implementation that:
 
 ### Phase 4: Advanced Metrics and Kerning
 
-#### 🔲 Level 5: Extended Metrics
+#### 🔲 Level 5: TTC (TrueType Collection) Support
+**Goal:** Add support for TrueType Collection (.ttc) files
+
+**Current Status:**
+- ✅ STB supports TTC files perfectly (confirmed)
+- ❌ Pure Fortran only supports TTF files
+- 🎯 **Target:** Implement TTC parsing to match STB capability
+
+**TTC Format Overview:**
+- TTC files contain multiple TTF fonts in a single file
+- Header contains version, font count, and offset table
+- Each font is a complete TTF starting at its offset
+- STB's `stbtt_InitFont()` takes a font index parameter for TTC files
+
+**Functions to implement:**
+1. [ ] `is_ttc_file()` - Detect TTC file format ('ttcf' signature)
+2. [ ] `parse_ttc_header()` - Parse TTC header (version, numFonts, offsets)
+3. [ ] `get_ttc_font_offset()` - Get offset for specific font index
+4. [ ] Modify `read_truetype_file()` to handle font index parameter
+5. [ ] Update all parsing functions to work with font-specific offsets
+
+**TDD Strategy - RED-GREEN-REFACTOR:**
+1. **RED**: Modify test to expect TTC font parsing success
+2. **GREEN**: Implement minimal TTC parsing to make test pass
+3. **REFACTOR**: Clean up and optimize TTC handling
+
+**Test Strategy:**
+- Use system TTC fonts: Helvetica.ttc, Times.ttc, Menlo.ttc
+- Test font index 0, 1, 2 (if available)
+- Verify metrics match STB for each font in collection
+- Characters A,B,M,W,g,j,!,?,1,@ should map correctly for all fonts
+
+**Implementation Notes:**
+- TTC header: 'ttcf' (4 bytes) + version (4 bytes) + numFonts (4 bytes) + offsets array
+- Each offset points to a complete TTF font data structure
+- Keep existing TTF parsing logic, just add offset handling
+- Fortran arrays are 1-based: offsets(1:numFonts)
+
+#### 🔲 Level 6: Extended Metrics
 **Goal:** Support OS/2 metrics and bounding boxes
 
 **Functions to implement:**
@@ -156,7 +194,7 @@ Replace STB TrueType C library with a pure Fortran implementation that:
 - OS/2 metrics should match: `1556/-492/410`
 - Character 'A' bbox: `(16, 0, 1384, 1493)`
 
-#### 🔲 Level 6: Kerning Support
+#### 🔲 Level 7: Kerning Support
 **Goal:** Implement kerning calculations
 
 **Functions to implement:**
@@ -171,7 +209,7 @@ Replace STB TrueType C library with a pure Fortran implementation that:
 
 ### Phase 5: Glyph Outline Processing
 
-#### 🔲 Level 7: Glyph Outline Parsing
+#### 🔲 Level 8: Glyph Outline Parsing
 **Goal:** Parse and process TrueType glyph outlines
 
 **Functions to implement:**
@@ -193,7 +231,7 @@ Replace STB TrueType C library with a pure Fortran implementation that:
 
 ### Phase 6: Bitmap Rasterization
 
-#### 🔲 Level 8: Basic Bitmap Rendering
+#### 🔲 Level 9: Basic Bitmap Rendering
 **Goal:** Rasterize glyph outlines to bitmap format
 
 **Functions to implement:**
