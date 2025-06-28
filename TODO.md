@@ -70,10 +70,11 @@ All TrueType/TTC types and parsing logic are now in dedicated modules:
 - ✅ RED-GREEN TDD tests added and passing for all metrics functions
 
 ### Level 7: Bounding Boxes and Font Metrics
-- [ ] `stb_get_font_bounding_box_pure()` - Get font bounding box (currently STUB)
-- [ ] `stb_get_codepoint_box_pure()` - Get character bounding box (currently STUB)
-- [ ] `stb_get_glyph_box_pure()` - Get glyph bounding box by glyph index (currently STUB)
+- ✅ `stb_get_font_bounding_box_pure()` - Get font bounding box
+- ✅ `stb_get_codepoint_box_pure()` - Get character bounding box
+- ✅ `stb_get_glyph_box_pure()` - Get glyph bounding box by glyph index
 - ✅ `stb_get_glyph_hmetrics_pure()` - Get horizontal glyph metrics by glyph index (implemented in Level 6)
+- ✅ RED-GREEN TDD tests added and passing for all bounding box functions
 
 ### Level 8: OS/2 Metrics
 - [ ] `stb_get_font_vmetrics_os2_pure()` - Get OS/2 table vertical metrics (currently STUB)

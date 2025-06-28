@@ -470,37 +470,50 @@ contains
     end function stb_scale_for_mapping_em_to_pixels_pure
 
     subroutine stb_get_font_bounding_box_pure(font_info, x0, y0, x1, y1)
-        !! Get font bounding box (STUB)
+        !! Get font bounding box
         type(stb_fontinfo_pure_t), intent(in) :: font_info
         integer, intent(out) :: x0, y0, x1, y1
+        integer :: head_table_idx, head_offset
 
         if (.not. font_info%initialized) then
             x0 = 0; y0 = 0; x1 = 0; y1 = 0
             return
         end if
 
-        ! STUB: Return placeholder values
-        x0 = 0; y0 = 0; x1 = 0; y1 = 0
+        ! Find head table
+        head_table_idx = find_table(font_info%tables, 'head')
+        if (head_table_idx == 0) then
+            x0 = 0; y0 = 0; x1 = 0; y1 = 0
+            return
+        end if
 
-        ! TODO: Implement using head table bounding box
+        head_offset = font_info%tables(head_table_idx)%offset
+
+        ! Read font bounding box from head table at offsets 36, 38, 40, 42
+        x0 = read_be_int16(font_info%font_data, head_offset + 36)
+        y0 = read_be_int16(font_info%font_data, head_offset + 38)
+        x1 = read_be_int16(font_info%font_data, head_offset + 40)
+        y1 = read_be_int16(font_info%font_data, head_offset + 42)
 
     end subroutine stb_get_font_bounding_box_pure
 
     subroutine stb_get_codepoint_box_pure(font_info, codepoint, x0, y0, x1, y1)
-        !! Get character bounding box (STUB)
+        !! Get character bounding box
         type(stb_fontinfo_pure_t), intent(in) :: font_info
         integer, intent(in) :: codepoint
         integer, intent(out) :: x0, y0, x1, y1
+        integer :: glyph_index
 
         if (.not. font_info%initialized) then
             x0 = 0; y0 = 0; x1 = 0; y1 = 0
             return
         end if
 
-        ! STUB: Return placeholder values
-        x0 = 0; y0 = 0; x1 = 0; y1 = 0
+        ! Map Unicode codepoint to glyph index
+        glyph_index = stb_find_glyph_index_pure(font_info, codepoint)
 
-        ! TODO: Implement glyph bounding box calculation
+        ! Get glyph bounding box
+        call stb_get_glyph_box_pure(font_info, glyph_index, x0, y0, x1, y1)
 
     end subroutine stb_get_codepoint_box_pure
 
@@ -587,20 +600,61 @@ contains
     end subroutine stb_get_glyph_hmetrics_pure
 
     subroutine stb_get_glyph_box_pure(font_info, glyph_index, x0, y0, x1, y1)
-        !! Get glyph bounding box by glyph index (STUB)
+        !! Get glyph bounding box by glyph index
         type(stb_fontinfo_pure_t), intent(in) :: font_info
         integer, intent(in) :: glyph_index
         integer, intent(out) :: x0, y0, x1, y1
+        integer :: glyf_table_idx, loca_table_idx, glyf_offset, loca_offset
+        integer :: glyph_data_offset, glyph_data_length
+        integer :: next_glyph_offset
 
         if (.not. font_info%initialized) then
             x0 = 0; y0 = 0; x1 = 0; y1 = 0
             return
         end if
 
-        ! STUB: Return placeholder values
-        x0 = 0; y0 = 0; x1 = 0; y1 = 0
+        ! Find glyf and loca tables
+        glyf_table_idx = find_table(font_info%tables, 'glyf')
+        loca_table_idx = find_table(font_info%tables, 'loca')
 
-        ! TODO: Implement glyph outline parsing and bounding box calculation
+        if (glyf_table_idx == 0 .or. loca_table_idx == 0) then
+            x0 = 0; y0 = 0; x1 = 0; y1 = 0
+            return
+        end if
+
+        glyf_offset = font_info%tables(glyf_table_idx)%offset
+        loca_offset = font_info%tables(loca_table_idx)%offset
+
+        ! TODO: This is a simplified implementation
+        ! The real implementation needs to:
+        ! 1. Check indexToLocFormat from head table (short vs long offsets)
+        ! 2. Read the correct offset format from loca table
+        ! 3. Parse the glyph data structure from glyf table
+
+        ! For now, assume long format (4-byte offsets) and return placeholder
+        if (glyph_index < 0 .or. glyph_index >= font_info%num_glyphs) then
+            x0 = 0; y0 = 0; x1 = 0; y1 = 0
+            return
+        end if
+
+        ! Simplified glyph offset calculation (assumes long format)
+        glyph_data_offset = read_be_uint32(font_info%font_data, loca_offset + 4 * glyph_index)
+        next_glyph_offset = read_be_uint32(font_info%font_data, loca_offset + 4 * (glyph_index + 1))
+
+        glyph_data_length = next_glyph_offset - glyph_data_offset
+
+        if (glyph_data_length == 0) then
+            ! Empty glyph
+            x0 = 0; y0 = 0; x1 = 0; y1 = 0
+            return
+        end if
+
+        ! Read glyph bounding box from glyph data (at offsets +2, +4, +6, +8)
+        glyph_data_offset = glyf_offset + glyph_data_offset
+        x0 = read_be_int16(font_info%font_data, glyph_data_offset + 2)
+        y0 = read_be_int16(font_info%font_data, glyph_data_offset + 4)
+        x1 = read_be_int16(font_info%font_data, glyph_data_offset + 6)
+        y1 = read_be_int16(font_info%font_data, glyph_data_offset + 8)
 
     end subroutine stb_get_glyph_box_pure
 

@@ -654,7 +654,7 @@ contains
         type(stb_fontinfo_pure_t), intent(in) :: pure_font
         integer :: stb_x0, stb_y0, stb_x1, stb_y1
         integer :: pure_x0, pure_y0, pure_x1, pure_y1
-        integer :: test_codepoint, glyph_index
+        integer :: test_codepoint, test_glyph_index
         logical :: bbox_match
 
         write(*,*) "  Testing bounding box functions (TDD)..."
@@ -664,7 +664,7 @@ contains
         call stb_get_font_bounding_box_pure(pure_font, pure_x0, pure_y0, pure_x1, pure_y1)
 
         write(*,'(A,4I6,A,4I6)') "    Font bbox: STB=(", stb_x0, stb_y0, stb_x1, stb_y1, &
-                                 "), Pure=(", pure_x0, pure_y0, pure_x1, pure_y1, ")"
+                                "), Pure=(", pure_x0, pure_y0, pure_x1, pure_y1, ")"
 
         bbox_match = (stb_x0 == pure_x0 .and. stb_y0 == pure_y0 .and. &
                       stb_x1 == pure_x1 .and. stb_y1 == pure_y1)
@@ -679,8 +679,9 @@ contains
         call stb_get_codepoint_box(stb_font, test_codepoint, stb_x0, stb_y0, stb_x1, stb_y1)
         call stb_get_codepoint_box_pure(pure_font, test_codepoint, pure_x0, pure_y0, pure_x1, pure_y1)
 
-        write(*,'(A,4I6,A,4I6)') "    Char 'A' bbox: STB=(", stb_x0, stb_y0, stb_x1, stb_y1, &
-                                 "), Pure=(", pure_x0, pure_y0, pure_x1, pure_y1, ")"
+        write(*,'(A,4I6,A,4I6)') "    Char 'A' bbox: STB=(", &
+                                stb_x0, stb_y0, stb_x1, stb_y1, &
+                                "), Pure=(", pure_x0, pure_y0, pure_x1, pure_y1, ")"
 
         if (.not. (stb_x0 == pure_x0 .and. stb_y0 == pure_y0 .and. &
                    stb_x1 == pure_x1 .and. stb_y1 == pure_y1)) then
@@ -691,13 +692,13 @@ contains
         end if
 
         ! Test 3: stb_get_glyph_box comparison
-        glyph_index = stb_find_glyph_index(stb_font, test_codepoint)
-        call stb_get_glyph_box(stb_font, glyph_index, stb_x0, stb_y0, stb_x1, stb_y1)
-        call stb_get_glyph_box_pure(pure_font, glyph_index, pure_x0, pure_y0, pure_x1, pure_y1)
+        test_glyph_index = stb_find_glyph_index(stb_font, test_codepoint)
+        call stb_get_glyph_box(stb_font, test_glyph_index, stb_x0, stb_y0, stb_x1, stb_y1)
+        call stb_get_glyph_box_pure(pure_font, test_glyph_index, pure_x0, pure_y0, pure_x1, pure_y1)
 
-        write(*,'(A,I0,A,4I6,A,4I6)') "    Glyph ", glyph_index, " bbox: STB=(", &
-                                       stb_x0, stb_y0, stb_x1, stb_y1, &
-                                       "), Pure=(", pure_x0, pure_y0, pure_x1, pure_y1, ")"
+        write(*,'(A,I0,A,4I6,A,4I6)') "    Glyph ", test_glyph_index, " bbox: STB=(", &
+                                      stb_x0, stb_y0, stb_x1, stb_y1, &
+                                      "), Pure=(", pure_x0, pure_y0, pure_x1, pure_y1, ")"
 
         if (.not. (stb_x0 == pure_x0 .and. stb_y0 == pure_y0 .and. &
                    stb_x1 == pure_x1 .and. stb_y1 == pure_y1)) then
