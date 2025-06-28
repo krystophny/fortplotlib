@@ -549,8 +549,43 @@ contains
                         ! STB: stbtt__handle_clipped_edge(scanline,(int) x0,e, x0,y_top, x0,y_bottom);
                         call stb_handle_clipped_edge(scanline_buffer, int(x0), e, x0, scanline_y, x0, y_bottom)
                         ! STB: stbtt__handle_clipped_edge(scanline_fill-1,(int) x0+1,e, x0,y_top, x0,y_bottom);
-                        ! This calls handle_clipped_edge with scanline_fill and x = (int)x0+1
-                        call stb_handle_clipped_edge(scanline_fill_buffer, int(x0) + 1, e, x0, scanline_y, x0, y_bottom)
+                        ! Need to handle clipping and use logic_x = (int)x0+1, target = scanline_fill_buffer(int(x0)+1)
+                        block
+                            real(wp) :: adj_x0, adj_y0, adj_x1, adj_y1
+                            integer :: logic_x
+                            
+                            ! Same clipping logic as stb_handle_clipped_edge
+                            adj_x0 = x0
+                            adj_y0 = scanline_y
+                            adj_x1 = x0  ! Vertical edge
+                            adj_y1 = y_bottom
+                            logic_x = int(x0) + 1
+                            
+                            ! Clip to edge bounds (STB algorithm)
+                            if (adj_y0 < e%sy) then
+                                adj_x0 = adj_x0 + (adj_x1 - adj_x0) * (e%sy - adj_y0) / (adj_y1 - adj_y0)
+                                adj_y0 = e%sy
+                            end if
+                            if (adj_y1 > e%ey) then
+                                adj_x1 = adj_x1 + (adj_x1 - adj_x0) * (e%ey - adj_y1) / (adj_y1 - adj_y0)
+                                adj_y1 = e%ey
+                            end if
+                            
+                            ! Apply STB logic with logic_x=4 but target index int(x0)+1=4
+                            if (adj_x0 <= real(logic_x, wp) .and. adj_x1 <= real(logic_x, wp)) then
+                                ! x0=x1=3.5 <= logic_x=4: TRUE - first case
+                                scanline_fill_buffer(int(x0) + 1) = scanline_fill_buffer(int(x0) + 1) + &
+                                    e%direction * (adj_y1 - adj_y0)
+                            else if (adj_x0 >= real(logic_x + 1, wp) .and. adj_x1 >= real(logic_x + 1, wp)) then
+                                ! No contribution
+                                continue
+                            else
+                                ! Coverage calculation
+                                scanline_fill_buffer(int(x0) + 1) = scanline_fill_buffer(int(x0) + 1) + &
+                                    e%direction * (adj_y1 - adj_y0) * &
+                                    (1.0_wp - ((adj_x0 - real(logic_x, wp)) + (adj_x1 - real(logic_x, wp))) * 0.5_wp)
+                            end if
+                        end block
                     else
                         ! STB: stbtt__handle_clipped_edge(scanline_fill-1,0,e, x0,y_top, x0,y_bottom);
                         ! This calls handle_clipped_edge with scanline_fill and x = 0
@@ -769,6 +804,60 @@ contains
         
     end function stb_sized_triangle_area
     
+    subroutine stb_handle_clipped_edge_with_offset(scanline, target_idx, logic_x, e, x0, y0, x1, y1)
+        !! Handle edges with separate target index and logic x (for scanline_fill-1 case)
+        real(wp), intent(inout) :: scanline(:)
+        integer, intent(in) :: target_idx, logic_x
+        type(stb_active_edge_t), intent(in) :: e
+        real(wp), intent(in) :: x0, y0, x1, y1
+        
+        real(wp) :: adj_x0, adj_y0, adj_x1, adj_y1
+        
+        ! Early exit for horizontal edges (matches STB)
+        if (abs(y1 - y0) < epsilon(1.0_wp)) return
+        
+        ! Ensure y0 < y1 (STB assertion)
+        if (y0 >= y1) return
+        
+        ! Check edge bounds (STB assertions)
+        if (e%sy > e%ey) return
+        if (y0 > e%ey) return
+        if (y1 < e%sy) return
+        
+        ! Clip to edge bounds (exact STB algorithm)
+        adj_x0 = x0
+        adj_y0 = y0
+        adj_x1 = x1
+        adj_y1 = y1
+        
+        ! Clip to edge start Y
+        if (adj_y0 < e%sy) then
+            adj_x0 = adj_x0 + (adj_x1 - adj_x0) * (e%sy - adj_y0) / (adj_y1 - adj_y0)
+            adj_y0 = e%sy
+        end if
+        
+        ! Clip to edge end Y
+        if (adj_y1 > e%ey) then
+            adj_x1 = adj_x1 + (adj_x1 - adj_x0) * (e%ey - adj_y1) / (adj_y1 - adj_y0)
+            adj_y1 = e%ey
+        end if
+        
+        ! Apply STB logic with logic_x but write to target_idx
+        if (adj_x0 <= real(logic_x, wp) .and. adj_x1 <= real(logic_x, wp)) then
+            ! Both endpoints left of pixel
+            scanline(target_idx) = scanline(target_idx) + e%direction * (adj_y1 - adj_y0)
+        else if (adj_x0 >= real(logic_x + 1, wp) .and. adj_x1 >= real(logic_x + 1, wp)) then
+            ! Both endpoints right of pixel - no contribution
+            return
+        else
+            ! Edge crosses pixel - STB coverage calculation
+            ! coverage = 1 - average x position
+            scanline(target_idx) = scanline(target_idx) + e%direction * (adj_y1 - adj_y0) * &
+                             (1.0_wp - ((adj_x0 - real(logic_x, wp)) + (adj_x1 - real(logic_x, wp))) * 0.5_wp)
+        end if
+        
+    end subroutine stb_handle_clipped_edge_with_offset
+
     subroutine stb_handle_clipped_edge(scanline, x, e, x0, y0, x1, y1)
         !! Handle edges that are clipped at scanline boundaries (matches stbtt__handle_clipped_edge)
         real(wp), intent(inout) :: scanline(:)
