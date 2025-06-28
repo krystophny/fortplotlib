@@ -6,6 +6,7 @@ module forttf_outline
     use forttf_types
     use forttf_glyph_parser
     use forttf_mapping
+    use forttf_file_io, only: read_be_uint16
     implicit none
 
     private
@@ -43,16 +44,24 @@ contains
 
     end function stb_get_codepoint_shape_pure
 
-    function stb_get_glyph_shape_pure(font_info, glyph_index, vertices) result(num_vertices)
+    recursive function stb_get_glyph_shape_pure(font_info, glyph_index, vertices) result(num_vertices)
         !! Get glyph outline vertices for a glyph index
         type(stb_fontinfo_pure_t), intent(in) :: font_info
         integer, intent(in) :: glyph_index
         type(ttf_vertex_t), allocatable, intent(out) :: vertices(:)
         integer :: num_vertices
         
+        ! --- Parameter declarations must be at the top ---
+        integer, parameter :: ARG_1_AND_2_ARE_WORDS = 1
+        integer, parameter :: MORE_COMPONENTS = 32
+        
         type(ttf_glyf_header_t) :: glyph_header
         logical :: success
         integer :: glyf_table_idx, i
+        ! Composite glyph variables (must be declared at top)
+        integer :: comp_offset, flags, comp_glyph_idx, comp_num_vertices, comp_count
+        type(ttf_vertex_t), allocatable :: comp_vertices(:)
+        integer :: comp_vertices_start, comp_vertices_end
 
         num_vertices = 0
 
@@ -92,8 +101,37 @@ contains
             ! Simple glyph
             num_vertices = parse_simple_glyph(font_info, glyf_table_idx, glyph_index, glyph_header, vertices)
         else
-            ! Composite glyph (TODO: implement)
+            ! Composite glyph: recursively collect outlines from components
+            comp_offset = font_info%tables(glyf_table_idx)%offset + font_info%loca_table%offsets(glyph_index + 1) + 10
             num_vertices = 0
+            comp_count = 0
+            do
+                ! Read flags and glyph index
+                flags = read_be_uint16(font_info%font_data, comp_offset)
+                comp_glyph_idx = read_be_uint16(font_info%font_data, comp_offset + 2)
+                comp_offset = comp_offset + 4
+                ! TODO: handle arguments, transforms, etc. For now, ignore and just collect outlines
+                comp_num_vertices = stb_get_glyph_shape_pure(font_info, comp_glyph_idx, comp_vertices)
+                if (comp_num_vertices > 0) then
+                    if (num_vertices == 0) then
+                        allocate(vertices(comp_num_vertices))
+                        vertices = comp_vertices
+                        num_vertices = comp_num_vertices
+                    else
+                        comp_vertices_start = 1
+                        comp_vertices_end = comp_num_vertices
+                        call append_vertices(vertices, num_vertices, comp_vertices(comp_vertices_start:comp_vertices_end))
+                    end if
+                end if
+                comp_count = comp_count + 1
+                if (iand(flags, MORE_COMPONENTS) == 0) exit
+            end do
+            ! Defensive: ensure vertices is always allocated
+            if (.not. allocated(vertices)) then
+                allocate(vertices(0))
+            end if
+            ! Debug: print number of vertices for composite glyphs
+            print *, 'Composite glyph', glyph_index, 'num_vertices:', num_vertices
         end if
 
     end function stb_get_glyph_shape_pure
@@ -125,6 +163,8 @@ contains
         num_vertices = 0
         
         if (glyph_header%num_contours <= 0) then
+            allocate(vertices(0))
+            print *, 'parse_simple_glyph: no contours for glyph', glyph_index
             return ! No contours
         end if
         
@@ -139,28 +179,46 @@ contains
         data_offset = glyph_offset + 10  ! Skip glyph header
         
         do i = 1, num_contours
-            if (data_offset + 1 >= size(font_info%font_data)) return
+            if (data_offset + 1 >= size(font_info%font_data)) then
+                allocate(vertices(0))
+                print *, 'parse_simple_glyph: data_offset out of bounds for glyph', glyph_index
+                return
+            end if
             contour_ends(i) = parse_uint16(font_info%font_data, data_offset)
             data_offset = data_offset + 2
         end do
         
         ! Get total number of points
         num_points = contour_ends(num_contours) + 1  ! TrueType uses 0-based indexing
+        print *, 'parse_simple_glyph: glyph', glyph_index, 'num_contours', num_contours, 'num_points', num_points
         
         ! Skip instruction length and instructions
-        if (data_offset + 1 >= size(font_info%font_data)) return
+        if (data_offset + 1 >= size(font_info%font_data)) then
+            allocate(vertices(0))
+            print *, 'parse_simple_glyph: instruction length out of bounds for glyph', glyph_index
+            return
+        end if
         instruction_length = parse_uint16(font_info%font_data, data_offset)
         data_offset = data_offset + 2 + instruction_length
         
         ! Parse coordinate data using simplified approach
         success = parse_glyph_coordinates(font_info%font_data, data_offset, num_points, &
                                         flags, x_coords, y_coords)
-        if (.not. success) return
+        if (.not. success) then
+            allocate(vertices(0))
+            print *, 'parse_simple_glyph: parse_glyph_coordinates failed for glyph', glyph_index
+            return
+        end if
+        print *, 'parse_simple_glyph: flags(1:5)=', flags(1:min(5,num_points))
+        print *, 'parse_simple_glyph: x_coords(1:5)=', x_coords(1:min(5,num_points))
+        print *, 'parse_simple_glyph: y_coords(1:5)=', y_coords(1:min(5,num_points))
         
         ! Convert coordinates to vertices
         call convert_coords_to_vertices(x_coords, y_coords, flags, contour_ends, &
                                        num_contours, vertices, num_vertices)
-
+        if (num_vertices == 0) then
+            print *, 'parse_simple_glyph: convert_coords_to_vertices returned 0 vertices for glyph', glyph_index
+        end if
     end function parse_simple_glyph
     
     function parse_uint16(data, offset) result(value)
@@ -281,6 +339,10 @@ contains
         end do
         
         success = .true.
+        print *, 'parse_glyph_coordinates: num_points', num_points
+        print *, 'parse_glyph_coordinates: flags(1:5)=', flags(1:min(5,num_points))
+        print *, 'parse_glyph_coordinates: x_coords(1:5)=', x_coords(1:min(5,num_points))
+        print *, 'parse_glyph_coordinates: y_coords(1:5)=', y_coords(1:min(5,num_points))
         
     end function parse_glyph_coordinates
     
@@ -315,8 +377,8 @@ contains
         
         integer :: max_vertices, i, contour, point_idx, contour_start, contour_end
         logical :: is_on_curve, prev_was_off, was_off, start_off
-        integer :: sx, sy, cx, cy, scx, scy
-        integer :: flag_byte
+        integer :: sx, sy, cx, cy, scx, scy, px, py, qx, qy
+        integer :: flag_byte, n, m, j, k
         
         ! Allocate maximum possible vertices (conservative estimate)
         max_vertices = size(x_coords) * 2 + num_contours  ! Points + curves + moves
@@ -331,25 +393,57 @@ contains
                 contour_start = contour_ends(contour - 1) + 2  ! +1 for 0-based, +1 for next
             end if
             contour_end = contour_ends(contour) + 1  ! Convert to 1-based
-            
             if (contour_start > size(x_coords) .or. contour_end > size(x_coords)) exit
+            n = contour_end - contour_start + 1
+            if (n <= 0) cycle
             
-            ! Start new contour
-            sx = x_coords(contour_start)
-            sy = y_coords(contour_start)
+            ! Build list of points for this contour
+            m = n
+            allocate(px(m), py(m))
+            do j = 1, m
+                px(j) = x_coords(contour_start + j - 1)
+                py(j) = y_coords(contour_start + j - 1)
+            end do
             
-            ! Add move to start of contour
-            num_vertices = num_vertices + 1
-            vertices(num_vertices) = ttf_vertex_t(x=sx, y=sy, type=TTF_VERTEX_MOVE)
+            ! Build list of on-curve flags
+            allocate(is_on_curve(m))
+            do j = 1, m
+                is_on_curve(j) = iand(int(flags(contour_start + j - 1), kind=4), 1) /= 0
+            end do
             
-            ! Process points in this contour (simplified approach - treat all as lines)
-            do i = contour_start + 1, contour_end
-                if (i <= size(x_coords)) then
-                    num_vertices = num_vertices + 1
-                    vertices(num_vertices) = ttf_vertex_t(x=x_coords(i), y=y_coords(i), &
-                                                        type=TTF_VERTEX_LINE)
+            ! STB logic: walk through points, handling on/off curve transitions
+            j = 1
+            do while (j <= m)
+                if (is_on_curve(j)) then
+                    ! On-curve point: move or line
+                    if (j == 1) then
+                        num_vertices = num_vertices + 1
+                        vertices(num_vertices) = ttf_vertex_t(x=px(j), y=py(j), type=TTF_VERTEX_MOVE)
+                    else
+                        num_vertices = num_vertices + 1
+                        vertices(num_vertices) = ttf_vertex_t(x=px(j), y=py(j), type=TTF_VERTEX_LINE)
+                    end if
+                    j = j + 1
+                else
+                    ! Off-curve point: quadratic curve
+                    k = j + 1
+                    if (k > m) k = 1
+                    if (is_on_curve(k)) then
+                        ! Next is on-curve: curve to it
+                        num_vertices = num_vertices + 1
+                        vertices(num_vertices) = ttf_vertex_t(x=px(k), y=py(k), cx=px(j), cy=py(j), type=TTF_VERTEX_CURVE)
+                        j = j + 2
+                    else
+                        ! Next is also off-curve: curve to midpoint
+                        qx = (px(j) + px(k)) / 2
+                        qy = (py(j) + py(k)) / 2
+                        num_vertices = num_vertices + 1
+                        vertices(num_vertices) = ttf_vertex_t(x=qx, y=qy, cx=px(j), cy=py(j), type=TTF_VERTEX_CURVE)
+                        j = j + 1
+                    end if
                 end if
             end do
+            deallocate(px, py, is_on_curve)
         end do
         
         ! Resize to actual number of vertices
@@ -359,7 +453,29 @@ contains
             deallocate(vertices)
             allocate(vertices(0))
         end if
-
+        ! Debug: print vertex types
+        print *, 'convert_coords_to_vertices: num_vertices=', num_vertices
+        do i = 1, min(num_vertices, 10)
+            print *, '  vertex', i, ': type=', vertices(i)%type, 'x=', vertices(i)%x, 'y=', vertices(i)%y, 'cx=', vertices(i)%cx, 'cy=', vertices(i)%cy
+        end do
     end subroutine convert_coords_to_vertices
+
+    subroutine append_vertices(vertices, num_vertices, new_vertices)
+        type(ttf_vertex_t), allocatable, intent(inout) :: vertices(:)
+        integer, intent(inout) :: num_vertices
+        type(ttf_vertex_t), intent(in) :: new_vertices(:)
+        integer :: old_n, new_n
+        old_n = num_vertices
+        new_n = size(new_vertices)
+        if (new_n == 0) return
+        if (old_n == 0) then
+            allocate(vertices(new_n))
+            vertices = new_vertices
+            num_vertices = new_n
+        else
+            vertices = [vertices, new_vertices]
+            num_vertices = old_n + new_n
+        end if
+    end subroutine append_vertices
 
 end module forttf_outline

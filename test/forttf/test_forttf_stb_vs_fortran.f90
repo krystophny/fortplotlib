@@ -113,6 +113,12 @@ contains
         end if
         
         num_vertices = stb_get_glyph_shape_pure(font_info, 36, vertices)
+        if (num_vertices <= 0 .or. .not. allocated(vertices)) then
+            write(*,*) 'WARNING: No vertices returned for glyph 36, skipping flattening test.'
+            call stb_cleanup_font_pure(font_info)
+            passed = .false.
+            return
+        end if
         
         ! Test Fortran curve flattening
         fortran_points = stb_flatten_curves(vertices, num_vertices, flatness, &
