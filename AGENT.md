@@ -35,9 +35,7 @@ call fig%savefig('output.png')  ! Auto-detects backend from extension
 
 ## Development Commands
 
-**⚠️ CRITICAL: ALWAYS USE MAKE FOR ALL DEVELOPMENT TASKS ⚠️**
-
-All development work must use the Makefile. Never run `fpm` commands directly.
+**⚠️ CRITICAL: ALWAYS USE fpm FOR ALL DEVELOPMENT TASKS ⚠️**
 
 **⚠️ SPELLING: It is "fpm" (Fortran Package Manager) - NEVER "fmp" ⚠️**
 
@@ -81,7 +79,7 @@ fpm run --example basic_plots
 
 ### FPM Automatic Discovery
 
-FPM automatically discovers all sources and resolves module dependencies when run via make:
+FPM automatically discovers all sources and resolves module dependencies when run via fpm:
 
 - **Sources**: All `.f90` files in `src/`, `example/`, `test/`, and `app/` are automatically found
 - **Dependencies**: Module dependencies are automatically resolved - no manual specification needed
@@ -138,7 +136,7 @@ grep -r "^module " src/
 **MANDATORY TDD WORKFLOW - NEVER DEVIATE:**
 
 1. **WRITE FAILING TEST FIRST** in `test/test_*.f90` - **ALWAYS START HERE**
-2. **RUN `make test`** to confirm the test fails (RED)
+2. **RUN `fpm test`** to confirm the test fails (RED)
 3. **Write minimal code** to make test pass (GREEN)
 4. **Refactor** while keeping tests green (REFACTOR)
 5. **Repeat RED-GREEN-REFACTOR** for next feature
