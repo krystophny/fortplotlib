@@ -263,6 +263,9 @@ contains
         ! Test Level 8: OS/2 Metrics (TDD)
         call test_os2_metrics_functions(stb_font, pure_font)
 
+        ! Test Level 9: Kerning Support (TDD)
+        call test_kerning_functions(stb_font, pure_font)
+
         ! Test additional STB functions (bitmap rendering, etc.)
         call test_stb_extended_functions(stb_font)
 
@@ -758,5 +761,102 @@ contains
         end if
 
     end subroutine test_os2_metrics_functions
+
+    subroutine test_kerning_functions(stb_font, pure_font)
+        !! Test Level 9: Kerning Support (TDD)
+        type(stb_fontinfo_t), intent(in) :: stb_font
+        type(stb_fontinfo_pure_t), intent(inout) :: pure_font
+        integer :: stb_kern_av, pure_kern_av
+        integer :: stb_glyph_kern, pure_glyph_kern
+        integer :: stb_table_length, pure_table_length
+        integer :: glyph_a, glyph_v
+        logical :: all_match
+
+        write(*,*) "  Testing kerning functions (TDD)..."
+
+        all_match = .true.
+
+        ! Test 1: Codepoint kerning advance A-V (common kerning pair)
+        stb_kern_av = stb_get_codepoint_kern_advance(stb_font, iachar('A'), iachar('V'))
+        pure_kern_av = stb_get_codepoint_kern_advance_pure(pure_font, iachar('A'), iachar('V'))
+
+        write(*,'(A,I0,A,I0,A)') "   Codepoint kerning A-V: STB=", stb_kern_av, &
+                                 ", Pure=", pure_kern_av
+        if (stb_kern_av /= pure_kern_av) then
+            write(*,*) "     ❌ Codepoint kerning A-V mismatch"
+            all_match = .false.
+        else
+            write(*,*) "     ✅ Codepoint kerning A-V matches"
+        end if
+
+        ! Test 2: Get glyph indices for A and V and test glyph kerning
+        glyph_a = stb_find_glyph_index(stb_font, iachar('A'))
+        glyph_v = stb_find_glyph_index(stb_font, iachar('V'))
+
+        if (glyph_a > 0 .and. glyph_v > 0) then
+            stb_glyph_kern = stb_get_glyph_kern_advance(stb_font, glyph_a, glyph_v)
+            pure_glyph_kern = stb_get_glyph_kern_advance_pure(pure_font, glyph_a, glyph_v)
+
+            write(*,'(A,I0,A,I0,A)') "   Glyph kerning A-V: STB=", stb_glyph_kern, &
+                                     ", Pure=", pure_glyph_kern
+            if (stb_glyph_kern /= pure_glyph_kern) then
+                write(*,*) "     ❌ Glyph kerning A-V mismatch"
+                all_match = .false.
+            else
+                write(*,*) "     ✅ Glyph kerning A-V matches"
+            end if
+        else
+            write(*,*) "     ⚠ Skipping glyph kerning test (no glyphs found for A or V)"
+        end if
+
+        ! Test 3: Kerning table length
+        stb_table_length = stb_get_kerning_table_length(stb_font)
+        pure_table_length = stb_get_kerning_table_length_pure(pure_font)
+
+        write(*,'(A,I0,A,I0,A)') "   Kerning table length: STB=", stb_table_length, &
+                                 ", Pure=", pure_table_length
+        if (stb_table_length /= pure_table_length) then
+            write(*,*) "     ❌ Kerning table length mismatch"
+            all_match = .false.
+        else
+            write(*,*) "     ✅ Kerning table length matches"
+        end if
+
+        ! Test 4: Test a few more character pairs for comprehensive coverage
+        ! Test common kerning pairs: A-W, T-o, V-A, etc.
+        call test_kerning_pair(stb_font, pure_font, iachar('A'), iachar('W'), 'A-W', all_match)
+        call test_kerning_pair(stb_font, pure_font, iachar('T'), iachar('o'), 'T-o', all_match)
+        call test_kerning_pair(stb_font, pure_font, iachar('V'), iachar('A'), 'V-A', all_match)
+
+        if (all_match) then
+            write(*,*) "  ✅ All kerning functions match"
+        else
+            write(*,*) "  ❌ Kerning functions failed"
+        end if
+
+    end subroutine test_kerning_functions
+
+    subroutine test_kerning_pair(stb_font, pure_font, ch1, ch2, pair_name, all_match)
+        !! Helper to test a single kerning pair
+        type(stb_fontinfo_t), intent(in) :: stb_font
+        type(stb_fontinfo_pure_t), intent(inout) :: pure_font
+        integer, intent(in) :: ch1, ch2
+        character(len=*), intent(in) :: pair_name
+        logical, intent(inout) :: all_match
+        integer :: stb_kern, pure_kern
+
+        stb_kern = stb_get_codepoint_kern_advance(stb_font, ch1, ch2)
+        pure_kern = stb_get_codepoint_kern_advance_pure(pure_font, ch1, ch2)
+
+        write(*,'(A,A,A,I0,A,I0,A)') "   Kerning ", pair_name, ": STB=", stb_kern, &
+                                     ", Pure=", pure_kern
+        if (stb_kern /= pure_kern) then
+            write(*,'(A,A,A)') "     ❌ Kerning ", pair_name, " mismatch"
+            all_match = .false.
+        else
+            write(*,'(A,A,A)') "     ✅ Kerning ", pair_name, " matches"
+        end if
+
+    end subroutine test_kerning_pair
 
 end program test_stb_comparison

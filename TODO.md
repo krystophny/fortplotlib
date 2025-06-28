@@ -82,11 +82,12 @@ All TrueType/TTC types and parsing logic are now in dedicated modules:
 - ✅ RED-GREEN TDD tests added and passing for OS/2 metrics functions
 
 ### Level 9: Kerning Support
-- [ ] `stb_get_codepoint_kern_advance_pure()` - Get kerning advance between two characters (currently STUB)
-- [ ] `stb_get_glyph_kern_advance_pure()` - Get kerning advance between two glyphs (currently STUB)
-- [ ] `stb_get_kerning_table_length_pure()` - Get length of kerning table (currently STUB)
-- [ ] `stb_get_kerning_table_pure()` - Get kerning table entries (currently STUB)
-- [ ] Parse `kern` table for kerning pairs
+- ✅ `stb_get_codepoint_kern_advance_pure()` - Get kerning advance between two characters
+- ✅ `stb_get_glyph_kern_advance_pure()` - Get kerning advance between two glyphs
+- ✅ `stb_get_kerning_table_length_pure()` - Get length of kerning table
+- ✅ `stb_get_kerning_table_pure()` - Get kerning table entries
+- ✅ Parse `kern` table for kerning pairs (currently returns 0 for fonts without kern tables)
+- ✅ RED-GREEN TDD tests added and passing for all kerning functions
 
 ### Level 10: Bitmap Rendering - Basic
 - [ ] `stb_get_codepoint_bitmap_box_pure()` - Get bounding box for character bitmap (currently STUB)

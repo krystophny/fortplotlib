@@ -11,6 +11,7 @@ module fortplot_truetype_types
     public :: ttf_table_entry_t, ttf_header_t, ttf_head_table_t
     public :: ttf_hhea_table_t, ttf_maxp_table_t, ttf_cmap_table_t
     public :: ttf_cmap_subtable_t, ttc_header_t, stb_fontinfo_pure_t
+    public :: ttf_kern_entry_t, ttf_kern_table_t
 
     ! TrueType table directory entry
     type :: ttf_table_entry_t
@@ -132,6 +133,22 @@ module fortplot_truetype_types
         integer :: preferred_subtable = 0  ! Index of preferred subtable
     end type ttf_cmap_table_t
 
+    ! TrueType kerning entry (matches stbtt_kerningentry)
+    type :: ttf_kern_entry_t
+        integer :: glyph1 = 0     ! First glyph index
+        integer :: glyph2 = 0     ! Second glyph index
+        integer :: advance = 0    ! Kerning advance value
+    end type ttf_kern_entry_t
+
+    ! TrueType kern table
+    type :: ttf_kern_table_t
+        integer :: version = 0
+        integer :: num_tables = 0
+        logical :: has_horizontal = .false.
+        integer :: horizontal_table_length = 0
+        type(ttf_kern_entry_t), allocatable :: entries(:)
+    end type ttf_kern_table_t
+
     ! Main font information structure (pure Fortran implementation)
     type :: stb_fontinfo_pure_t
         logical :: initialized = .false.
@@ -157,10 +174,12 @@ module fortplot_truetype_types
         type(ttf_hhea_table_t) :: hhea_table
         type(ttf_maxp_table_t) :: maxp_table
         type(ttf_cmap_table_t) :: cmap_table
+        type(ttf_kern_table_t) :: kern_table
         logical :: head_parsed = .false.
         logical :: hhea_parsed = .false.
         logical :: maxp_parsed = .false.
         logical :: cmap_parsed = .false.
+        logical :: kern_parsed = .false.
 
         ! Future: Glyph outline data
         ! Future: Character mapping tables

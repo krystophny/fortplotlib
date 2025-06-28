@@ -16,6 +16,7 @@ module fortplot_truetype_parser
     public :: ttf_table_entry_t, ttf_header_t, ttf_head_table_t
     public :: ttf_hhea_table_t, ttf_maxp_table_t, ttf_cmap_table_t
     public :: ttf_cmap_subtable_t, ttc_header_t, stb_fontinfo_pure_t
+    public :: ttf_kern_entry_t, ttf_kern_table_t
 
     ! Public functions
     public :: read_truetype_file, parse_ttf_header, parse_table_directory
@@ -23,6 +24,7 @@ module fortplot_truetype_parser
     public :: has_table, find_table
     public :: is_ttc_file, parse_ttc_header, get_ttc_font_offset
     public :: read_be_uint32, read_be_uint16, read_be_int16, read_tag
+    public :: parse_kern_table, find_kerning_advance
 
 contains
 
@@ -358,5 +360,131 @@ contains
               achar(data(offset+2)) // achar(data(offset+3))
 
     end function read_tag
+
+    function parse_kern_table(data, kern_offset, kern_length, kern_table) &
+             result(success)
+        !! Parse kern table for kerning pairs
+        integer(c_int8_t), intent(in) :: data(:)
+        integer, intent(in) :: kern_offset, kern_length
+        type(ttf_kern_table_t), intent(out) :: kern_table
+        logical :: success
+        integer :: offset, num_tables, coverage, subtable_length, num_pairs, i
+        integer :: data_size
+
+        success = .false.
+        data_size = size(data)
+
+        if (kern_offset <= 0 .or. kern_length < 4) then
+            return
+        end if
+
+        ! Check bounds
+        if (kern_offset > data_size .or. kern_offset + kern_length > data_size) then
+            return
+        end if
+
+        offset = kern_offset  ! kern_offset is already 1-based
+
+        ! Parse kern table header
+        if (offset + 1 > data_size) return
+        kern_table%version = read_be_uint16(data, offset)
+        offset = offset + 2
+
+        if (offset + 1 > data_size) return
+        kern_table%num_tables = read_be_uint16(data, offset)
+        offset = offset + 2
+
+        ! We only handle the first subtable if it's horizontal and format 0
+        if (kern_table%num_tables < 1) then
+            return
+        end if
+
+        ! Read first subtable header
+        if (offset + 1 > data_size) return
+        subtable_length = read_be_uint16(data, offset)
+        offset = offset + 2
+
+        if (offset + 1 > data_size) return
+        coverage = read_be_uint16(data, offset)
+        offset = offset + 2
+
+        ! Check if it's horizontal kerning (bit 0 set) and format 0 (bits 8-15 = 0)
+        if (iand(coverage, 1) == 0 .or. iand(coverage, ishft(255, 8)) /= 0) then
+            ! Not horizontal or not format 0
+            return
+        end if
+
+        kern_table%has_horizontal = .true.
+
+        ! Read number of kerning pairs
+        if (offset + 1 > data_size) return
+        num_pairs = read_be_uint16(data, offset)
+        offset = offset + 2
+
+        kern_table%horizontal_table_length = num_pairs
+
+        ! Skip search range, entry selector, range shift
+        offset = offset + 6
+
+        ! Allocate and read kerning pairs
+        if (num_pairs > 0) then
+            ! Check bounds for all entries
+            if (offset + num_pairs * 6 - 1 > data_size) then
+                return
+            end if
+
+            allocate(kern_table%entries(num_pairs))
+
+            do i = 1, num_pairs
+                if (offset + 5 > data_size) exit
+                kern_table%entries(i)%glyph1 = read_be_uint16(data, offset)
+                offset = offset + 2
+                kern_table%entries(i)%glyph2 = read_be_uint16(data, offset)
+                offset = offset + 2
+                kern_table%entries(i)%advance = read_be_int16(data, offset)
+                offset = offset + 2
+            end do
+        end if
+
+        success = .true.
+
+    end function parse_kern_table
+
+    function find_kerning_advance(kern_table, glyph1, glyph2) result(advance)
+        !! Find kerning advance between two glyphs using binary search
+        type(ttf_kern_table_t), intent(in) :: kern_table
+        integer, intent(in) :: glyph1, glyph2
+        integer :: advance
+        integer :: left, right, mid, needle, straw
+
+        advance = 0
+
+        if (.not. kern_table%has_horizontal .or. &
+            .not. allocated(kern_table%entries) .or. &
+            size(kern_table%entries) == 0) then
+            return
+        end if
+
+        ! Binary search - kern table is sorted by glyph1 << 16 | glyph2
+        needle = ishft(glyph1, 16) + glyph2
+        left = 1
+        right = size(kern_table%entries)
+
+        do while (left <= right)
+            mid = (left + right) / 2
+            straw = ishft(kern_table%entries(mid)%glyph1, 16) + &
+                   kern_table%entries(mid)%glyph2
+
+            if (needle < straw) then
+                right = mid - 1
+            else if (needle > straw) then
+                left = mid + 1
+            else
+                advance = kern_table%entries(mid)%advance
+                return
+            end if
+        end do
+
+    end function find_kerning_advance
 
 end module fortplot_truetype_parser
