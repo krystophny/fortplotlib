@@ -104,11 +104,20 @@ contains
         end if
         
         if (pure_success) then
+            ! Test that metrics match STB implementation
+            if (stb_success .and. &
+                pure_ascent == stb_ascent .and. &
+                pure_descent == stb_descent .and. &
+                pure_line_gap == stb_line_gap) then
+                write(*,*) "  ✓ Pure metrics match STB - implementation correct"
+            else
+                write(*,*) "  ✗ Pure metrics don't match STB - needs font table parsing"
+                failed_tests = failed_tests + 1
+            end if
             call stb_cleanup_font_pure(pure_font)
-            write(*,*) "  ⚠ Pure implementation unexpectedly succeeded"
-            failed_tests = failed_tests + 1
         else
-            write(*,*) "  ✓ Pure implementation failed as expected (stub)"
+            write(*,*) "  ✗ Pure implementation failed - needs implementation"
+            failed_tests = failed_tests + 1
         end if
         
         write(*,*) "  ✓ Basic comparison test completed"
