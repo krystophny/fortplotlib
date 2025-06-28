@@ -623,7 +623,7 @@ contains
 
     subroutine rasterize_vertices(vertices, num_vertices, bitmap_array, width, height, &
                                  scale_x, scale_y, shift_x, shift_y, xoff, yoff)
-        !! Rasterize vertex outline into bitmap using simple filling algorithm
+        !! Rasterize vertex outline into bitmap using actual vertex coordinates
         type(ttf_vertex_t), intent(in) :: vertices(:)
         integer, intent(in) :: num_vertices
         integer(c_int8_t), intent(inout) :: bitmap_array(:)
@@ -631,34 +631,89 @@ contains
         real(wp), intent(in) :: scale_x, scale_y, shift_x, shift_y
         integer, intent(in) :: xoff, yoff
         
-        integer :: i, j, pixel_idx
-        real(wp) :: cx, cy, radius
+        integer :: i, j, k, pixel_idx
+        real(wp) :: x_scaled, y_scaled
+        integer :: x_bitmap, y_bitmap
+        integer :: min_x, max_x, min_y, max_y
         
-        ! Simple approach: Create a filled shape centered in the bitmap
-        ! This is a placeholder until proper scanline rasterization is implemented
-        
-        if (num_vertices > 0) then
-            ! Use center of bitmap for simple filled shape
-            cx = real(width, wp) * 0.5_wp
-            cy = real(height, wp) * 0.5_wp
-            
-            ! Use 1/3 of smallest dimension as radius for filled shape
-            radius = min(real(width, wp), real(height, wp)) * 0.33_wp
-            
-            ! Fill bitmap with simple circular shape centered in bitmap
-            do j = 0, height - 1
-                do i = 0, width - 1
-                    pixel_idx = j * width + i + 1
-                    
-                    if (distance_to_center(real(i, wp), real(j, wp), cx, cy) <= radius) then
-                        bitmap_array(pixel_idx) = 127_c_int8_t  ! Solid pixel
-                    end if
-                end do
-            end do
-        else
-            ! No vertices, create fallback
+        if (num_vertices <= 0) then
             call create_fallback_bitmap(bitmap_array, width, height)
+            return
         end if
+        
+        ! Calculate bounding box of scaled vertices
+        min_x = width
+        max_x = 0
+        min_y = height  
+        max_y = 0
+        
+        do i = 1, num_vertices
+            ! Scale vertex coordinates to bitmap space
+            x_scaled = real(vertices(i)%x, wp) * scale_x + shift_x - real(xoff, wp)
+            y_scaled = real(-vertices(i)%y, wp) * scale_y + shift_y - real(yoff, wp)  ! Flip Y
+            
+            x_bitmap = int(x_scaled)
+            y_bitmap = int(y_scaled)
+            
+            ! Track bounding box
+            if (x_bitmap >= 0 .and. x_bitmap < width) then
+                min_x = min(min_x, x_bitmap)
+                max_x = max(max_x, x_bitmap)
+            end if
+            if (y_bitmap >= 0 .and. y_bitmap < height) then
+                min_y = min(min_y, y_bitmap)
+                max_y = max(max_y, y_bitmap)
+            end if
+        end do
+        
+        ! If no vertices are in bounds, create fallback
+        if (min_x >= width .or. max_x < 0 .or. min_y >= height .or. max_y < 0) then
+            call create_fallback_bitmap(bitmap_array, width, height)
+            return
+        end if
+        
+        ! Simple rasterization: fill a shape based on vertex bounding box
+        do j = max(0, min_y), min(height - 1, max_y)
+            do i = max(0, min_x), min(width - 1, max_x)
+                pixel_idx = j * width + i + 1
+                
+                ! Simple filled shape - fill pixels within bounding box
+                bitmap_array(pixel_idx) = 127_c_int8_t  ! Solid pixel
+            end do
+        end do
+        
+        ! Also draw vertex points for debugging
+        do k = 1, num_vertices
+            x_scaled = real(vertices(k)%x, wp) * scale_x + shift_x - real(xoff, wp)
+            y_scaled = real(-vertices(k)%y, wp) * scale_y + shift_y - real(yoff, wp)  ! Flip Y
+            
+            x_bitmap = int(x_scaled)
+            y_bitmap = int(y_scaled)
+            
+            ! Draw a small cross at each vertex point
+            if (x_bitmap >= 0 .and. x_bitmap < width .and. y_bitmap >= 0 .and. y_bitmap < height) then
+                pixel_idx = y_bitmap * width + x_bitmap + 1
+                bitmap_array(pixel_idx) = 127_c_int8_t  ! Mark vertex
+                
+                ! Draw surrounding pixels
+                if (x_bitmap > 0) then
+                    pixel_idx = y_bitmap * width + (x_bitmap - 1) + 1
+                    bitmap_array(pixel_idx) = 127_c_int8_t
+                end if
+                if (x_bitmap < width - 1) then
+                    pixel_idx = y_bitmap * width + (x_bitmap + 1) + 1
+                    bitmap_array(pixel_idx) = 127_c_int8_t
+                end if
+                if (y_bitmap > 0) then
+                    pixel_idx = (y_bitmap - 1) * width + x_bitmap + 1
+                    bitmap_array(pixel_idx) = 127_c_int8_t
+                end if
+                if (y_bitmap < height - 1) then
+                    pixel_idx = (y_bitmap + 1) * width + x_bitmap + 1
+                    bitmap_array(pixel_idx) = 127_c_int8_t
+                end if
+            end if
+        end do
 
     end subroutine rasterize_vertices
 
