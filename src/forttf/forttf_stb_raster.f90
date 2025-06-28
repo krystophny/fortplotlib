@@ -26,6 +26,7 @@ module forttf_stb_raster
     public :: stb_fill_active_edges
     public :: stb_fill_active_edges_with_offset
     public :: stb_rasterize
+    public :: stbtt_rasterize
     public :: stb_rasterize_sorted_edges
     ! Area calculation functions for anti-aliasing
     public :: stb_sized_trapezoid_area
@@ -671,81 +672,137 @@ contains
         
     end subroutine stb_fill_active_edges_with_offset
 
-    subroutine stb_rasterize(bitmap_ptr, width, height, stride, &
-                           points, contour_lengths, num_contours, &
-                           scale_x, scale_y, shift_x, shift_y, xoff, yoff, invert)
-        !! Main rasterization function (matches stbtt__rasterize_sorted_edges)
-        type(c_ptr), intent(in) :: bitmap_ptr
-        integer, intent(in) :: width, height, stride
+    subroutine stb_rasterize(result, points, contour_lengths, num_contours, &
+                           scale_x, scale_y, shift_x, shift_y, off_x, off_y, invert, userdata)
+        !! Main rasterization function (matches stbtt__rasterize exactly)
+        type(stb_bitmap_t), intent(inout) :: result
         type(stb_point_t), intent(in) :: points(:)
         integer, intent(in) :: contour_lengths(:), num_contours
         real(wp), intent(in) :: scale_x, scale_y, shift_x, shift_y
-        integer, intent(in) :: xoff
-        integer, intent(in) :: yoff ! Unused in current implementation
+        integer, intent(in) :: off_x, off_y
         logical, intent(in) :: invert
-
-        type(stb_edge_t), allocatable :: edges(:)
-        integer :: num_edges, y, edge_idx
-        type(stb_active_edge_t), target :: active_head
-        type(stb_active_edge_t), pointer :: new_edge_ptr
-        real(wp), allocatable :: scanline_buffer(:)
-        real(wp), allocatable :: scanline_fill_buffer(:)
-        integer(c_int8_t), pointer :: bitmap_array(:,:)
-        integer :: i, pixel_val
-
-        ! Build and sort edges
-        edges = stb_build_edges(points, contour_lengths, num_contours, &
-                                scale_x, scale_y, shift_x, shift_y, invert)
-        num_edges = size(edges)
-        if (num_edges == 0) return
-        call stb_sort_edges(edges, num_edges)
-
-        ! Initialize active edge list (dummy head)
-        active_head = stb_active_edge_t(next=null())
+        type(c_ptr), intent(in) :: userdata
         
-        allocate(scanline_buffer(width))
-        call c_f_pointer(bitmap_ptr, bitmap_array, [stride, height])
-
-        edge_idx = 1
-        do y = 0, height - 1
-            scanline_buffer = 0.0_wp
-            
-            ! Add new edges that start on this scanline
-            do while (edge_idx <= num_edges .and. edges(edge_idx)%y0 <= real(y, wp) + 0.5_wp)
-                if (edges(edge_idx)%y1 > real(y, wp) + 0.5_wp) then
-                    allocate(new_edge_ptr)
-                    new_edge_ptr = stb_new_active_edge(edges(edge_idx), xoff, real(y, wp) + 0.5_wp)
-                    call stb_insert_active_edge(active_head, new_edge_ptr)
+        real(wp) :: y_scale_inv
+        type(stb_edge_t), allocatable :: edges(:)
+        integer :: n, i, j, k, m, winding_idx, vsubsample
+        integer :: edge_count, point_idx
+        integer :: a, b
+        
+        ! STB: float y_scale_inv = invert ? -scale_y : scale_y;
+        y_scale_inv = merge(-scale_y, scale_y, invert)
+        
+        ! STB: int vsubsample = 1; (STBTT_RASTERIZER_VERSION == 2)
+        vsubsample = 1
+        
+        ! Count total edges needed (skip horizontal edges)
+        n = 0
+        point_idx = 1
+        do i = 1, num_contours
+            do k = 1, contour_lengths(i)
+                j = merge(contour_lengths(i), k - 1, k == 1)
+                ! Skip horizontal edges
+                if (points(point_idx + j - 1)%y /= points(point_idx + k - 1)%y) then
+                    n = n + 1
                 end if
-                edge_idx = edge_idx + 1
             end do
-
-            ! Fill scanline from active edges
-            if (associated(active_head%next)) then
-                call stb_fill_active_edges(active_head%next, real(y, wp) + 0.5_wp, width, scanline_buffer, scanline_fill_buffer)
-            end if
-
-            ! Write scanline to bitmap
-            do i = 1, width
-                pixel_val = int(abs(scanline_buffer(i)) * 255.0_wp)
-                bitmap_array(i, y + 1) = min(255, pixel_val)
+            point_idx = point_idx + contour_lengths(i)
+        end do
+        
+        if (n == 0) return
+        
+        ! Allocate edge array
+        allocate(edges(n))
+        edge_count = 0
+        
+        ! Build edges from contours (matches STB exactly)
+        point_idx = 1
+        do i = 1, num_contours
+            do k = 1, contour_lengths(i)
+                j = merge(contour_lengths(i), k - 1, k == 1)
+                
+                ! Skip horizontal edges
+                if (points(point_idx + j - 1)%y == points(point_idx + k - 1)%y) then
+                    cycle
+                end if
+                
+                edge_count = edge_count + 1
+                
+                ! Determine edge direction
+                edges(edge_count)%invert = 0
+                if (invert) then
+                    if (points(point_idx + j - 1)%y > points(point_idx + k - 1)%y) then
+                        edges(edge_count)%invert = 1
+                        a = j
+                        b = k
+                    else
+                        a = k
+                        b = j
+                    end if
+                else
+                    if (points(point_idx + j - 1)%y < points(point_idx + k - 1)%y) then
+                        edges(edge_count)%invert = 1
+                        a = j
+                        b = k
+                    else
+                        a = k
+                        b = j
+                    end if
+                end if
+                
+                ! Set edge coordinates with STB scaling
+                edges(edge_count)%x0 = points(point_idx + a - 1)%x * scale_x + shift_x
+                edges(edge_count)%y0 = (points(point_idx + a - 1)%y * y_scale_inv + shift_y) * real(vsubsample, wp)
+                edges(edge_count)%x1 = points(point_idx + b - 1)%x * scale_x + shift_x
+                edges(edge_count)%y1 = (points(point_idx + b - 1)%y * y_scale_inv + shift_y) * real(vsubsample, wp)
             end do
-
-            ! Update active edges for next scanline
-            call stb_update_active_edges(active_head, 1.0_wp)
-            call stb_remove_completed_edges(active_head, real(y, wp) + 1.5_wp)
+            point_idx = point_idx + contour_lengths(i)
         end do
-
-        deallocate(edges, scanline_buffer, scanline_fill_buffer)
-        ! Deallocate active edge list
-        new_edge_ptr => active_head%next
-        do while(associated(new_edge_ptr))
-            active_head%next => new_edge_ptr%next
-            deallocate(new_edge_ptr)
-            new_edge_ptr => active_head%next
-        end do
-
+        
+        ! Sort edges by highest point
+        call stb_sort_edges(edges, edge_count)
+        
+        ! Rasterize sorted edges
+        call stb_rasterize_sorted_edges(result, edges, edge_count, vsubsample, off_x, off_y, userdata)
+        
+        deallocate(edges)
+        
     end subroutine stb_rasterize
+
+    subroutine stbtt_rasterize(result, flatness_in_pixels, vertices, num_verts, &
+                              scale_x, scale_y, shift_x, shift_y, x_off, y_off, invert, userdata)
+        !! Main rasterization entry point (matches stbtt_Rasterize exactly)
+        type(stb_bitmap_t), intent(inout) :: result
+        real(wp), intent(in) :: flatness_in_pixels
+        type(ttf_vertex_t), intent(in) :: vertices(:)
+        integer, intent(in) :: num_verts
+        real(wp), intent(in) :: scale_x, scale_y, shift_x, shift_y
+        integer, intent(in) :: x_off, y_off
+        logical, intent(in) :: invert
+        type(c_ptr), intent(in) :: userdata
+        
+        real(wp) :: scale, objspace_flatness
+        type(stb_point_t), allocatable :: windings(:)
+        integer, allocatable :: winding_lengths(:)
+        integer :: winding_count
+        
+        ! STB: float scale = scale_x > scale_y ? scale_y : scale_x;
+        scale = min(scale_x, scale_y)
+        
+        ! Calculate objspace flatness
+        objspace_flatness = flatness_in_pixels / scale
+        
+        ! Flatten curves
+        windings = stb_flatten_curves(vertices, num_verts, objspace_flatness, &
+                                     winding_lengths, winding_count)
+        
+        if (allocated(windings)) then
+            call stb_rasterize(result, windings, winding_lengths, winding_count, &
+                              scale_x, scale_y, shift_x, shift_y, x_off, y_off, invert, userdata)
+            deallocate(winding_lengths, windings)
+        end if
+        
+    end subroutine stbtt_rasterize
 
     subroutine stb_rasterize_sorted_edges(result, e, n, vsubsample, off_x, off_y, userdata)
         type(stb_bitmap_t), intent(inout) :: result
@@ -772,6 +829,9 @@ contains
         allocate(scanline_buffer(result%w))
         allocate(scanline_fill_buffer(result%w + 1))
 
+        ! Clear bitmap to background (matches STB)
+        result%pixels = 0_c_int8_t
+        
         ! Associate bitmap_array with result%pixels
         call c_f_pointer(c_loc(result%pixels(1)), bitmap_array, [result%w * result%h])
 

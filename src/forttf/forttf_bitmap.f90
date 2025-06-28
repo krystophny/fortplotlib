@@ -623,8 +623,8 @@ contains
 
     subroutine rasterize_vertices(vertices, num_vertices, bitmap_array, width, height, &
                                  scale_x, scale_y, shift_x, shift_y, xoff, yoff)
-        !! Rasterize vertex outline using STB-compatible scanline algorithm for pixel-perfect matching
-        use forttf_stb_raster, only: stb_flatten_curves, stb_build_edges, stb_sort_edges, stb_rasterize_sorted_edges
+        !! Rasterize vertex outline using exact STB pipeline for pixel-perfect matching
+        use forttf_stb_raster, only: stbtt_rasterize
         type(ttf_vertex_t), intent(in) :: vertices(:)
         integer, intent(in) :: num_vertices
         integer(c_int8_t), intent(inout), target :: bitmap_array(:)
@@ -632,50 +632,23 @@ contains
         real(wp), intent(in) :: scale_x, scale_y, shift_x, shift_y
         integer, intent(in) :: xoff, yoff
         
-        type(stb_point_t), allocatable :: points(:)
-        type(stb_edge_t), allocatable :: edges(:)
         type(stb_bitmap_t) :: bitmap
-        integer, allocatable :: contour_lengths(:)
-        integer :: num_contours, num_edges
-        real(wp), parameter :: objspace_flatness = 0.35_wp  ! STB default
+        real(wp), parameter :: flatness_in_pixels = 0.35_wp  ! STB default
         
         if (num_vertices <= 0) then
             call create_fallback_bitmap(bitmap_array, width, height)
             return
         end if
         
-        ! Step 1: Flatten curves to points (STB algorithm)
-        points = stb_flatten_curves(vertices, num_vertices, objspace_flatness, contour_lengths, num_contours)
+        ! Set up STB bitmap structure
+        bitmap%w = width
+        bitmap%h = height
+        bitmap%stride = width
+        bitmap%pixels => bitmap_array
         
-        if (size(points) == 0) then
-            ! No points - fallback
-            call rasterize_vertices_simple(vertices, num_vertices, bitmap_array, width, height, &
-                                          scale_x, scale_y, shift_x, shift_y, xoff, yoff)
-            return
-        end if
-        
-        ! Step 2: Build edges from flattened points
-        edges = stb_build_edges(points, contour_lengths, num_contours, &
-                               scale_x, scale_y, shift_x, shift_y, .false.)
-        num_edges = size(edges)
-        
-        if (num_edges > 0) then
-            ! Step 3: Sort edges
-            call stb_sort_edges(edges, num_edges)
-            
-            ! Step 4: Set up STB bitmap structure
-            bitmap%w = width
-            bitmap%h = height
-            bitmap%stride = width
-            bitmap%pixels => bitmap_array
-            
-            ! Step 5: Use STB-compatible rasterization with anti-aliasing
-            call stb_rasterize_sorted_edges(bitmap, edges, num_edges, 1, int(xoff), int(yoff), c_null_ptr)
-        else
-            ! Fallback to simple rasterization if no edges
-            call rasterize_vertices_simple(vertices, num_vertices, bitmap_array, width, height, &
-                                          scale_x, scale_y, shift_x, shift_y, xoff, yoff)
-        end if
+        ! Use exact STB rasterization pipeline (matches stbtt_Rasterize)
+        call stbtt_rasterize(bitmap, flatness_in_pixels, vertices, num_vertices, &
+                            scale_x, scale_y, shift_x, shift_y, xoff, yoff, .true., c_null_ptr)
 
     end subroutine rasterize_vertices
     
