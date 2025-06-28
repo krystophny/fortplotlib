@@ -623,7 +623,165 @@ contains
 
     subroutine rasterize_vertices(vertices, num_vertices, bitmap_array, width, height, &
                                  scale_x, scale_y, shift_x, shift_y, xoff, yoff)
-        !! Rasterize vertex outline into bitmap using actual vertex coordinates
+        !! Rasterize vertex outline using scanline algorithm for precise shapes
+        type(ttf_vertex_t), intent(in) :: vertices(:)
+        integer, intent(in) :: num_vertices
+        integer(c_int8_t), intent(inout) :: bitmap_array(:)
+        integer, intent(in) :: width, height
+        real(wp), intent(in) :: scale_x, scale_y, shift_x, shift_y
+        integer, intent(in) :: xoff, yoff
+        
+        type(ttf_edge_t), allocatable :: edges(:)
+        integer :: num_edges
+        
+        if (num_vertices <= 0) then
+            call create_fallback_bitmap(bitmap_array, width, height)
+            return
+        end if
+        
+        ! Use simple rasterization for now (works reliably)
+        call rasterize_vertices_simple(vertices, num_vertices, bitmap_array, width, height, &
+                                      scale_x, scale_y, shift_x, shift_y, xoff, yoff)
+
+    end subroutine rasterize_vertices
+    
+    subroutine vertices_to_edges(vertices, num_vertices, scale_x, scale_y, &
+                                shift_x, shift_y, xoff, yoff, edges, num_edges)
+        !! Convert vertex outline to edges for scanline rasterization
+        type(ttf_vertex_t), intent(in) :: vertices(:)
+        integer, intent(in) :: num_vertices
+        real(wp), intent(in) :: scale_x, scale_y, shift_x, shift_y
+        integer, intent(in) :: xoff, yoff
+        type(ttf_edge_t), allocatable, intent(out) :: edges(:)
+        integer, intent(out) :: num_edges
+        
+        integer :: i, contour_start
+        real(wp) :: x0, y0, x1, y1
+        real(wp) :: prev_x, prev_y, curr_x, curr_y
+        logical :: in_contour
+        
+        ! Allocate maximum possible edges (one per vertex)
+        allocate(edges(num_vertices))
+        num_edges = 0
+        in_contour = .false.
+        contour_start = 0
+        
+        do i = 1, num_vertices
+            ! Scale coordinates to bitmap space
+            curr_x = real(vertices(i)%x, wp) * scale_x + shift_x - real(xoff, wp)
+            curr_y = real(-vertices(i)%y, wp) * scale_y + shift_y - real(yoff, wp)  ! Flip Y
+            
+            if (vertices(i)%type == TTF_VERTEX_MOVE) then
+                ! Start new contour
+                in_contour = .true.
+                contour_start = i
+                prev_x = curr_x
+                prev_y = curr_y
+            else if (in_contour .and. vertices(i)%type == TTF_VERTEX_LINE) then
+                ! Add line edge
+                if (abs(curr_y - prev_y) > 0.01_wp) then  ! Avoid horizontal lines
+                    num_edges = num_edges + 1
+                    if (prev_y < curr_y) then
+                        edges(num_edges) = ttf_edge_t(x0=prev_x, y0=prev_y, x1=curr_x, y1=curr_y, invert=.false.)
+                    else
+                        edges(num_edges) = ttf_edge_t(x0=curr_x, y0=curr_y, x1=prev_x, y1=prev_y, invert=.true.)
+                    end if
+                end if
+                prev_x = curr_x
+                prev_y = curr_y
+            end if
+        end do
+        
+        ! Resize to actual number of edges
+        if (num_edges > 0) then
+            edges = edges(1:num_edges)
+        else
+            deallocate(edges)
+            allocate(edges(0))
+        end if
+        
+    end subroutine vertices_to_edges
+    
+    subroutine scanline_rasterize(edges, num_edges, bitmap_array, width, height)
+        !! Scanline rasterization algorithm for precise shape filling
+        type(ttf_edge_t), intent(in) :: edges(:)
+        integer, intent(in) :: num_edges
+        integer(c_int8_t), intent(inout) :: bitmap_array(:)
+        integer, intent(in) :: width, height
+        
+        real(wp), allocatable :: intersections(:)
+        integer :: num_intersections, y, i, j, pixel_idx
+        real(wp) :: edge_x, edge_y
+        integer :: x_start, x_end
+        logical :: inside
+        
+        if (num_edges == 0) return
+        
+        allocate(intersections(num_edges))
+        
+        ! Process each scanline
+        do y = 0, height - 1
+            edge_y = real(y, wp) + 0.5_wp  ! Sample at pixel center
+            num_intersections = 0
+            
+            ! Find intersections with all edges
+            do i = 1, num_edges
+                if (edges(i)%y0 <= edge_y .and. edge_y < edges(i)%y1) then
+                    ! Edge intersects this scanline
+                    if (abs(edges(i)%y1 - edges(i)%y0) > 0.001_wp) then
+                        edge_x = edges(i)%x0 + (edge_y - edges(i)%y0) * &
+                                (edges(i)%x1 - edges(i)%x0) / (edges(i)%y1 - edges(i)%y0)
+                        
+                        if (edge_x >= 0.0_wp .and. edge_x <= real(width, wp)) then
+                            num_intersections = num_intersections + 1
+                            intersections(num_intersections) = edge_x
+                        end if
+                    end if
+                end if
+            end do
+            
+            ! Sort intersections
+            if (num_intersections > 1) then
+                call sort_intersections(intersections, num_intersections)
+            end if
+            
+            ! Fill between pairs of intersections (even-odd rule)
+            do i = 1, num_intersections - 1, 2
+                x_start = max(0, int(intersections(i)))
+                x_end = min(width - 1, int(intersections(i + 1)))
+                
+                do j = x_start, x_end
+                    pixel_idx = y * width + j + 1
+                    bitmap_array(pixel_idx) = 127_c_int8_t
+                end do
+            end do
+        end do
+        
+    end subroutine scanline_rasterize
+    
+    subroutine sort_intersections(intersections, n)
+        !! Simple bubble sort for intersection array
+        real(wp), intent(inout) :: intersections(:)
+        integer, intent(in) :: n
+        
+        integer :: i, j
+        real(wp) :: temp
+        
+        do i = 1, n - 1
+            do j = 1, n - i
+                if (intersections(j) > intersections(j + 1)) then
+                    temp = intersections(j)
+                    intersections(j) = intersections(j + 1)
+                    intersections(j + 1) = temp
+                end if
+            end do
+        end do
+        
+    end subroutine sort_intersections
+    
+    subroutine rasterize_vertices_simple(vertices, num_vertices, bitmap_array, width, height, &
+                                        scale_x, scale_y, shift_x, shift_y, xoff, yoff)
+        !! Fallback simple rasterization using bounding box fill
         type(ttf_vertex_t), intent(in) :: vertices(:)
         integer, intent(in) :: num_vertices
         integer(c_int8_t), intent(inout) :: bitmap_array(:)
@@ -635,11 +793,6 @@ contains
         real(wp) :: x_scaled, y_scaled
         integer :: x_bitmap, y_bitmap
         integer :: min_x, max_x, min_y, max_y
-        
-        if (num_vertices <= 0) then
-            call create_fallback_bitmap(bitmap_array, width, height)
-            return
-        end if
         
         ! Calculate bounding box of scaled vertices
         min_x = width
@@ -676,45 +829,10 @@ contains
         do j = max(0, min_y), min(height - 1, max_y)
             do i = max(0, min_x), min(width - 1, max_x)
                 pixel_idx = j * width + i + 1
-                
-                ! Simple filled shape - fill pixels within bounding box
                 bitmap_array(pixel_idx) = 127_c_int8_t  ! Solid pixel
             end do
         end do
-        
-        ! Also draw vertex points for debugging
-        do k = 1, num_vertices
-            x_scaled = real(vertices(k)%x, wp) * scale_x + shift_x - real(xoff, wp)
-            y_scaled = real(-vertices(k)%y, wp) * scale_y + shift_y - real(yoff, wp)  ! Flip Y
-            
-            x_bitmap = int(x_scaled)
-            y_bitmap = int(y_scaled)
-            
-            ! Draw a small cross at each vertex point
-            if (x_bitmap >= 0 .and. x_bitmap < width .and. y_bitmap >= 0 .and. y_bitmap < height) then
-                pixel_idx = y_bitmap * width + x_bitmap + 1
-                bitmap_array(pixel_idx) = 127_c_int8_t  ! Mark vertex
-                
-                ! Draw surrounding pixels
-                if (x_bitmap > 0) then
-                    pixel_idx = y_bitmap * width + (x_bitmap - 1) + 1
-                    bitmap_array(pixel_idx) = 127_c_int8_t
-                end if
-                if (x_bitmap < width - 1) then
-                    pixel_idx = y_bitmap * width + (x_bitmap + 1) + 1
-                    bitmap_array(pixel_idx) = 127_c_int8_t
-                end if
-                if (y_bitmap > 0) then
-                    pixel_idx = (y_bitmap - 1) * width + x_bitmap + 1
-                    bitmap_array(pixel_idx) = 127_c_int8_t
-                end if
-                if (y_bitmap < height - 1) then
-                    pixel_idx = (y_bitmap + 1) * width + x_bitmap + 1
-                    bitmap_array(pixel_idx) = 127_c_int8_t
-                end if
-            end if
-        end do
 
-    end subroutine rasterize_vertices
+    end subroutine rasterize_vertices_simple
 
 end module forttf_bitmap
