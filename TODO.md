@@ -78,7 +78,7 @@ Break down the large `test/test_stb_comparison.f90` into focused test modules:
 ## 📝 Remaining TODOs
 
 ### 🔧 IMMEDIATE: Complete Modularization (Phase 2 & 3)
-
+We refactor `src/fortplot_stb.f90` and `test/test_stb_comparison.f90` into focused modules. Don't duplicate code from `src/fortplot_truetype_parser.f90` or `src/fortplot_truetype_types.f90`, but import them as needed.
 
 **Phase 2: STB API Modularization**
 In every step refactor `src/fortplot_stb.f90` to remove funcionality moved to specialized modules and become a thin API layer importing/re-exporting modules.
