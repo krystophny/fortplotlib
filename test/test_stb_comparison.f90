@@ -254,6 +254,9 @@ contains
             return
         end if
 
+        ! Test Level 6: Basic Metrics and Horizontal Layout (TDD)
+        call test_metrics_functions(stb_font, pure_font)
+
         ! Test additional STB functions (bitmap rendering, etc.)
         call test_stb_extended_functions(stb_font)
 
@@ -588,5 +591,55 @@ contains
         write(*,*) "      ✓ Subpixel functions tested successfully"
 
     end subroutine test_subpixel_functions
+
+    subroutine test_metrics_functions(stb_font, pure_font)
+        !! Test Level 6: Basic Metrics and Horizontal Layout (TDD)
+        type(stb_fontinfo_t), intent(in) :: stb_font
+        type(stb_fontinfo_pure_t), intent(in) :: pure_font
+        integer :: stb_advance, stb_lsb, pure_advance, pure_lsb
+        real(wp) :: stb_em_scale, pure_em_scale
+        integer :: test_codepoint
+        logical :: metrics_match
+
+        write(*,*) "  Testing metrics functions (TDD)..."
+
+        ! Test 1: stb_get_codepoint_hmetrics comparison
+        test_codepoint = iachar('A')
+        
+        call stb_get_codepoint_hmetrics(stb_font, test_codepoint, stb_advance, stb_lsb)
+        call stb_get_codepoint_hmetrics_pure(pure_font, test_codepoint, pure_advance, pure_lsb)
+        
+        write(*,'(A,I0,A,I0,A,I0,A,I0)') "    Character 'A' hmetrics: STB=(", &
+                                         stb_advance, ",", stb_lsb, "), Pure=(", pure_advance, ",", pure_lsb, ")"
+        
+        metrics_match = (stb_advance == pure_advance .and. stb_lsb == pure_lsb)
+        if (.not. metrics_match) then
+            write(*,*) "    ❌ Horizontal metrics mismatch!"
+        else
+            write(*,*) "    ✅ Horizontal metrics match"
+        end if
+
+        ! Test 2: stb_scale_for_mapping_em_to_pixels comparison
+        stb_em_scale = stb_scale_for_mapping_em_to_pixels(stb_font, 16.0_wp)
+        pure_em_scale = stb_scale_for_mapping_em_to_pixels_pure(pure_font, 16.0_wp)
+        
+        write(*,'(A,F8.6,A,F8.6)') "    EM scale for 16px: STB=", stb_em_scale, &
+                                   ", Pure=", pure_em_scale
+        
+        ! Allow small floating point differences
+        if (abs(stb_em_scale - pure_em_scale) > 1e-6_wp) then
+            write(*,*) "    ❌ EM scale mismatch!"
+            metrics_match = .false.
+        else
+            write(*,*) "    ✅ EM scale matches"
+        end if
+
+        if (metrics_match) then
+            write(*,*) "  ✅ All metrics functions match"
+        else
+            write(*,*) "  ❌ Some metrics functions failed"
+        end if
+
+    end subroutine test_metrics_functions
 
 end program test_stb_comparison

@@ -28,8 +28,11 @@ Tests build code automatically. Just run
 ## 🚦 Current Status (June 28, 2025)
 
 - ✅ Pure Fortran implementation passes all TTF tests
-- ❌ TTC files: Not yet supported by pure implementation
-- 🎯 Next: Add TTC (TrueType Collection) support and finish modularization
+- ✅ TTC files: Full support implemented and tested
+- ✅ Basic metrics, font info, character mapping fully working
+- ✅ Bounding boxes, scale factors, glyph indexing working
+- ✅ Bitmap rendering and subpixel rendering working
+- 🎯 Next: Implement remaining advanced features (detailed metrics, kerning tables)
 
 **Test Command:** `fpm test --target test_stb_comparison`
 
@@ -52,11 +55,11 @@ All TrueType/TTC types and parsing logic are now in dedicated modules:
 - ✅ `parse_ttc_header()` - Parse TTC header (version, numFonts, offsets)
 - ✅ `get_ttc_font_offset()` - Get offset for specific font index
 
-**Main API functions to implement:**
-- [ ] `stb_get_number_of_fonts_pure()` - Count fonts in TTC (currently STUB)
-- [ ] `stb_get_font_offset_for_index_pure()` - Get font offset for multi-font files (currently STUB)
-- [ ] Update `stb_init_font_pure()` to handle TTC files and font index parameter
-- [ ] Ensure all tests in `test_stb_comparison.f90` pass for both TTF and TTC fonts
+**Main API functions:**
+- ✅ `stb_get_number_of_fonts_pure()` - Count fonts in TTC
+- ✅ `stb_get_font_offset_for_index_pure()` - Get font offset for multi-font files
+- ✅ Updated `stb_init_font_pure()` to handle TTC files and font index parameter
+- ✅ All tests in `test_stb_comparison.f90` pass for both TTF and TTC fonts
 
 ### Level 6: Basic Metrics and Horizontal Layout
 - [ ] `stb_get_codepoint_hmetrics_pure()` - Get horizontal character metrics (currently STUB)
