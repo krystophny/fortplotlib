@@ -289,6 +289,7 @@ contains
         
         integer :: max_edges, num_edges, contour, point_idx, i
         integer :: contour_start, contour_end
+        integer :: j, k, a, b
         real(wp) :: x0, y0, x1, y1
         integer :: winding
         
@@ -305,31 +306,55 @@ contains
             contour_start = point_idx
             contour_end = point_idx + contour_lengths(contour) - 1
             
-            ! Build edges for this contour (including closing edge)
-            do i = contour_start, contour_end
-                ! Get current and next point (wrap around for closing edge)
-                if (i < contour_end) then
-                    x0 = points(i)%x * scale_x + shift_x
-                    y0 = points(i)%y * scale_y + shift_y
-                    x1 = points(i + 1)%x * scale_x + shift_x
-                    y1 = points(i + 1)%y * scale_y + shift_y
-                else
-                    ! Closing edge: last point to first point
-                    x0 = points(contour_end)%x * scale_x + shift_x
-                    y0 = points(contour_end)%y * scale_y + shift_y
-                    x1 = points(contour_start)%x * scale_x + shift_x
-                    y1 = points(contour_start)%y * scale_y + shift_y
-                end if
+            ! STB pattern: j = wcount[i]-1; for (k=0; k < wcount[i]; j=k++)
+            j = contour_lengths(contour)  ! j starts at wcount[i]-1 (but 1-based, so just wcount[i])
+            do k = 1, contour_lengths(contour)
+                a = contour_start + k - 1   ! k (0-based in STB, 1-based here)
+                b = contour_start + j - 1   ! j (0-based in STB, 1-based here)
                 
-                ! Only add non-horizontal edges (matches STB behavior)
+                x0 = points(b)%x  ! p[j]
+                y0 = points(b)%y
+                x1 = points(a)%x  ! p[k] 
+                y1 = points(a)%y
+                
+                j = k  ! j=k++ in STB
+                
+                ! Skip horizontal edges (STB: if (p[j].y == p[k].y) continue;)
                 if (abs(y1 - y0) > epsilon(1.0_wp)) then
                     num_edges = num_edges + 1
-                    if (y0 < y1) then
-                        ! Edge goes down - normal orientation
-                        edges(num_edges) = stb_edge_t(x0=x0, y0=y0, x1=x1, y1=y1, invert=winding)
+                    
+                    ! STB exact algorithm
+                    edges(num_edges)%invert = 0
+                    if (invert) then
+                        if (y0 > y1) then  ! p[j].y > p[k].y when invert=true
+                            edges(num_edges)%invert = 1
+                            ! a=j, b=k
+                            edges(num_edges)%x0 = x0 * scale_x + shift_x  ! p[a].x = p[j].x
+                            edges(num_edges)%y0 = y0 * scale_y + shift_y  ! p[a].y = p[j].y  
+                            edges(num_edges)%x1 = x1 * scale_x + shift_x  ! p[b].x = p[k].x
+                            edges(num_edges)%y1 = y1 * scale_y + shift_y  ! p[b].y = p[k].y
+                        else
+                            ! a=k, b=j  
+                            edges(num_edges)%x0 = x1 * scale_x + shift_x  ! p[a].x = p[k].x
+                            edges(num_edges)%y0 = y1 * scale_y + shift_y  ! p[a].y = p[k].y
+                            edges(num_edges)%x1 = x0 * scale_x + shift_x  ! p[b].x = p[j].x  
+                            edges(num_edges)%y1 = y0 * scale_y + shift_y  ! p[b].y = p[j].y
+                        end if
                     else
-                        ! Edge goes up - reverse orientation
-                        edges(num_edges) = stb_edge_t(x0=x1, y0=y1, x1=x0, y1=y0, invert=1-winding)
+                        if (y0 < y1) then  ! p[j].y < p[k].y when invert=false
+                            edges(num_edges)%invert = 1
+                            ! a=j, b=k
+                            edges(num_edges)%x0 = x0 * scale_x + shift_x  ! p[a].x = p[j].x
+                            edges(num_edges)%y0 = y0 * scale_y + shift_y  ! p[a].y = p[j].y
+                            edges(num_edges)%x1 = x1 * scale_x + shift_x  ! p[b].x = p[k].x
+                            edges(num_edges)%y1 = y1 * scale_y + shift_y  ! p[b].y = p[k].y
+                        else
+                            ! a=k, b=j
+                            edges(num_edges)%x0 = x1 * scale_x + shift_x  ! p[a].x = p[k].x
+                            edges(num_edges)%y0 = y1 * scale_y + shift_y  ! p[a].y = p[k].y
+                            edges(num_edges)%x1 = x0 * scale_x + shift_x  ! p[b].x = p[j].x
+                            edges(num_edges)%y1 = y0 * scale_y + shift_y  ! p[b].y = p[j].y
+                        end if
                     end if
                 end if
             end do
@@ -685,78 +710,25 @@ contains
         
         real(wp) :: y_scale_inv
         type(stb_edge_t), allocatable :: edges(:)
-        integer :: n, i, j, k, m, winding_idx, vsubsample
+        integer :: n, i, j, k, vsubsample
         integer :: edge_count, point_idx
         integer :: a, b
         
         ! STB: float y_scale_inv = invert ? -scale_y : scale_y;
         y_scale_inv = merge(-scale_y, scale_y, invert)
         
-        ! STB: int vsubsample = 1; (STBTT_RASTERIZER_VERSION == 2)
+        ! STB: int vsubsample = 1; (STBTT_RASTERIZER_VERSION == 2) 
         vsubsample = 1
         
-        ! Count total edges needed (skip horizontal edges)
-        n = 0
-        point_idx = 1
-        do i = 1, num_contours
-            do k = 1, contour_lengths(i)
-                j = merge(contour_lengths(i), k - 1, k == 1)
-                ! Skip horizontal edges
-                if (points(point_idx + j - 1)%y /= points(point_idx + k - 1)%y) then
-                    n = n + 1
-                end if
-            end do
-            point_idx = point_idx + contour_lengths(i)
-        end do
+        ! Use stb_build_edges but apply y_scale_inv and vsubsample manually
+        edges = stb_build_edges(points, contour_lengths, num_contours, &
+                               scale_x, y_scale_inv, shift_x, shift_y, invert)
+        edge_count = size(edges)
         
-        if (n == 0) return
-        
-        ! Allocate edge array
-        allocate(edges(n))
-        edge_count = 0
-        
-        ! Build edges from contours (matches STB exactly)
-        point_idx = 1
-        do i = 1, num_contours
-            do k = 1, contour_lengths(i)
-                j = merge(contour_lengths(i), k - 1, k == 1)
-                
-                ! Skip horizontal edges
-                if (points(point_idx + j - 1)%y == points(point_idx + k - 1)%y) then
-                    cycle
-                end if
-                
-                edge_count = edge_count + 1
-                
-                ! Determine edge direction
-                edges(edge_count)%invert = 0
-                if (invert) then
-                    if (points(point_idx + j - 1)%y > points(point_idx + k - 1)%y) then
-                        edges(edge_count)%invert = 1
-                        a = j
-                        b = k
-                    else
-                        a = k
-                        b = j
-                    end if
-                else
-                    if (points(point_idx + j - 1)%y < points(point_idx + k - 1)%y) then
-                        edges(edge_count)%invert = 1
-                        a = j
-                        b = k
-                    else
-                        a = k
-                        b = j
-                    end if
-                end if
-                
-                ! Set edge coordinates with STB scaling
-                edges(edge_count)%x0 = points(point_idx + a - 1)%x * scale_x + shift_x
-                edges(edge_count)%y0 = (points(point_idx + a - 1)%y * y_scale_inv + shift_y) * real(vsubsample, wp)
-                edges(edge_count)%x1 = points(point_idx + b - 1)%x * scale_x + shift_x
-                edges(edge_count)%y1 = (points(point_idx + b - 1)%y * y_scale_inv + shift_y) * real(vsubsample, wp)
-            end do
-            point_idx = point_idx + contour_lengths(i)
+        ! Apply vsubsample to y-coordinates (STB does this after scaling)
+        do i = 1, edge_count
+            edges(i)%y0 = edges(i)%y0 * real(vsubsample, wp)
+            edges(i)%y1 = edges(i)%y1 * real(vsubsample, wp)
         end do
         
         ! Sort edges by highest point
@@ -861,9 +833,9 @@ contains
                 edge_idx = edge_idx + 1
             end do
 
-            ! Process all active edges (using offset buffer to match STB scanline2+1 pattern)
+            ! Process all active edges (test with original function)
             if (associated(active_head%next)) then
-                call stb_fill_active_edges_with_offset(active_head%next, scan_y_top, result%w, scanline_buffer, scanline_fill_buffer)
+                call stb_fill_active_edges(active_head%next, scan_y_top, result%w, scanline_buffer, scanline_fill_buffer)
             end if
 
             sum_val = 0.0_wp

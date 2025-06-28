@@ -1,0 +1,248 @@
+program test_stb_vs_fortran
+    !! COMPREHENSIVE STB vs Pure Fortran comparison
+    !! Test EVERY intermediate step for exact matching
+    use forttf_types
+    use forttf_stb_raster
+    use forttf_core, only: stb_init_font_pure, stb_cleanup_font_pure
+    use forttf_outline, only: stb_get_glyph_shape_pure, stb_free_shape_pure
+    use iso_c_binding
+    use, intrinsic :: iso_fortran_env, only: wp => real64
+    implicit none
+
+    ! C interface for STB exact validation
+    interface
+        subroutine stb_test_flatten_curves_exact(vertices, num_verts, flatness, &
+                    points_out, contour_lengths_out, num_contours_out, total_points_out) bind(c)
+            import :: c_ptr, c_int, c_float
+            type(c_ptr), value :: vertices
+            integer(c_int), value :: num_verts
+            real(c_float), value :: flatness
+            type(c_ptr), intent(out) :: points_out, contour_lengths_out
+            integer(c_int), intent(out) :: num_contours_out, total_points_out
+        end subroutine
+        
+        subroutine stb_test_build_edges_exact(pts, wcount, windings, &
+                    scale_x, scale_y, shift_x, shift_y, invert, &
+                    edges_out, num_edges_out) bind(c)
+            import :: c_ptr, c_int, c_float
+            type(c_ptr), value :: pts, wcount
+            integer(c_int), value :: windings, invert
+            real(c_float), value :: scale_x, scale_y, shift_x, shift_y
+            type(c_ptr), intent(out) :: edges_out
+            integer(c_int), intent(out) :: num_edges_out
+        end subroutine
+        
+        subroutine stb_test_complete_rasterize_exact(vertices, num_verts, &
+                    scale_x, scale_y, shift_x, shift_y, &
+                    width, height, x_off, y_off, invert, &
+                    bitmap_out, pixel_count_out) bind(c)
+            import :: c_ptr, c_int, c_float
+            type(c_ptr), value :: vertices
+            integer(c_int), value :: num_verts, width, height, x_off, y_off, invert
+            real(c_float), value :: scale_x, scale_y, shift_x, shift_y
+            type(c_ptr), intent(out) :: bitmap_out
+            integer(c_int), intent(out) :: pixel_count_out
+        end subroutine
+        
+        subroutine stb_free_points(points) bind(c)
+            import :: c_ptr
+            type(c_ptr), value :: points
+        end subroutine
+        
+        subroutine stb_free_contour_lengths(lengths) bind(c)
+            import :: c_ptr
+            type(c_ptr), value :: lengths
+        end subroutine
+        
+        subroutine stb_free_edges(edges) bind(c)
+            import :: c_ptr
+            type(c_ptr), value :: edges
+        end subroutine
+        
+        subroutine stb_free_bitmap(bitmap) bind(c)
+            import :: c_ptr
+            type(c_ptr), value :: bitmap
+        end subroutine
+    end interface
+
+    logical :: all_tests_passed = .true.
+
+    write(*,*) "=== COMPREHENSIVE STB vs FORTRAN COMPARISON ==="
+    write(*,*) "Testing EVERY step for exact matching..."
+    write(*,*)
+
+    call test_flatten_curves_comparison(all_tests_passed)
+    call test_edge_building_comparison(all_tests_passed)
+    call test_complete_pipeline_comparison(all_tests_passed)
+
+    write(*,*)
+    if (all_tests_passed) then
+        write(*,*) "✅ All STB vs Fortran tests PASSED!"
+        stop 0
+    else
+        write(*,*) "❌ STB vs Fortran MISMATCH FOUND!"
+        stop 1
+    end if
+
+contains
+
+    subroutine test_flatten_curves_comparison(passed)
+        logical, intent(inout) :: passed
+        
+        type(stb_fontinfo_pure_t) :: font_info
+        type(ttf_vertex_t), allocatable, target :: vertices(:)
+        type(stb_point_t), allocatable :: fortran_points(:)
+        integer, allocatable :: fortran_contour_lengths(:)
+        integer :: num_vertices, fortran_num_contours
+        real(wp), parameter :: flatness = 0.35_wp
+        
+        ! STB C results
+        type(c_ptr) :: stb_points_ptr, stb_contour_lengths_ptr
+        integer :: stb_num_contours, stb_total_points
+        real(c_float), pointer :: stb_points_array(:)
+        integer(c_int), pointer :: stb_contour_lengths_array(:)
+        logical :: contours_match
+        integer :: i
+        
+        write(*,*) "--- COMPARISON 1: Curve Flattening ---"
+        
+        if (.not. stb_init_font_pure(font_info, "/usr/share/fonts/TTF/DejaVuSans.ttf")) then
+            write(*,*) "❌ Failed to initialize font"
+            passed = .false.
+            return
+        end if
+        
+        num_vertices = stb_get_glyph_shape_pure(font_info, 36, vertices)
+        
+        ! Test Fortran curve flattening
+        fortran_points = stb_flatten_curves(vertices, num_vertices, flatness, &
+                                          fortran_contour_lengths, fortran_num_contours)
+        
+        ! Test STB C curve flattening
+        call stb_test_flatten_curves_exact(c_loc(vertices(1)), num_vertices, real(flatness, c_float), &
+                                         stb_points_ptr, stb_contour_lengths_ptr, &
+                                         stb_num_contours, stb_total_points)
+        
+        ! Convert C pointers to Fortran arrays
+        call c_f_pointer(stb_points_ptr, stb_points_array, [stb_total_points * 2])  ! x,y pairs
+        call c_f_pointer(stb_contour_lengths_ptr, stb_contour_lengths_array, [stb_num_contours])
+        
+        write(*,*) "  Fortran: ", size(fortran_points), "points,", fortran_num_contours, "contours"
+        write(*,*) "  STB C:   ", stb_total_points, "points,", stb_num_contours, "contours"
+        
+        ! Compare results
+        if (size(fortran_points) == stb_total_points .and. fortran_num_contours == stb_num_contours) then
+            write(*,*) "  ✅ Point and contour counts match!"
+            
+            ! Compare contour lengths
+            contours_match = .true.
+            do i = 1, fortran_num_contours
+                if (fortran_contour_lengths(i) /= stb_contour_lengths_array(i)) then
+                    contours_match = .false.
+                    write(*,*) "  ❌ Contour", i, "length mismatch:", &
+                              fortran_contour_lengths(i), "vs", stb_contour_lengths_array(i)
+                end if
+            end do
+            
+            if (contours_match) then
+                write(*,*) "  ✅ Contour lengths match!"
+            else
+                passed = .false.
+            end if
+            
+        else
+            write(*,*) "  ❌ Point/contour count MISMATCH!"
+            passed = .false.
+        end if
+        
+        ! Cleanup
+        call stb_free_points(stb_points_ptr)
+        call stb_free_contour_lengths(stb_contour_lengths_ptr)
+        call stb_free_shape_pure(vertices)
+        call stb_cleanup_font_pure(font_info)
+        deallocate(fortran_points, fortran_contour_lengths)
+        
+    end subroutine test_flatten_curves_comparison
+
+    subroutine test_edge_building_comparison(passed)
+        logical, intent(inout) :: passed
+        
+        write(*,*) "--- COMPARISON 2: Edge Building ---"
+        write(*,*) "  ⚠️  TODO: Implement edge building comparison"
+        
+    end subroutine test_edge_building_comparison
+
+    subroutine test_complete_pipeline_comparison(passed)
+        logical, intent(inout) :: passed
+        
+        type(stb_fontinfo_pure_t) :: font_info
+        type(ttf_vertex_t), allocatable, target :: vertices(:)
+        type(stb_bitmap_t) :: fortran_bitmap
+        integer(c_int8_t), allocatable, target :: fortran_pixels(:)
+        integer :: num_vertices, fortran_pixel_count, i
+        
+        ! STB C results
+        type(c_ptr) :: stb_bitmap_ptr
+        integer :: stb_pixel_count
+        
+        ! Test parameters (match bitmap content test)
+        real(wp), parameter :: scale_x = 0.5_wp, scale_y = 0.5_wp
+        real(wp), parameter :: shift_x = 0.0_wp, shift_y = 0.0_wp
+        integer, parameter :: width = 684, height = 747  ! Match bitmap content test
+        integer, parameter :: x_off = 8, y_off = -747    ! Match bitmap content test offsets
+        logical, parameter :: invert = .true.
+        
+        write(*,*) "--- COMPARISON 3: Complete Pipeline ---"
+        
+        if (.not. stb_init_font_pure(font_info, "/usr/share/fonts/TTF/DejaVuSans.ttf")) then
+            write(*,*) "❌ Failed to initialize font"
+            passed = .false.
+            return
+        end if
+        
+        num_vertices = stb_get_glyph_shape_pure(font_info, 36, vertices)
+        
+        ! Test Fortran complete pipeline
+        allocate(fortran_pixels(width * height))
+        fortran_pixels = 0
+        
+        fortran_bitmap%w = width
+        fortran_bitmap%h = height
+        fortran_bitmap%stride = width
+        fortran_bitmap%pixels => fortran_pixels
+        
+        call stbtt_rasterize(fortran_bitmap, 0.35_wp, vertices, num_vertices, &
+                            scale_x, scale_y, shift_x, shift_y, x_off, y_off, invert, c_null_ptr)
+        
+        ! Count Fortran pixels
+        fortran_pixel_count = 0
+        do i = 1, width * height
+            if (fortran_pixels(i) /= 0) fortran_pixel_count = fortran_pixel_count + 1
+        end do
+        
+        ! Test STB C complete pipeline
+        call stb_test_complete_rasterize_exact(c_loc(vertices(1)), num_vertices, &
+                                             real(scale_x, c_float), real(scale_y, c_float), &
+                                             real(shift_x, c_float), real(shift_y, c_float), &
+                                             width, height, x_off, y_off, 1, &
+                                             stb_bitmap_ptr, stb_pixel_count)
+        
+        write(*,*) "  Fortran pixels: ", fortran_pixel_count
+        write(*,*) "  STB C pixels:   ", stb_pixel_count
+        
+        if (fortran_pixel_count == stb_pixel_count) then
+            write(*,*) "  ✅ PIXEL COUNTS MATCH EXACTLY!"
+        else
+            write(*,*) "  ❌ PIXEL COUNT MISMATCH! Difference:", abs(fortran_pixel_count - stb_pixel_count)
+            passed = .false.
+        end if
+        
+        ! Cleanup
+        call stb_free_bitmap(stb_bitmap_ptr)
+        call stb_free_shape_pure(vertices)
+        call stb_cleanup_font_pure(font_info)
+        deallocate(fortran_pixels)
+        
+    end subroutine test_complete_pipeline_comparison
+
+end program test_stb_vs_fortran
