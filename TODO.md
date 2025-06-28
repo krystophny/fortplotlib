@@ -18,12 +18,12 @@ This TODO list tracks the remaining steps to achieve a pure Fortran replacement 
 
 All test commands build the code automatically. To build, just run the tests.
 
-- `fpm test--target test_forttf_*` — Run all `forttf` tests
-- `fpm test --target test_forttf_metrics` — Run metrics comparison tests
-- `fpm test --target test_forttf_mapping` — Run character mapping tests
-- `fpm test --target test_forttf_bitmap` — Run bitmap rendering tests
-- `fpm test --target test_forttf_bitmap_content` — Run bitmap content comparison tests
-- `fpm test --target test_forttf_stb_rasterization` — Run STB rasterization pipeline tests
+- `fpm test --target test_forttf_*` — Run all tests.
+- `fpm test --target test_forttf_metrics` — Run metrics comparison tests.
+- `fpm test --target test_forttf_mapping` — Run character mapping tests.
+- `fpm test --target test_forttf_bitmap` — Run bitmap rendering tests.
+- `fpm test --target test_forttf_bitmap_content` — Run bitmap content comparison tests.
+- `fpm test --target test_forttf_stb_rasterization` — Run STB rasterization pipeline tests.
 
 
 ## 📁 Source File Locations
