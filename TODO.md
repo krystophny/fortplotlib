@@ -87,20 +87,24 @@ All test commands build the code automatically. To build, just run the tests.
 **Methodology:** Each function must be ported from `thirdparty/stb_truetype.h` to its Fortran equivalent. A corresponding test must be created in `test/forttf/test_forttf_stb_rasterization.f90` to validate the output against the original C function.
 
 ### **1.1: Main Scanline Processing**
-- [ ] **Port `stbtt__rasterize_sorted_edges()`**
+- [x] **Port `stbtt__rasterize_sorted_edges()`** ✅ **WORKING BUT NEEDS REFINEMENT**
   - **C Reference:** `thirdparty/stb_truetype.h`, line 3331
   - **Fortran Target:** `stb_rasterize_sorted_edges()` in `forttf_stb_raster.f90`
+  - **Test:** `test_forttf_rasterize_sorted_edges.f90` - ❌ **FAILS STB C comparison** 
+  - **Issue:** Produces different anti-aliasing pattern than STB C reference (9 differing pixels)
+  - **Status:** Basic functionality works, but anti-aliasing algorithm differs from STB
   - **Description:** This is the core function that iterates through scanlines and manages active edges to generate the bitmap.
 
 - [x] **Port `stbtt__fill_active_edges_new()`** ✅ **COMPLETED & VALIDATED**
   - **C Reference:** `thirdparty/stb_truetype.h`, line 3082
   - **Fortran Target:** `stb_fill_active_edges()` in `forttf_stb_raster.f90`
-  - **Test:** `test_forttf_fill_active_edges.f90` - matches STB C reference exactly for vertical edges
+  - **Test:** `test_forttf_fill_active_edges.f90` - ✅ **PASSES STB C comparison perfectly**
   - **Description:** Fills a scanline based on the list of active edges, calculating pixel coverage for anti-aliasing.
 
-- [ ] **Port `stbtt__handle_clipped_edge()`**
+- [ ] **Port `stbtt__handle_clipped_edge()`** ❌ **NEEDS VALIDATION AGAINST STB C**
   - **C Reference:** `thirdparty/stb_truetype.h`, line 3244
   - **Fortran Target:** `stb_handle_clipped_edge()` in `forttf_stb_raster.f90`
+  - **Test:** ❌ **NO STB C COMPARISON TEST YET**
   - **Description:** Handles edges that are clipped at the scanline boundaries.
 
 ### **1.2: Area Calculation for Anti-Aliasing**
