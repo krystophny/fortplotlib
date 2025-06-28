@@ -60,14 +60,16 @@ This TODO list tracks the implementation of Fortran ISO C wrappers for all stb_t
 - [x] `stbtt_MakeGlyphBitmap()` → Added `stb_make_glyph_bitmap()`
 - [x] `stbtt_GetGlyphBitmapBox()` → Added `stb_get_glyph_bitmap_box()`
 
-### 🔲 REMAINING Functions to Add to `fortplot_stb_truetype.f90`
+### ✅ COMPLETED: Advanced Subpixel Bitmap Functions
 
 **Advanced Subpixel Variants:**
-- [ ] `stbtt_GetGlyphBitmapSubpixel()` → Add `stb_get_glyph_bitmap_subpixel()`
-- [ ] `stbtt_MakeGlyphBitmapSubpixel()` → Add `stb_make_glyph_bitmap_subpixel()`
-- [ ] `stbtt_MakeCodepointBitmapSubpixel()` → Add `stb_make_codepoint_bitmap_subpixel()`
-- [ ] `stbtt_GetGlyphBitmapBoxSubpixel()` → Add `stb_get_glyph_bitmap_box_subpixel()`
-- [ ] `stbtt_GetCodepointBitmapBoxSubpixel()` → Add `stb_get_codepoint_bitmap_box_subpixel()`
+- [x] `stbtt_GetGlyphBitmapSubpixel()` → Added `stb_get_glyph_bitmap_subpixel()`
+- [x] `stbtt_MakeGlyphBitmapSubpixel()` → Added `stb_make_glyph_bitmap_subpixel()`
+- [x] `stbtt_MakeCodepointBitmapSubpixel()` → Added `stb_make_codepoint_bitmap_subpixel()`
+- [x] `stbtt_GetGlyphBitmapBoxSubpixel()` → Added `stb_get_glyph_bitmap_box_subpixel()`
+- [x] `stbtt_GetCodepointBitmapBoxSubpixel()` → Added `stb_get_codepoint_bitmap_box_subpixel()`
+
+### 🔲 REMAINING Functions to Add to `fortplot_stb_truetype.f90`
 
 **Prefiltered Rendering:**
 - [ ] `stbtt_MakeCodepointBitmapSubpixelPrefilter()` → Add `stb_make_codepoint_bitmap_subpixel_prefilter()`
@@ -182,7 +184,7 @@ For each remaining Fortran function above, add corresponding C wrapper functions
 
 ## Summary of Completed Work
 
-### ✅ Implemented Functions (16 new functions)
+### ✅ Implemented Functions (21 new functions)
 
 **Phase 1 - Basic Extensions (6 functions):**
 1. **`stb_get_number_of_fonts()`** - Get font count in file
@@ -206,14 +208,22 @@ For each remaining Fortran function above, add corresponding C wrapper functions
 15. **`stb_get_codepoint_bitmap_subpixel()`** - Render subpixel positioned bitmap
 16. **`stb_make_glyph_bitmap()`** - Render glyph into user buffer
 
+**Phase 4 - Subpixel Bitmap Functions (5 functions):**
+17. **`stb_get_glyph_bitmap_subpixel()`** - Render subpixel positioned glyph bitmap
+18. **`stb_make_glyph_bitmap_subpixel()`** - Render subpixel glyph into user buffer
+19. **`stb_make_codepoint_bitmap_subpixel()`** - Render subpixel char into user buffer
+20. **`stb_get_glyph_bitmap_box_subpixel()`** - Get subpixel glyph bitmap bounding box
+21. **`stb_get_codepoint_bitmap_box_subpixel()`** - Get subpixel char bitmap bounding box
+
 ### ✅ Infrastructure Completed
-- **Fortran Module**: Extended `fortplot_stb_truetype.f90` with 16 new wrapper functions
-- **C Wrapper Layer**: Added 16 corresponding C functions in `stb_truetype_wrapper.c`
-- **Pure Fortran Stubs**: Created `fortplot_stb.f90` with 20 stub implementations for future port
+- **Fortran Module**: Extended `fortplot_stb_truetype.f90` with 21 new wrapper functions
+- **C Wrapper Layer**: Added 21 corresponding C functions in `stb_truetype_wrapper.c`
+- **Pure Fortran Stubs**: Created `fortplot_stb.f90` with 25 stub implementations for future port
 - **Test Infrastructure**: Created `test_stb_comparison.f90` to compare STB vs pure implementations
-  - Tests basic functions, glyph-level functions, and bitmap functions
-  - Comprehensive test coverage for all new functionality
-- **Documentation**: Updated `ttf.md` and `TODO.md` to reflect progress
+  - Tests basic functions, glyph-level functions, bitmap functions, and subpixel functions
+  - Comprehensive test coverage for all implemented functionality
+  - Subpixel function testing with shift values (0.25, 0.75)
+- **Documentation**: Updated `ttf.md` and `TODO.md` to reflect comprehensive progress
 
 ### ✅ Testing Results
 - All new functions compile successfully
