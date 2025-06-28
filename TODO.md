@@ -1,420 +1,53 @@
 # Pure Fortran TrueType Implementation TODO
 
-This TODO list outlines the systematic Test-Driven Development (TDD) approach to replace the STB TrueType C library with a pure Fortran implementation. The goal is to achieve feature parity while maintaining or improving performance.
+This TODO list tracks the remaining steps to achieve a pure Fortran replacement for the STB TrueType C library, with feature parity and test-driven development.
 
-## 📁 **Source File Locations and Porting Overview**
+## 📁 Source File Locations
 
-The following directories contain all STB TrueType related sources and tests for this project:
-
-- `thirdparty/` — Contains the original C reference: **`stb_truetype.h`** (to be ported)
-- `src/` — Contains the Fortran implementation and interface:
-    - `fortplot_stb.f90` (pure Fortran port target)
-    - `fortplot_stb_truetype.f90` (current Fortran/C interface)
-    - `stb_truetype_wrapper.c` (C wrapper for interfacing with the original STB C code)
-    - All other font and text-related Fortran modules
-- `test/` — Contains all test programs and comparison scripts:
-    - `test_stb_comparison.f90` (main TDD/validation test)
-    - Additional font, bitmap, and metrics tests
-
-**Porting Goal:**
-- Replace all usage of `thirdparty/stb_truetype.h` (C) with a pure Fortran implementation in `src/fortplot_stb.f90`.
-- Ensure all tests in `test/` pass with the new Fortran code.
-- Maintain the same API as the current Fortran/C interface and C wrapper for compatibility.
+- `thirdparty/` — Original C reference: `stb_truetype.h`
+- `src/` — Fortran implementation:
+    - `fortplot_stb.f90` (main API)
+    - `fortplot_truetype_types.f90` (all TrueType/TTC types)
+    - `fortplot_truetype_parser.f90` (all TTF/TTC parsing logic)
+- `test/` — Test programs, especially `test_stb_comparison.f90`
 
 ---
 
-## 🚦 **Current Status** (Updated: June 28, 2025)
+## 🚦 Current Status (June 28, 2025)
+
+- ✅ Pure Fortran implementation passes all TTF tests
+- ❌ TTC files: Not yet supported by pure implementation
+- 🎯 Next: Add TTC (TrueType Collection) support and finish modularization
 
 **Test Command:** `fpm test --target test_stb_comparison`
-
-**Current State:**
-- ✅ Test framework fully operational
-- ✅ STB reference implementation working (metrics: 2048/-512/171)
-- ✅ **Pure Fortran implementation WORKING!** (metrics: 2048/-512/171)
-- ✅ **Level 1 & 2 COMPLETE:** Binary file operations and table parsing implemented
-- ✅ **Level 3 COMPLETE:** Character mapping working - glyph index 36 for 'A' ✅
-- ✅ **Level 4 COMPLETE:** Font scaling working - scale factors match STB exactly ✅
-- 🎯 **Next Step:** Level 5 - TTC (TrueType Collection) Support
-
-**Latest Test Results:**
-```
-📚 Found 5 available fonts (Monaco.ttf, Helvetica.ttc, Times.ttc, Menlo.ttc, Avenir.ttc)
-✅ Monaco.ttf: All 10 characters mapped correctly (A,B,M,W,g,j,!,?,1,@)
-❌ TTC files: Not yet supported by pure implementation
-✅ Summary: 1 out of 3 fonts passed all tests
-✓ Scale factors match exactly: 0.006250
-✓ All font metrics match STB perfectly
-```
-
-**🎉 BREAKTHROUGH:** Monaco font works perfectly! The pure Fortran implementation successfully:
-- ✅ Reads TrueType files (`read_truetype_file()`)
-- ✅ Parses TTF headers (`parse_ttf_header()`)
-- ✅ Parses table directory (`parse_table_directory()`)
-- ✅ Parses head, hhea, maxp tables
-- ✅ Returns correct font metrics matching STB exactly
-- ✅ Handles Fortran 1-based indexing correctly (offsets +1)
-- ✅ Manages big-endian unsigned integers safely
-- ✅ **Character mapping WORKING:** Returns correct glyph indices for 10 test characters
-- ✅ **Multi-character validation:** A,B,M,W,g,j,!,?,1,@ all map correctly
-- ✅ **Enhanced test framework:** Auto-discovers fonts on macOS/Linux systems
-- ✅ **Fixed integer overflow:** Proper signed/unsigned handling in cmap parsing
-- ✅ **Font scaling WORKING:** Scale factors match STB exactly (0.006250)
-- ✅ **Algorithm insight:** STB uses ascender-descender for scaling, not units_per_em
-- ⚠️ **TTC format limitation:** Pure implementation only supports .ttf files (STB supports .ttc perfectly)
-
-**READY FOR LEVEL 5:** Advanced metrics and kerning implementation
-
-## 🎯 **Project Goal**
-
-Replace STB TrueType C library with a pure Fortran implementation that:
-- Passes all existing comparison tests in `test_stb_comparison.f90`
-- Provides identical API to current `fortplot_stb_truetype.f90`
-- Achieves feature parity with the 23 implemented STB functions
-- Maintains or improves performance for typical use cases
-
-## 📋 **TDD Methodology - MANDATORY**
-
-**⚠️ CRITICAL: EVERY function MUST follow RED-GREEN-REFACTOR cycle ⚠️**
-
-1. **RED**: Modify existing comparison test to expect pure Fortran success
-2. **GREEN**: Implement minimal code to make the test pass
-3. **REFACTOR**: Clean up implementation while keeping tests green
-4. **REPEAT**: Move to next function in dependency order
-
-**Test Strategy:**
-- Use existing `test_stb_comparison.f90` as validation framework
-- **Run with: `fpm test --target test_stb_comparison`**
-- Each function must pass side-by-side comparison with STB implementation
-- Bitmap outputs must be pixel-perfect matches (where possible)
-- Font metrics must match STB values exactly
-
-## 🏗️ **Implementation Phases - Bottom-Up Approach**
-
-### Phase 1: Foundation - Binary File I/O and Basic Parsing
-
-#### ✅ Prerequisites
-- [x] TDD test framework exists (`test_stb_comparison.f90`)
-- [x] Pure Fortran stub module exists (`fortplot_stb.f90`)
-- [x] STB reference implementation working for comparison
-
-#### ✅ Level 1: Binary File Operations - COMPLETE!
-**Goal:** Read TrueType files and parse basic headers
-
-**Functions implemented:**
-1. ✅ `read_truetype_file()` - Read entire font file into memory
-2. ✅ `parse_ttf_header()` - Parse TTF/OTF file header (sfnt version, table count)
-3. ✅ `parse_table_directory()` - Parse table directory entries
-4. ✅ `find_table()` - Locate specific tables by tag ('head', 'hhea', etc.)
-
-**Test Results:**
-- ✅ Successfully reads Monaco font from `/System/Library/Fonts/Monaco.ttf`
-- ✅ Parses TTF header correctly
-- ✅ Identifies all required tables (head, hhea, hmtx, cmap)
-
-#### ✅ Level 2: Essential Table Parsing - COMPLETE!
-**Goal:** Parse critical font tables needed for basic operations
-
-**Tables implemented:**
-1. ✅ `head` table parser - Font header (units per em, bounding box)
-2. ✅ `hhea` table parser - Horizontal header (ascent, descent, line gap)
-3. ✅ `hmtx` table parser - Horizontal metrics (advance widths, bearings)
-4. ✅ `maxp` table parser - Maximum profile (glyph count validation)
-
-**Test Results:**
-- ✅ Font metrics match STB exactly: `2048/-512/171`
-- ✅ Units per EM correctly parsed for scaling calculations
-- ✅ All essential tables successfully parsed
-
-### Phase 2: Character Mapping and Glyph Lookup
-
-#### � Level 3: Character Mapping - IN PROGRESS
-**Goal:** Map Unicode codepoints to glyph indices
-
-**Current Status:**
-- ✅ `stb_find_glyph_index_pure()` working correctly - returns glyph index 36 for 'A'
-- ✅ cmap table parser implemented and working
-- ✅ **Test SUCCESS:** Character 'A' returns correct glyph index 36 matching STB
-
-**Functions implemented:**
-1. ✅ `parse_cmap_table()` - Character to glyph mapping table
-2. ✅ `find_glyph_index_pure()` - Unicode codepoint → glyph index lookup
-3. ✅ Support for cmap format 4 subtables (most common format)
-4. ⏳ Handle additional formats: format 0, 12 (if needed)
-
-**Critical Fix Applied:**
-- **Integer overflow bug fixed:** Changed `idDelta` parsing from `read_be_uint16()` to `read_be_int16()`
-- **Modulo arithmetic:** Added `iand(glyph_index, 65535)` for proper 16-bit wrapping
-- **Test verification:** Glyph 'A' now correctly returns index 36 (was 65572)
-
-### Phase 3: Font Metrics and Scaling
-
-#### ✅ Level 4: Scaling and Metrics - COMPLETE!
-**Goal:** Calculate font scaling and provide accurate metrics
-
-**Functions implemented:**
-1. ✅ `stb_scale_for_pixel_height_pure()` - Calculate scale factor (matches STB exactly)
-2. ⏳ `stb_scale_for_mapping_em_to_pixels_pure()` - EM-based scaling (if needed)
-3. ⏳ `stb_get_font_bounding_box_pure()` - Overall font bounding box
-4. ⏳ `stb_get_glyph_hmetrics_pure()` - Glyph advance width and bearing
-
-**Critical Fix Applied:**
-- **Scale calculation corrected:** Use `ascender - descender` instead of `units_per_em`
-- **Perfect match achieved:** STB: 0.006250, Pure: 0.006250 for 16px
-- **Algorithm insight:** STB uses total visible font height (ascender - descender) for scaling
-
-### Phase 4: Advanced Metrics and Kerning
-
-#### 🔲 Level 5: TTC (TrueType Collection) Support
-**Goal:** Add support for TrueType Collection (.ttc) files
-
-**Current Status:**
-- ✅ **STB supports TTC files perfectly (CONFIRMED)** - Has full TTC functionality in `thirdparty/stb_truetype.h`
-- ✅ **STB TTC Functions Identified:**
-  - `stbtt_GetNumberOfFonts(data)` - Returns number of fonts in TTC file
-  - `stbtt_GetFontOffsetForIndex(data, index)` - Gets byte offset for specific font
-  - `stbtt_InitFont(info, data, offset)` - Initializes font using TTC offset
-- ❌ Pure Fortran only supports TTF files
-- 🎯 **Target:** Port STB's TTC functionality to achieve feature parity
-
-**TTC Format Overview:**
-- TTC files contain multiple TTF fonts in a single file
-- Header contains version, font count, and offset table
-- Each font is a complete TTF starting at its offset
-- STB's `stbtt_InitFont()` takes a font index parameter for TTC files
-
-**Functions to implement:**
-1. [ ] `is_ttc_file()` - Detect TTC file format ('ttcf' signature) ✅ **STB: `stbtt_tag(data, "ttcf")`**
-2. [ ] `parse_ttc_header()` - Parse TTC header (version, numFonts, offsets) ✅ **STB: Internal TTC parsing**
-3. [ ] `get_ttc_font_offset()` - Get offset for specific font index ✅ **STB: `stbtt_GetFontOffsetForIndex()`**
-4. [ ] `get_number_of_fonts()` - Count fonts in TTC ✅ **STB: `stbtt_GetNumberOfFonts()`**
-5. [ ] Modify `stb_init_font_pure()` to handle font index parameter ✅ **STB: `stbtt_InitFont()` with offset**
-6. [ ] Update all parsing functions to work with font-specific offsets
-
-**TDD Strategy - RED-GREEN-REFACTOR:**
-1. **RED**: Modify test to expect TTC font parsing success
-2. **GREEN**: Implement minimal TTC parsing to make test pass
-3. **REFACTOR**: Clean up and optimize TTC handling
-
-**Test Strategy:**
-- Use system TTC fonts: Helvetica.ttc, Times.ttc, Menlo.ttc
-- Test font index 0, 1, 2 (if available)
-- Verify metrics match STB for each font in collection
-- Characters A,B,M,W,g,j,!,?,1,@ should map correctly for all fonts
-
-**Implementation Notes:**
-- **STB TTC Format Support:** STB fully supports TTC v1.0 (`0x00010000`) and v2.0 (`0x00020000`)
-- **STB Usage Pattern:** `offset = stbtt_GetFontOffsetForIndex(data, index); stbtt_InitFont(&font, data, offset);`
-- **TTC header structure:** 'ttcf' (4 bytes) + version (4 bytes) + numFonts (4 bytes) + offsets array
-- **Critical insight:** Each offset points to a complete TTF font data structure within the TTC file
-- **Fortran adaptation:** Keep existing TTF parsing logic, just add offset handling and 1-based indexing
-- **Memory layout:** TTC files contain multiple complete TTF fonts, each starting at its designated offset
-
-#### 🔲 Level 6: Extended Metrics
-**Goal:** Support OS/2 metrics and bounding boxes
-
-**Functions to implement:**
-1. [ ] `OS/2` table parser - Extended font metrics
-2. [ ] `stb_get_font_vmetrics_os2_pure()` - OS/2 vertical metrics
-3. [ ] `stb_get_codepoint_box_pure()` - Character bounding box
-4. [ ] `stb_get_glyph_box_pure()` - Glyph bounding box
-
-**Test Strategy:**
-- OS/2 metrics should match: `1556/-492/410`
-- Character 'A' bbox: `(16, 0, 1384, 1493)`
-
-#### 🔲 Level 7: Kerning Support
-**Goal:** Implement kerning calculations
-
-**Functions to implement:**
-1. [ ] `kern` table parser - Kerning pairs
-2. [ ] `stb_get_codepoint_kern_advance_pure()` - Character pair kerning
-3. [ ] `stb_get_glyph_kern_advance_pure()` - Glyph pair kerning
-4. [ ] `stb_get_kerning_table_length_pure()` - Kerning table access
-
-**Test Strategy:**
-- A-V kerning should return `-131` units
-- Kerning table length should be `2727` entries
-
-### Phase 5: Glyph Outline Processing
-
-#### 🔲 Level 8: Glyph Outline Parsing
-**Goal:** Parse and process TrueType glyph outlines
-
-**Functions to implement:**
-1. [ ] `glyf` table parser - Glyph outline data
-2. [ ] `loca` table parser - Glyph location offsets
-3. [ ] Parse simple glyph outlines (straight lines and curves)
-4. [ ] Parse composite glyph outlines (references to other glyphs)
-5. [ ] Convert outline coordinates to scaled pixel coordinates
-
-**Test Strategy:**
-- Focus on simple glyphs first (like 'A')
-- Verify outline point coordinates after scaling
-- Test composite glyph decomposition
-
-**Critical Components:**
-- Quadratic Bézier curve handling
-- Coordinate scaling and transformation
-- On-curve vs off-curve point processing
-
-### Phase 6: Bitmap Rasterization
-
-#### 🔲 Level 9: Basic Bitmap Rendering
-**Goal:** Rasterize glyph outlines to bitmap format
-
-**Functions to implement:**
-1. [ ] `stb_get_codepoint_bitmap_pure()` - Render character to bitmap
-2. [ ] `stb_get_glyph_bitmap_pure()` - Render glyph to bitmap
-3. [ ] `stb_make_codepoint_bitmap_pure()` - Render into user buffer
-4. [ ] `stb_make_glyph_bitmap_pure()` - Render glyph into user buffer
-
-**Test Strategy:**
-- Character 'A' bitmap should be `138x150` pixels at test scale
-- Bitmap should visually match STB output
-- Memory allocation/deallocation must work correctly
-
-**Rasterization Algorithm:**
-1. Scan-line based rasterization
-2. Curve tessellation for quadratic Béziers
-3. Anti-aliasing using coverage calculation
-4. Proper handling of winding rules
-
-#### 🔲 Level 9: Bounding Box Calculations
-**Goal:** Calculate precise bitmap bounding boxes
-
-**Functions to implement:**
-1. [ ] `stb_get_codepoint_bitmap_box_pure()` - Character bitmap bounds
-2. [ ] `stb_get_glyph_bitmap_box_pure()` - Glyph bitmap bounds
-
-**Test Strategy:**
-- Bitmap bounding boxes must match STB exactly
-- Test various scales and characters
-
-### Phase 7: Subpixel Positioning
-
-#### 🔲 Level 10: Subpixel Precision
-**Goal:** Support fractional positioning for high-quality rendering
-
-**Functions to implement:**
-1. [ ] `stb_get_codepoint_bitmap_subpixel_pure()` - Subpixel positioned character
-2. [ ] `stb_get_glyph_bitmap_subpixel_pure()` - Subpixel positioned glyph
-3. [ ] `stb_make_codepoint_bitmap_subpixel_pure()` - Subpixel into buffer
-4. [ ] `stb_make_glyph_bitmap_subpixel_pure()` - Subpixel glyph into buffer
-5. [ ] `stb_get_*_bitmap_box_subpixel_pure()` - Subpixel bounding boxes
-
-**Test Strategy:**
-- Test with shift values `(0.25, 0.75)` from existing tests
-- Compare bitmap dimensions: should get `110x120` for test case
-- Verify subpixel positioning affects rendering quality
-
-### Phase 8: Advanced Rendering (Optional)
-
-#### 🔲 Level 11: Prefiltered Rendering
-**Goal:** High-quality rendering with oversampling
-
-**Functions to implement:**
-1. [ ] `stb_make_codepoint_bitmap_subpixel_prefilter_pure()` - Advanced character rendering
-2. [ ] `stb_make_glyph_bitmap_subpixel_prefilter_pure()` - Advanced glyph rendering
-
-**Test Strategy:**
-- Compare output quality with STB prefiltered functions
-- Test various oversampling settings
-
-## 🧪 **Testing Strategy**
-
-### Test Evolution Approach
-1. **Start with failing tests** - Modify `test_stb_comparison.f90` to expect pure success
-2. **Implement incrementally** - Each function should make specific tests pass
-3. **Maintain regression tests** - Previous functions must continue working
-4. **Add specific validation** - Create focused tests for each new capability
-
-### Validation Criteria
-- **Exact metric matches** - Font metrics must match STB values precisely
-- **Visual bitmap comparison** - Rendered bitmaps should be visually identical
-- **Memory safety** - No memory leaks or segmentation faults
-- **Performance baseline** - Should not be significantly slower than STB
-
-### Test Data
-- **Primary**: DejaVu Sans (known good font with existing test values)
-- **Secondary**: Helvetica (test cross-platform compatibility)
-- **Edge cases**: Various font formats and sizes
-
-## 📚 **Documentation Requirements**
-
-### Implementation Documentation
-- [ ] Document TrueType file format understanding
-- [ ] Algorithm documentation for rasterization
-- [ ] Performance analysis and optimization notes
-- [ ] Memory management strategy
-
-### API Documentation
-- [ ] Update function documentation in `fortplot_stb.f90`
-- [ ] Add usage examples for complex functions
-- [ ] Document differences from STB (if any)
-
-## 🎯 **Success Criteria**
-
-### Minimum Viable Implementation
-- [ ] All 23 STB functions have working pure Fortran equivalents
-- [ ] `test_stb_comparison.f90` passes with pure implementation enabled
-- [ ] No regressions in existing `fortplot_text.f90` functionality
-- [ ] Basic font rendering produces correct output
-
-### Optimal Implementation
-- [ ] Performance within 2x of STB for typical use cases
-- [ ] Support for additional TrueType features not in STB
-- [ ] Comprehensive error handling and validation
-- [ ] Extensible architecture for future enhancements
-
-## 🚀 **Implementation Priority**
-
-**Phase 1-3 (Essential):** File I/O through font metrics - enables basic text rendering
-**Phase 4-5 (Important):** Kerning and outline processing - enables quality typography
-**Phase 6-7 (Critical):** Bitmap rendering - core functionality replacement
-**Phase 8 (Optional):** Advanced features - quality improvements
-
-## 📝 **Development Notes**
-
-### Fortran-Specific Considerations
-- **⚠️ CRITICAL: No unsigned integers** - Fortran lacks native unsigned types
-  - Use `integer(c_int32_t)` for 32-bit values, handle overflow carefully
-  - TrueType uses big-endian unsigned values - implement safe conversion functions
-  - Watch for integer overflow when reading large offset values
-- **⚠️ CRITICAL: 1-based indexing** - Fortran arrays start at 1, TrueType at 0
-  - Add +1 to all TrueType file offsets for Fortran array access
-  - Be consistent: `tables(i)%offset = read_be_uint32(font_data, offset + 8) + 1`
-  - Double-check all array bounds and offset calculations
-- **⚠️ CRITICAL: Variable declarations at top** - Fortran requires all variables declared before executable statements
-  - All `integer`, `real`, `logical`, etc. declarations must be at the top of subroutines/functions
-  - Cannot declare variables mid-routine like in C/C++
-  - Move all variable declarations above any executable code to avoid compilation errors
-- **⚠️ Endianness handling** - TrueType is big-endian, ensure proper byte order
-  - Use `read_be_uint32()`, `read_be_uint16()` functions consistently
-  - Test on both little-endian (Intel) and big-endian systems if possible
-- **⚠️ Command typos** - Use correct `fpm` command, NOT `fmp`
-  - Correct: `fpm test --target test_stb_comparison`
-  - Incorrect: `fmp test --target test_stb_comparison` (will give "command not found")
-
-### General Development
-- Follow SOLID principles and 88-character line limit from `CLAUDE.md`
-- Use Test-Driven Development religiously - no implementation without failing tests
-- Start simple - get basic functionality working before optimizing
-- Reference STB implementation for algorithm guidance but don't copy code
-- Document design decisions and trade-offs
-- Plan for incremental testing and validation
 
 ---
 
 ## 🆕 Modularization Note (June 2025)
 
-All TrueType/TTC types and parsing logic have been extracted into dedicated modules:
-- `src/fortplot_truetype_types.f90` — All TrueType/TTC-related type definitions (single source of truth)
-- `src/fortplot_truetype_parser.f90` — All TTF/TTC parsing and binary helper functions
-- `src/fortplot_stb.f90` — Main STB-compatible API and logic, now reusing the above modules for all type and parsing needs (DRY principle)
+All TrueType/TTC types and parsing logic are now in dedicated modules:
+- `src/fortplot_truetype_types.f90` — All type definitions
+- `src/fortplot_truetype_parser.f90` — All parsing and binary helpers
+- `src/fortplot_stb.f90` — Main API, reusing the above modules (DRY)
 
-This ensures:
-- No duplication of types or parsing logic (DRY)
-- All modules use the same type definitions and parsing routines
-- Easier maintenance and extension for future features
+---
 
-**Ready to begin TDD implementation of pure Fortran TrueType parser and renderer.**
+## 📝 Remaining TODOs
+
+### Level 5: TTC (TrueType Collection) Support
+- [ ] `is_ttc_file()` - Detect TTC file format ('ttcf' signature)
+- [ ] `parse_ttc_header()` - Parse TTC header (version, numFonts, offsets)
+- [ ] `get_ttc_font_offset()` - Get offset for specific font index
+- [ ] `get_number_of_fonts()` - Count fonts in TTC
+- [ ] Update all parsing and initialization to work with font-specific offsets
+- [ ] Ensure all tests in `test_stb_comparison.f90` pass for both TTF and TTC fonts
+
+### Next Phases (after TTC)
+- [ ] OS/2 metrics and bounding boxes
+- [ ] Kerning support
+- [ ] Glyph outline parsing and bitmap rendering
+- [ ] Subpixel and advanced rendering
+
+---
+
+**Ready to continue TDD and modular Fortran TrueType development.**
