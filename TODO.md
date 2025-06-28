@@ -112,7 +112,7 @@ Replace STB TrueType C library with a pure Fortran implementation that:
 
 **Functions implemented:**
 1. ✅ `parse_cmap_table()` - Character to glyph mapping table
-2. ✅ `find_glyph_index_pure()` - Unicode codepoint → glyph index lookup  
+2. ✅ `find_glyph_index_pure()` - Unicode codepoint → glyph index lookup
 3. ✅ Support for cmap format 4 subtables (most common format)
 4. ⏳ Handle additional formats: format 0, 12 (if needed)
 
