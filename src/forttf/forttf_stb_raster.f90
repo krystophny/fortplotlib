@@ -46,7 +46,7 @@ contains
         
         type(stb_point_t), allocatable :: temp_points(:)
         integer :: max_points, num_points
-        integer :: i, contour_start, n
+        integer :: i, contour_start
         real(wp) :: objspace_flatness_squared
         logical :: in_contour
         
@@ -526,7 +526,7 @@ contains
         real(wp), intent(inout) :: scanline_fill_buffer(:)
         
         type(stb_active_edge_t), pointer :: e
-        real(wp) :: y_bottom, x0, dx, xb, x_top, x_bottom, sy0, sy1, dy, height
+        real(wp) :: y_bottom, x0, height
         integer :: x
         
         y_bottom = scanline_y + 1.0_wp
@@ -621,7 +621,8 @@ contains
         type(stb_point_t), intent(in) :: points(:)
         integer, intent(in) :: contour_lengths(:), num_contours
         real(wp), intent(in) :: scale_x, scale_y, shift_x, shift_y
-        integer, intent(in) :: xoff, yoff
+        integer, intent(in) :: xoff
+        integer, intent(in) :: yoff ! Unused in current implementation
         logical, intent(in) :: invert
 
         type(stb_edge_t), allocatable :: edges(:)
@@ -691,9 +692,9 @@ contains
         type(stb_bitmap_t), intent(inout) :: result
         type(stb_edge_t), intent(in) :: e(:)
         integer, intent(in) :: n
-        integer, intent(in) :: vsubsample
-        integer, intent(in) :: off_x, off_y
-        type(c_ptr), intent(in) :: userdata
+        integer, intent(in) :: vsubsample ! Unused in current implementation
+        integer, intent(in) :: off_x, off_y ! Unused in current implementation  
+        type(c_ptr), intent(in) :: userdata ! Unused in current implementation
 
         type(stb_active_edge_t), pointer :: active_head
         type(stb_active_edge_t), pointer :: new_edge_ptr
@@ -753,6 +754,7 @@ contains
                 k_val = abs(k_val) * 255.0_wp + 0.5_wp
                 m_val = int(k_val)
                 if (m_val > 255) m_val = 255
+                if (m_val < -128) m_val = -128  ! Ensure fits in signed 8-bit
                 bitmap_array(y * result%stride + i + 1) = int(m_val, c_int8_t)
             end do
 
