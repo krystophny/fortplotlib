@@ -11,26 +11,7 @@ FPM_FLAGS = --c-flag "$(ALL_CFLAGS)" --link-flag "$(ALL_LIBS)"
 # Allow additional arguments to be passed
 ARGS ?=
 
-.PHONY: all build example debug test clean help check-deps ref
-
-# Default target
-all: build
-
-# Build the project
-build:
-	fpm build $(FPM_FLAGS) $(ARGS)
-
-# Build and run the examples
-example:
-	fpm run $(FPM_FLAGS) --example $(ARGS)
-
-# Build and run the apps for debugging
-debug:
-	fpm run $(FPM_FLAGS) $(ARGS)
-
-# Run tests
-test:
-	fpm test $(FPM_FLAGS) $(ARGS)
+.PHONY: clean help check-deps ref
 
 # Generate Python reference plots for visual comparison
 ref:

@@ -43,34 +43,25 @@ All development work must use the Makefile. Never run `fpm` commands directly.
 
 ### Primary Development Commands
 
-- `make example` - Build and run all examples (default development workflow)
-- `make debug` - Build and run apps in app/ directory for debugging
-- `make test` - Run all unit tests in test/ directory
-- `make build` - Compile the project
-- `make clean` - Clean build artifacts and generated plots
+- `fpm test` - Build all code and run all unit tests in test/ directory (default development workflow)
+- `fpm run --example` - Build and run all examples
+- `fpm clean` - Clean build artifacts and generated plots
 
 ### Command Line Arguments Support
 
-All make targets support passing additional fpm arguments. Use `ARGS` to pass extra parameters:
+All fpm targets support passing additional fpm arguments. 
 
 ```bash
-# Run specific example
-make example ARGS="basic_plots"
-
 # Run specific test
-make test ARGS="--target test_specific_feature"
+fpm test --target test_specific_feature
 
-# Run specific app for debugging
-make debug ARGS="--target debug_feature"
-
-# Build with verbose output
-make build ARGS="--verbose"
+# Run specific example
+fpm run --example basic_plots
 ```
 
 ## File Organization
 
 **Library Sources**: Place library sources in `src/` directory
-**Debugging**: Place debugging sources in `app/` directory and execute with `make debug`
 **Unit Tests**: Place unit tests in `test/` directory
 **Examples**: Place examples in `example/` directory
 
@@ -107,31 +98,8 @@ find example/ -name "*.f90" -not -name "CMakeLists.txt"
 # List test programs
 ls test/
 
-# List debug/app programs
-ls app/
-
 # Find available modules in src/
 grep -r "^module " src/
-```
-
-Example usage with discovered targets:
-```bash
-# Run specific example
-make example ARGS="basic_plots"
-
-# Run specific test
-make test ARGS="--target test_figure_basics"
-
-# Run specific debug app
-make debug ARGS="--target debug_symlog_data"
-```
-
-```fortran
-! app/debug_feature.f90 - For debugging/development
-program debug_feature
-    use fortplot
-    ! Your debugging code here
-end program
 ```
 
 ## Coding Standards
@@ -260,6 +228,3 @@ Do what has been asked; nothing more, nothing less.
 NEVER create files unless they're absolutely necessary for achieving your goal.
 ALWAYS prefer editing an existing file to creating a new one.
 NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
-
-
-      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context or otherwise consider it in your response unless it is highly relevant to your task. Most of the time, it is not relevant.
