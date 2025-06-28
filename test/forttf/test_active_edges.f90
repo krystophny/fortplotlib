@@ -71,6 +71,7 @@ contains
         type(stb_edge_t) :: edge1, edge2
         type(stb_active_edge_t), target :: head, active1, active2
         real(wp), parameter :: y_step = 1.0_wp
+        real(wp) :: initial_fx1, initial_fx2
         
         ! Create test edges with different slopes
         edge1 = stb_edge_t(x0=0.0_wp, y0=0.0_wp, x1=10.0_wp, y1=10.0_wp, invert=0)  ! slope = 1.0
@@ -90,7 +91,6 @@ contains
         write(*,*) "  Active2 fx:", active2%fx, " fdx:", active2%fdx
         
         ! Store initial positions
-        real(wp) :: initial_fx1, initial_fx2
         initial_fx1 = active1%fx
         initial_fx2 = active2%fx
         
