@@ -18,6 +18,10 @@ module forttf_stb_raster
     public :: stb_sort_edges
     public :: stb_sort_edges_quicksort
     public :: stb_sort_edges_ins_sort
+    ! Active edge management
+    public :: stb_new_active_edge
+    public :: stb_update_active_edges
+    public :: stb_remove_completed_edges
 
 contains
 
@@ -411,5 +415,78 @@ contains
         end do
         
     end subroutine stb_sort_edges_ins_sort
+
+    function stb_new_active_edge(edge, off_x, start_point) result(active_edge)
+        !! Create new active edge from edge (matches stbtt__new_active)
+        type(stb_edge_t), intent(in) :: edge
+        integer, intent(in) :: off_x
+        real(wp), intent(in) :: start_point
+        type(stb_active_edge_t) :: active_edge
+        
+        real(wp) :: dx, dy
+        
+        ! Calculate edge derivatives (matches STB exactly)
+        dx = edge%x1 - edge%x0
+        dy = edge%y1 - edge%y0
+        
+        ! Initialize active edge fields
+        active_edge%next => null()
+        active_edge%sy = edge%y0
+        active_edge%ey = edge%y1
+        active_edge%direction = real(merge(1, -1, edge%invert == 0), wp)
+        
+        ! Calculate slopes (STB algorithm)
+        if (abs(dy) > epsilon(1.0_wp)) then
+            active_edge%fdx = dx / dy           ! X change per Y unit
+            active_edge%fdy = dy / dx           ! Y change per X unit (inverse slope)
+            active_edge%fx = edge%x0 + active_edge%fdx * (start_point - edge%y0) + real(off_x, wp)
+        else
+            ! Nearly horizontal edge
+            active_edge%fdx = 0.0_wp
+            active_edge%fdy = 0.0_wp  
+            active_edge%fx = edge%x0 + real(off_x, wp)
+        end if
+        
+    end function stb_new_active_edge
+    
+    subroutine stb_update_active_edges(active_edges, y_step)
+        !! Update active edge positions for next scanline (matches STB)
+        type(stb_active_edge_t), intent(inout), target :: active_edges
+        real(wp), intent(in) :: y_step
+        
+        type(stb_active_edge_t), pointer :: current
+        
+        current => active_edges%next
+        do while (associated(current))
+            ! Update X position based on slope
+            current%fx = current%fx + current%fdx * y_step
+            current => current%next
+        end do
+        
+    end subroutine stb_update_active_edges
+    
+    subroutine stb_remove_completed_edges(active_edges, current_y)
+        !! Remove edges that have reached their end Y coordinate
+        type(stb_active_edge_t), intent(inout), target :: active_edges
+        real(wp), intent(in) :: current_y
+        
+        type(stb_active_edge_t), pointer :: current, prev
+        
+        prev => active_edges  ! Dummy head node
+        current => active_edges%next
+        
+        do while (associated(current))
+            if (current_y >= current%ey) then
+                ! Remove this edge from linked list
+                prev%next => current%next
+                ! In a real implementation, we would deallocate current here
+                current => prev%next
+            else
+                prev => current
+                current => current%next
+            end if
+        end do
+        
+    end subroutine stb_remove_completed_edges
 
 end module forttf_stb_raster
