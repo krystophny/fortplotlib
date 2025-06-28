@@ -673,19 +673,19 @@ contains
             call stb_remove_completed_edges(active_head, scan_y_top)
 
             ! Insert all edges that start before the bottom of this scanline
-            if (n > 0) then
-                do while (edge_idx <= n .and. e(edge_idx)%y0 <= scan_y_bottom)
-                    if (e(edge_idx)%y0 /= e(edge_idx)%y1) then
-                        allocate(new_edge_ptr)
-                        new_edge_ptr = stb_new_active_edge(e(edge_idx), off_x, scan_y_top)
-                        if (new_edge_ptr%ey < scan_y_top) then
-                            new_edge_ptr%ey = scan_y_top
-                        end if
-                        call stb_insert_active_edge(active_head, new_edge_ptr)
+            ! Fix bounds checking - ensure edge_idx doesn't exceed array bounds
+            do while (edge_idx <= n)
+                if (e(edge_idx)%y0 > scan_y_bottom) exit  ! STB-style early exit
+                if (e(edge_idx)%y0 /= e(edge_idx)%y1) then
+                    allocate(new_edge_ptr)
+                    new_edge_ptr = stb_new_active_edge(e(edge_idx), off_x, scan_y_top)
+                    if (new_edge_ptr%ey < scan_y_top) then
+                        new_edge_ptr%ey = scan_y_top
                     end if
-                    edge_idx = edge_idx + 1
-                end do
-            end if
+                    call stb_insert_active_edge(active_head, new_edge_ptr)
+                end if
+                edge_idx = edge_idx + 1
+            end do
 
             ! Process all active edges
             if (associated(active_head%next)) then

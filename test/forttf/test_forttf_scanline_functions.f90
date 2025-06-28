@@ -1,57 +1,30 @@
-program test_forttf_stb_rasterization
+program test_forttf_scanline_functions
+    !! Test STB scanline rasterization functions in isolation
+    use forttf_stb_raster, only: stb_rasterize_sorted_edges
+    use forttf_types, only: stb_bitmap_t, stb_edge_t
+    use iso_c_binding, only: c_null_ptr, c_int8_t
+    use, intrinsic :: iso_fortran_env, only: wp => real64
     implicit none
 
-    logical :: test_passed
+    logical :: all_passed
 
-    call test_rasterize_sorted_edges_handles_empty_edges(test_passed)
+    all_passed = .true.
     
-    if (test_passed) then
-        call test_rasterize_sorted_edges_simple_triangle(test_passed)
-    end if
+    ! Test each scanline function in isolation
+    call test_rasterize_sorted_edges_simple_triangle(all_passed)
+    call test_rasterize_sorted_edges_empty_array(all_passed)
 
-    if (test_passed) then
-        print *, "Test passed!"
+    if (all_passed) then
+        print *, "✅ All STB scanline function tests passed!"
     else
-        print *, "Test failed!"
+        print *, "❌ Some STB scanline function tests failed!"
         error stop 1
     end if
 
 contains
 
-    subroutine test_rasterize_sorted_edges_handles_empty_edges(passed)
-        use forttf_stb_raster, only: stb_rasterize_sorted_edges
-        use forttf_types, only: stb_bitmap_t, stb_edge_t
-        use iso_c_binding, only: c_null_ptr, c_int8_t
-        logical, intent(out) :: passed
-
-        type(stb_bitmap_t) :: bitmap
-        type(stb_edge_t), allocatable :: edges(:)
-        integer(c_int8_t), allocatable, target :: pixels(:)
-
-        allocate(pixels(10*10))
-        pixels = 0
-
-        bitmap%w = 10
-        bitmap%h = 10
-        bitmap%stride = 10
-        bitmap%pixels => pixels
-
-        allocate(edges(0))
-
-        call stb_rasterize_sorted_edges(bitmap, edges, 0, 1, 0, 0, c_null_ptr)
-
-        ! With zero edges, no pixels should be modified
-        passed = all(pixels == 0)
-
-    end subroutine test_rasterize_sorted_edges_handles_empty_edges
-
     subroutine test_rasterize_sorted_edges_simple_triangle(passed)
-        use forttf_stb_raster, only: stb_rasterize_sorted_edges
-        use forttf_types, only: stb_bitmap_t, stb_edge_t
-        use iso_c_binding, only: c_null_ptr, c_int8_t
-        use, intrinsic :: iso_fortran_env, only: wp => real64
-        logical, intent(out) :: passed
-        
+        logical, intent(inout) :: passed
         type(stb_bitmap_t) :: bitmap
         type(stb_edge_t), allocatable :: edges(:)
         integer(c_int8_t), allocatable, target :: pixels(:)
@@ -87,7 +60,6 @@ contains
         ! Check that some pixels were modified (triangle should have area > 0)
         if (any(pixels /= 0)) then
             print *, "✅ Triangle rasterization test passed - pixels were modified"
-            passed = .true.
             
             ! Print simple visualization for debugging
             print *, "Triangle rasterization result:"
@@ -100,7 +72,39 @@ contains
         end if
 
         deallocate(pixels, edges)
-
+        
     end subroutine test_rasterize_sorted_edges_simple_triangle
 
-end program test_forttf_stb_rasterization
+    subroutine test_rasterize_sorted_edges_empty_array(passed)
+        logical, intent(inout) :: passed
+        type(stb_bitmap_t) :: bitmap
+        type(stb_edge_t), allocatable :: edges(:)
+        integer(c_int8_t), allocatable, target :: pixels(:)
+
+        print *, "Testing stb_rasterize_sorted_edges with empty edge array..."
+        
+        allocate(pixels(5*5))
+        pixels = 0
+
+        bitmap%w = 5
+        bitmap%h = 5
+        bitmap%stride = 5
+        bitmap%pixels => pixels
+
+        allocate(edges(0))  ! Empty array
+
+        ! This should not crash and should not modify any pixels
+        call stb_rasterize_sorted_edges(bitmap, edges, 0, 1, 0, 0, c_null_ptr)
+
+        if (all(pixels == 0)) then
+            print *, "✅ Empty array test passed - no pixels modified"
+        else
+            print *, "❌ Empty array test failed - pixels were unexpectedly modified"
+            passed = .false.
+        end if
+
+        deallocate(pixels, edges)
+        
+    end subroutine test_rasterize_sorted_edges_empty_array
+
+end program test_forttf_scanline_functions
