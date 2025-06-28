@@ -1,6 +1,27 @@
 # Pure Fortran TrueType Implementation TODO
 
-This TODO list outlines the systematic Test-Driven Dev#### ✅ Level 3: Character Mapping - COMPLETE!lopment (TDD) approach to implement a pure Fortran TrueType font parser and renderer, replacing the STB TrueType dependency. The implementation follows a bottom-up approach, starting with the lowest-level functions and building up to complete font rendering.
+This TODO list outlines the systematic Test-Driven Development (TDD) approach to replace the STB TrueType C library with a pure Fortran implementation. The goal is to achieve feature parity while maintaining or improving performance.
+
+## 📁 **Source File Locations and Porting Overview**
+
+The following directories contain all STB TrueType related sources and tests for this project:
+
+- `thirdparty/` — Contains the original C reference: **`stb_truetype.h`** (to be ported)
+- `src/` — Contains the Fortran implementation and interface:
+    - `fortplot_stb.f90` (pure Fortran port target)
+    - `fortplot_stb_truetype.f90` (current Fortran/C interface)
+    - `stb_truetype_wrapper.c` (C wrapper for interfacing with the original STB C code)
+    - All other font and text-related Fortran modules
+- `test/` — Contains all test programs and comparison scripts:
+    - `test_stb_comparison.f90` (main TDD/validation test)
+    - Additional font, bitmap, and metrics tests
+
+**Porting Goal:**
+- Replace all usage of `thirdparty/stb_truetype.h` (C) with a pure Fortran implementation in `src/fortplot_stb.f90`.
+- Ensure all tests in `test/` pass with the new Fortran code.
+- Maintain the same API as the current Fortran/C interface and C wrapper for compatibility.
+
+---
 
 ## 🚦 **Current Status** (Updated: June 28, 2025)
 
