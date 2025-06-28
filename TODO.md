@@ -80,17 +80,17 @@ Break down the large `test/test_stb_comparison.f90` into focused test modules:
 ### 🔧 IMMEDIATE: Complete Modularization (Phase 2 & 3)
 We refactor `src/fortplot_stb.f90` and `test/test_stb_comparison.f90` into focused modules. Don't duplicate code from `src/fortplot_truetype_parser.f90` or `src/fortplot_truetype_types.f90`, but import them as needed.
 
-**Phase 2: STB API Modularization**
+**Phase 2: STB API Modularization (✅ Complete)**
 In every step refactor `src/fortplot_stb.f90` to remove funcionality moved to specialized modules and become a thin API layer importing/re-exporting modules.
 
 - [x] Move functionality to `src/fortplot_stb_core.f90` (font init/cleanup, TTC support)
 - [x] Run Tests. Ensure all core functionality works as before.
-- [ ] Move functionality to `src/fortplot_stb_metrics.f90` (horizontal, vertical, OS/2, kerning metrics)
-- [ ] Run Tests. Ensure all metrics functions work as before.
-- [ ] Move functionality to `src/fortplot_stb_mapping.f90` (character-to-glyph mapping and lookup)
-- [ ] Run Tests. Ensure all mapping functions work as before.
-- [ ] Move functionality to `src/fortplot_stb_bitmap.f90` (bitmap rendering functions - stubs for now)
-- [ ] Run Tests. Ensure all bitmap functions work as before.
+- [x] Move functionality to `src/fortplot_stb_metrics.f90` (horizontal, vertical, OS/2, kerning metrics)
+- [x] Run Tests. Ensure all metrics functions work as before.
+- [x] Move functionality to `src/fortplot_stb_mapping.f90` (character-to-glyph mapping and lookup)
+- [x] Run Tests. Ensure all mapping functions work as before.
+- [x] Move functionality to `src/fortplot_stb_bitmap.f90` (bitmap rendering functions - stubs for now)
+- [x] Run Tests. Ensure all bitmap functions work as before.
 
 **Phase 3: Test Modularization**
 In every step refactor `test/test_stb_comparison.f90` to remove functionality moved into focused test modules.
