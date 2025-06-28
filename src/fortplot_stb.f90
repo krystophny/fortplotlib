@@ -18,6 +18,8 @@ module fortplot_stb
     public :: stb_get_font_vmetrics_os2_pure, stb_get_glyph_hmetrics_pure
     public :: stb_get_glyph_box_pure, stb_get_glyph_kern_advance_pure
     public :: stb_get_kerning_table_length_pure, stb_get_kerning_table_pure
+    public :: stb_get_glyph_bitmap_pure, stb_get_glyph_bitmap_box_pure
+    public :: stb_get_codepoint_bitmap_subpixel_pure, stb_make_glyph_bitmap_pure
     public :: STB_PURE_SUCCESS, STB_PURE_ERROR, STB_PURE_NOT_IMPLEMENTED
     
     ! Constants
@@ -430,5 +432,93 @@ contains
         ! TODO: Implement kern table extraction
         
     end function stb_get_kerning_table_pure
+
+    function stb_get_glyph_bitmap_pure(font_info, scale_x, scale_y, glyph, &
+                                      width, height, xoff, yoff) &
+             result(bitmap_ptr)
+        !! Allocate and render glyph bitmap by glyph index (STUB)
+        type(stb_fontinfo_pure_t), intent(in) :: font_info
+        real(wp), intent(in) :: scale_x, scale_y
+        integer, intent(in) :: glyph
+        integer, intent(out) :: width, height, xoff, yoff
+        type(c_ptr) :: bitmap_ptr
+        
+        if (.not. font_info%initialized) then
+            bitmap_ptr = c_null_ptr
+            width = 0; height = 0; xoff = 0; yoff = 0
+            return
+        end if
+        
+        ! STUB: Return null pointer
+        bitmap_ptr = c_null_ptr
+        width = 0; height = 0; xoff = 0; yoff = 0
+        
+        ! TODO: Implement glyph bitmap rendering by index
+        
+    end function stb_get_glyph_bitmap_pure
+    
+    subroutine stb_get_glyph_bitmap_box_pure(font_info, glyph, scale_x, &
+                                            scale_y, ix0, iy0, ix1, iy1)
+        !! Get bounding box for glyph bitmap (STUB)
+        type(stb_fontinfo_pure_t), intent(in) :: font_info
+        integer, intent(in) :: glyph
+        real(wp), intent(in) :: scale_x, scale_y
+        integer, intent(out) :: ix0, iy0, ix1, iy1
+        
+        if (.not. font_info%initialized) then
+            ix0 = 0; iy0 = 0; ix1 = 0; iy1 = 0
+            return
+        end if
+        
+        ! STUB: Return placeholder values
+        ix0 = 0; iy0 = 0; ix1 = 0; iy1 = 0
+        
+        ! TODO: Implement glyph bitmap bounding box calculation
+        
+    end subroutine stb_get_glyph_bitmap_box_pure
+    
+    function stb_get_codepoint_bitmap_subpixel_pure(font_info, scale_x, &
+                                                   scale_y, shift_x, &
+                                                   shift_y, codepoint, &
+                                                   width, height, xoff, &
+                                                   yoff) result(bitmap_ptr)
+        !! Allocate and render character bitmap with subpixel positioning (STUB)
+        type(stb_fontinfo_pure_t), intent(in) :: font_info
+        real(wp), intent(in) :: scale_x, scale_y, shift_x, shift_y
+        integer, intent(in) :: codepoint
+        integer, intent(out) :: width, height, xoff, yoff
+        type(c_ptr) :: bitmap_ptr
+        
+        if (.not. font_info%initialized) then
+            bitmap_ptr = c_null_ptr
+            width = 0; height = 0; xoff = 0; yoff = 0
+            return
+        end if
+        
+        ! STUB: Return null pointer
+        bitmap_ptr = c_null_ptr
+        width = 0; height = 0; xoff = 0; yoff = 0
+        
+        ! TODO: Implement subpixel positioned bitmap rendering
+        
+    end function stb_get_codepoint_bitmap_subpixel_pure
+    
+    subroutine stb_make_glyph_bitmap_pure(font_info, output_buffer, out_w, &
+                                         out_h, out_stride, scale_x, scale_y, &
+                                         glyph)
+        !! Render glyph into provided buffer (STUB)
+        type(stb_fontinfo_pure_t), intent(in) :: font_info
+        integer(c_int8_t), intent(inout), target :: output_buffer(*)
+        integer, intent(in) :: out_w, out_h, out_stride
+        real(wp), intent(in) :: scale_x, scale_y
+        integer, intent(in) :: glyph
+        
+        if (.not. font_info%initialized) return
+        
+        ! STUB: Do nothing
+        
+        ! TODO: Implement glyph bitmap rendering into user buffer
+        
+    end subroutine stb_make_glyph_bitmap_pure
 
 end module fortplot_stb

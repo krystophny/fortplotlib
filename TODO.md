@@ -42,26 +42,30 @@ This TODO list tracks the implementation of Fortran ISO C wrappers for all stb_t
 **Kerning Functions:**
 - [x] `stbtt_GetCodepointKernAdvance()` → Added `stb_get_codepoint_kern_advance()`
 
-### 🔲 REMAINING Functions to Add to `fortplot_stb_truetype.f90`
+### ✅ COMPLETED: Glyph-level and Advanced Bitmap Functions
 
 **Extended Font Metrics:**
-- [ ] `stbtt_GetFontVMetricsOS2()` → Add `stb_get_font_vmetrics_os2()`
+- [x] `stbtt_GetFontVMetricsOS2()` → Added `stb_get_font_vmetrics_os2()`
 
 **Glyph-level Functions:**
-- [ ] `stbtt_GetGlyphHMetrics()` → Add `stb_get_glyph_hmetrics()`
-- [ ] `stbtt_GetGlyphBox()` → Add `stb_get_glyph_box()`
-- [ ] `stbtt_GetGlyphKernAdvance()` → Add `stb_get_glyph_kern_advance()`
-- [ ] `stbtt_GetKerningTableLength()` → Add `stb_get_kerning_table_length()`
-- [ ] `stbtt_GetKerningTable()` → Add `stb_get_kerning_table()`
+- [x] `stbtt_GetGlyphHMetrics()` → Added `stb_get_glyph_hmetrics()`
+- [x] `stbtt_GetGlyphBox()` → Added `stb_get_glyph_box()`
+- [x] `stbtt_GetGlyphKernAdvance()` → Added `stb_get_glyph_kern_advance()`
+- [x] `stbtt_GetKerningTableLength()` → Added `stb_get_kerning_table_length()`
+- [x] `stbtt_GetKerningTable()` → Added `stb_get_kerning_table()`
 
 **Advanced Bitmap Functions:**
-- [ ] `stbtt_GetGlyphBitmap()` → Add `stb_get_glyph_bitmap()`
+- [x] `stbtt_GetGlyphBitmap()` → Added `stb_get_glyph_bitmap()`
+- [x] `stbtt_GetCodepointBitmapSubpixel()` → Added `stb_get_codepoint_bitmap_subpixel()`
+- [x] `stbtt_MakeGlyphBitmap()` → Added `stb_make_glyph_bitmap()`
+- [x] `stbtt_GetGlyphBitmapBox()` → Added `stb_get_glyph_bitmap_box()`
+
+### 🔲 REMAINING Functions to Add to `fortplot_stb_truetype.f90`
+
+**Advanced Subpixel Variants:**
 - [ ] `stbtt_GetGlyphBitmapSubpixel()` → Add `stb_get_glyph_bitmap_subpixel()`
-- [ ] `stbtt_GetCodepointBitmapSubpixel()` → Add `stb_get_codepoint_bitmap_subpixel()`
-- [ ] `stbtt_MakeGlyphBitmap()` → Add `stb_make_glyph_bitmap()`
 - [ ] `stbtt_MakeGlyphBitmapSubpixel()` → Add `stb_make_glyph_bitmap_subpixel()`
 - [ ] `stbtt_MakeCodepointBitmapSubpixel()` → Add `stb_make_codepoint_bitmap_subpixel()`
-- [ ] `stbtt_GetGlyphBitmapBox()` → Add `stb_get_glyph_bitmap_box()`
 - [ ] `stbtt_GetGlyphBitmapBoxSubpixel()` → Add `stb_get_glyph_bitmap_box_subpixel()`
 - [ ] `stbtt_GetCodepointBitmapBoxSubpixel()` → Add `stb_get_codepoint_bitmap_box_subpixel()`
 
@@ -178,7 +182,9 @@ For each remaining Fortran function above, add corresponding C wrapper functions
 
 ## Summary of Completed Work
 
-### ✅ Implemented Functions (6 new functions)
+### ✅ Implemented Functions (16 new functions)
+
+**Phase 1 - Basic Extensions (6 functions):**
 1. **`stb_get_number_of_fonts()`** - Get font count in file
 2. **`stb_get_font_offset_for_index()`** - Get font offset for multi-font files
 3. **`stb_scale_for_mapping_em_to_pixels()`** - Calculate EM-based scaling
@@ -186,11 +192,27 @@ For each remaining Fortran function above, add corresponding C wrapper functions
 5. **`stb_get_codepoint_box()`** - Get character bounding box
 6. **`stb_get_codepoint_kern_advance()`** - Get kerning between characters
 
+**Phase 2 - Glyph-level Functions (6 functions):**
+7. **`stb_get_font_vmetrics_os2()`** - Get OS/2 table metrics
+8. **`stb_get_glyph_hmetrics()`** - Get glyph horizontal metrics by index
+9. **`stb_get_glyph_box()`** - Get glyph bounding box by index
+10. **`stb_get_glyph_kern_advance()`** - Get kerning between glyph indices
+11. **`stb_get_kerning_table_length()`** - Get length of kerning table
+12. **`stb_get_kerning_table()`** - Get kerning table entries
+
+**Phase 3 - Advanced Bitmap Functions (4 functions):**
+13. **`stb_get_glyph_bitmap()`** - Render glyph bitmap by index
+14. **`stb_get_glyph_bitmap_box()`** - Get glyph bitmap bounding box
+15. **`stb_get_codepoint_bitmap_subpixel()`** - Render subpixel positioned bitmap
+16. **`stb_make_glyph_bitmap()`** - Render glyph into user buffer
+
 ### ✅ Infrastructure Completed
-- **Fortran Module**: Extended `fortplot_stb_truetype.f90` with 6 new wrapper functions
-- **C Wrapper Layer**: Added 6 corresponding C functions in `stb_truetype_wrapper.c`
-- **Pure Fortran Stubs**: Created `fortplot_stb.f90` with stub implementations for future port
+- **Fortran Module**: Extended `fortplot_stb_truetype.f90` with 16 new wrapper functions
+- **C Wrapper Layer**: Added 16 corresponding C functions in `stb_truetype_wrapper.c`
+- **Pure Fortran Stubs**: Created `fortplot_stb.f90` with 20 stub implementations for future port
 - **Test Infrastructure**: Created `test_stb_comparison.f90` to compare STB vs pure implementations
+  - Tests basic functions, glyph-level functions, and bitmap functions
+  - Comprehensive test coverage for all new functionality
 - **Documentation**: Updated `ttf.md` and `TODO.md` to reflect progress
 
 ### ✅ Testing Results

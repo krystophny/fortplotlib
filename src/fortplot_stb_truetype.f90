@@ -17,6 +17,8 @@ module fortplot_stb_truetype
     public :: stb_get_font_vmetrics_os2, stb_get_glyph_hmetrics, stb_get_glyph_box
     public :: stb_get_glyph_kern_advance, stb_get_kerning_table_length
     public :: stb_get_kerning_table
+    public :: stb_get_glyph_bitmap, stb_get_glyph_bitmap_box
+    public :: stb_get_codepoint_bitmap_subpixel, stb_make_glyph_bitmap
     public :: STB_SUCCESS, STB_ERROR
     
     ! Constants
@@ -223,6 +225,51 @@ module fortplot_stb_truetype
             integer(c_int), value :: table_length
             integer(c_int) :: stb_wrapper_get_kerning_table
         end function stb_wrapper_get_kerning_table
+        
+        ! Advanced bitmap functions
+        function stb_wrapper_get_glyph_bitmap(font_info, scale_x, scale_y, &
+                 glyph, width, height, xoff, yoff) &
+                 bind(C, name="stb_wrapper_get_glyph_bitmap")
+            import :: c_ptr, c_int, c_float, stb_fontinfo_t
+            type(stb_fontinfo_t), intent(in) :: font_info
+            real(c_float), value :: scale_x, scale_y
+            integer(c_int), value :: glyph
+            integer(c_int), intent(out) :: width, height, xoff, yoff
+            type(c_ptr) :: stb_wrapper_get_glyph_bitmap
+        end function stb_wrapper_get_glyph_bitmap
+        
+        subroutine stb_wrapper_get_glyph_bitmap_box(font_info, glyph, &
+                   scale_x, scale_y, ix0, iy0, ix1, iy1) &
+                   bind(C, name="stb_wrapper_get_glyph_bitmap_box")
+            import :: c_int, c_float, stb_fontinfo_t
+            type(stb_fontinfo_t), intent(in) :: font_info
+            integer(c_int), value :: glyph
+            real(c_float), value :: scale_x, scale_y
+            integer(c_int), intent(out) :: ix0, iy0, ix1, iy1
+        end subroutine stb_wrapper_get_glyph_bitmap_box
+        
+        function stb_wrapper_get_codepoint_bitmap_subpixel(font_info, &
+                 scale_x, scale_y, shift_x, shift_y, codepoint, &
+                 width, height, xoff, yoff) &
+                 bind(C, name="stb_wrapper_get_codepoint_bitmap_subpixel")
+            import :: c_ptr, c_int, c_float, stb_fontinfo_t
+            type(stb_fontinfo_t), intent(in) :: font_info
+            real(c_float), value :: scale_x, scale_y, shift_x, shift_y
+            integer(c_int), value :: codepoint
+            integer(c_int), intent(out) :: width, height, xoff, yoff
+            type(c_ptr) :: stb_wrapper_get_codepoint_bitmap_subpixel
+        end function stb_wrapper_get_codepoint_bitmap_subpixel
+        
+        subroutine stb_wrapper_make_glyph_bitmap(font_info, output, out_w, &
+                   out_h, out_stride, scale_x, scale_y, glyph) &
+                   bind(C, name="stb_wrapper_make_glyph_bitmap")
+            import :: c_ptr, c_int, c_float, stb_fontinfo_t
+            type(stb_fontinfo_t), intent(in) :: font_info
+            type(c_ptr), value :: output
+            integer(c_int), value :: out_w, out_h, out_stride
+            real(c_float), value :: scale_x, scale_y
+            integer(c_int), value :: glyph
+        end subroutine stb_wrapper_make_glyph_bitmap
         
     end interface
     
@@ -621,5 +668,108 @@ contains
                                                  int(table_length, c_int)))
         
     end function stb_get_kerning_table
+
+    function stb_get_glyph_bitmap(font_info, scale_x, scale_y, glyph, &
+                                 width, height, xoff, yoff) result(bitmap_ptr)
+        !! Allocate and render glyph bitmap by glyph index
+        type(stb_fontinfo_t), intent(in) :: font_info
+        real(wp), intent(in) :: scale_x, scale_y
+        integer, intent(in) :: glyph
+        integer, intent(out) :: width, height, xoff, yoff
+        type(c_ptr) :: bitmap_ptr
+        integer(c_int) :: c_width, c_height, c_xoff, c_yoff
+        
+        if (.not. c_associated(font_info%private_data)) then
+            bitmap_ptr = c_null_ptr
+            width = 0; height = 0; xoff = 0; yoff = 0
+            return
+        end if
+        
+        bitmap_ptr = stb_wrapper_get_glyph_bitmap(font_info, &
+                                                 real(scale_x, c_float), &
+                                                 real(scale_y, c_float), &
+                                                 int(glyph, c_int), &
+                                                 c_width, c_height, c_xoff, c_yoff)
+        
+        width = int(c_width); height = int(c_height)
+        xoff = int(c_xoff); yoff = int(c_yoff)
+        
+    end function stb_get_glyph_bitmap
+    
+    subroutine stb_get_glyph_bitmap_box(font_info, glyph, scale_x, scale_y, &
+                                       ix0, iy0, ix1, iy1)
+        !! Get bounding box for glyph bitmap
+        type(stb_fontinfo_t), intent(in) :: font_info  
+        integer, intent(in) :: glyph
+        real(wp), intent(in) :: scale_x, scale_y
+        integer, intent(out) :: ix0, iy0, ix1, iy1
+        integer(c_int) :: c_ix0, c_iy0, c_ix1, c_iy1
+        
+        if (.not. c_associated(font_info%private_data)) then
+            ix0 = 0; iy0 = 0; ix1 = 0; iy1 = 0
+            return
+        end if
+        
+        call stb_wrapper_get_glyph_bitmap_box(font_info, int(glyph, c_int), &
+                                             real(scale_x, c_float), &
+                                             real(scale_y, c_float), &
+                                             c_ix0, c_iy0, c_ix1, c_iy1)
+        
+        ix0 = int(c_ix0); iy0 = int(c_iy0)
+        ix1 = int(c_ix1); iy1 = int(c_iy1)
+        
+    end subroutine stb_get_glyph_bitmap_box
+    
+    function stb_get_codepoint_bitmap_subpixel(font_info, scale_x, scale_y, &
+                                              shift_x, shift_y, codepoint, &
+                                              width, height, xoff, yoff) &
+             result(bitmap_ptr)
+        !! Allocate and render character bitmap with subpixel positioning
+        type(stb_fontinfo_t), intent(in) :: font_info
+        real(wp), intent(in) :: scale_x, scale_y, shift_x, shift_y
+        integer, intent(in) :: codepoint
+        integer, intent(out) :: width, height, xoff, yoff
+        type(c_ptr) :: bitmap_ptr
+        integer(c_int) :: c_width, c_height, c_xoff, c_yoff
+        
+        if (.not. c_associated(font_info%private_data)) then
+            bitmap_ptr = c_null_ptr
+            width = 0; height = 0; xoff = 0; yoff = 0
+            return
+        end if
+        
+        bitmap_ptr = stb_wrapper_get_codepoint_bitmap_subpixel(font_info, &
+                                                              real(scale_x, c_float), &
+                                                              real(scale_y, c_float), &
+                                                              real(shift_x, c_float), &
+                                                              real(shift_y, c_float), &
+                                                              int(codepoint, c_int), &
+                                                              c_width, c_height, &
+                                                              c_xoff, c_yoff)
+        
+        width = int(c_width); height = int(c_height)
+        xoff = int(c_xoff); yoff = int(c_yoff)
+        
+    end function stb_get_codepoint_bitmap_subpixel
+    
+    subroutine stb_make_glyph_bitmap(font_info, output_buffer, out_w, out_h, &
+                                    out_stride, scale_x, scale_y, glyph)
+        !! Render glyph into provided buffer
+        type(stb_fontinfo_t), intent(in) :: font_info
+        integer(c_int8_t), intent(inout), target :: output_buffer(*)
+        integer, intent(in) :: out_w, out_h, out_stride
+        real(wp), intent(in) :: scale_x, scale_y
+        integer, intent(in) :: glyph
+        
+        if (.not. c_associated(font_info%private_data)) return
+        
+        call stb_wrapper_make_glyph_bitmap(font_info, c_loc(output_buffer), &
+                                          int(out_w, c_int), int(out_h, c_int), &
+                                          int(out_stride, c_int), &
+                                          real(scale_x, c_float), &
+                                          real(scale_y, c_float), &
+                                          int(glyph, c_int))
+        
+    end subroutine stb_make_glyph_bitmap
 
 end module fortplot_stb_truetype

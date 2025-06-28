@@ -192,8 +192,70 @@ contains
         table_length = stb_get_kerning_table_length(stb_font)
         write(*,'(A,I0)') "    Kerning table length: ", table_length
         
+        ! Test bitmap functions
+        call test_bitmap_functions(stb_font, glyph_index)
+        
         write(*,*) "  ✓ Glyph functions tested successfully"
         
     end subroutine test_glyph_functions
+    
+    subroutine test_bitmap_functions(stb_font, glyph_index)
+        !! Test newly added bitmap functions
+        type(stb_fontinfo_t), intent(in) :: stb_font
+        integer, intent(in) :: glyph_index
+        type(c_ptr) :: bitmap_ptr, subpixel_bitmap_ptr
+        integer :: width, height, xoff, yoff
+        integer :: bbox_x0, bbox_y0, bbox_x1, bbox_y1
+        real(wp) :: scale_x, scale_y
+        
+        write(*,*) "    Testing bitmap functions..."
+        
+        scale_x = 0.1_wp
+        scale_y = 0.1_wp
+        
+        if (glyph_index > 0) then
+            ! Test glyph bitmap rendering
+            bitmap_ptr = stb_get_glyph_bitmap(stb_font, scale_x, scale_y, &
+                                             glyph_index, width, height, &
+                                             xoff, yoff)
+            
+            if (c_associated(bitmap_ptr)) then
+                write(*,'(A,I0,A,I0,A,I0,A,I0)') "    ✓ Glyph bitmap: ", &
+                    width, "x", height, " offset: ", xoff, ",", yoff
+                call stb_free_bitmap(bitmap_ptr)
+            else
+                write(*,*) "    ⚠ Glyph bitmap allocation failed"
+            end if
+            
+            ! Test glyph bitmap bounding box
+            call stb_get_glyph_bitmap_box(stb_font, glyph_index, scale_x, &
+                                         scale_y, bbox_x0, bbox_y0, &
+                                         bbox_x1, bbox_y1)
+            write(*,'(A,4I6)') "    Glyph bitmap bbox: ", bbox_x0, bbox_y0, &
+                               bbox_x1, bbox_y1
+        end if
+        
+        ! Test subpixel positioned character bitmap
+        subpixel_bitmap_ptr = stb_get_codepoint_bitmap_subpixel(stb_font, &
+                                                               scale_x, &
+                                                               scale_y, &
+                                                               0.5_wp, &
+                                                               0.5_wp, &
+                                                               iachar('A'), &
+                                                               width, &
+                                                               height, &
+                                                               xoff, yoff)
+        
+        if (c_associated(subpixel_bitmap_ptr)) then
+            write(*,'(A,I0,A,I0,A,I0,A,I0)') "    ✓ Subpixel bitmap: ", &
+                width, "x", height, " offset: ", xoff, ",", yoff
+            call stb_free_bitmap(subpixel_bitmap_ptr)
+        else
+            write(*,*) "    ⚠ Subpixel bitmap allocation failed"
+        end if
+        
+        write(*,*) "    ✓ Bitmap functions tested successfully"
+        
+    end subroutine test_bitmap_functions
 
 end program test_stb_comparison
