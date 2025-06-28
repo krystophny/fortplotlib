@@ -113,6 +113,14 @@ typedef struct {
 } fortran_point_t;
 
 /*
+ * Fortran double-precision edge structure (must match forttf_types.f90)
+ */
+typedef struct {
+    double x0, y0, x1, y1;
+    int invert;
+} fortran_edge_t;
+
+/*
  * Convert Fortran double-precision points to STB single-precision points
  */
 static stbtt__point* convert_fortran_points_to_stb(fortran_point_t *fortran_points, int num_points) {
@@ -125,6 +133,24 @@ static stbtt__point* convert_fortran_points_to_stb(fortran_point_t *fortran_poin
     }
     
     return stb_points;
+}
+
+/*
+ * Convert STB single-precision edges to Fortran double-precision edges
+ */
+static fortran_edge_t* convert_stb_edges_to_fortran(stbtt__edge *stb_edges, int num_edges) {
+    fortran_edge_t *fortran_edges = malloc(num_edges * sizeof(fortran_edge_t));
+    if (!fortran_edges) return NULL;
+    
+    for (int i = 0; i < num_edges; i++) {
+        fortran_edges[i].x0 = (double)stb_edges[i].x0;
+        fortran_edges[i].y0 = (double)stb_edges[i].y0;
+        fortran_edges[i].x1 = (double)stb_edges[i].x1;
+        fortran_edges[i].y1 = (double)stb_edges[i].y1;
+        fortran_edges[i].invert = stb_edges[i].invert;
+    }
+    
+    return fortran_edges;
 }
 
 /*
@@ -148,8 +174,18 @@ void stb_test_build_edges_from_fortran_points(fortran_point_t *fortran_pts, int 
     }
     
     // Call the existing STB edge building function
+    stbtt__edge *stb_edges;
     stb_test_build_edges_exact(stb_pts, wcount, windings, scale_x, scale_y, shift_x, shift_y, 
-                              invert, edges_out, num_edges_out);
+                              invert, &stb_edges, num_edges_out);
+    
+    // Convert STB edges to Fortran format
+    if (*num_edges_out > 0 && stb_edges) {
+        fortran_edge_t *fortran_edges = convert_stb_edges_to_fortran(stb_edges, *num_edges_out);
+        *edges_out = (stbtt__edge*)fortran_edges;  // Cast for interface compatibility
+        free(stb_edges);  // Free original STB edges
+    } else {
+        *edges_out = NULL;
+    }
     
     // Clean up converted points
     free(stb_pts);
