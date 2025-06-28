@@ -99,7 +99,7 @@ contains
             ! Test glyph-level functions
             call test_glyph_functions(stb_font)
 
-            ! Test glyph index mapping comparison (Level 3) 
+            ! Test glyph index mapping comparison (Level 3)
             if (pure_success) then
                 stb_glyph_a = stb_find_glyph_index(stb_font, iachar('A'))
                 pure_glyph_a = stb_find_glyph_index_pure(pure_font, iachar('A'))
@@ -119,7 +119,7 @@ contains
                 pure_descent == stb_descent .and. &
                 pure_line_gap == stb_line_gap) then
                 write(*,*) "  ✓ Pure metrics match STB - implementation correct"
-                
+
                 ! Check glyph index mapping (Level 3)
                 if (stb_success .and. pure_glyph_a /= stb_glyph_a) then
                     write(*,*) "  ✗ Pure glyph mapping incorrect - need cmap implementation"

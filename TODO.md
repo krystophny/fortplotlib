@@ -320,6 +320,10 @@ scale = real(pixel_height, wp) / real(head_table%units_per_em, wp)
   - Add +1 to all TrueType file offsets for Fortran array access
   - Be consistent: `tables(i)%offset = read_be_uint32(font_data, offset + 8) + 1`
   - Double-check all array bounds and offset calculations
+- **⚠️ CRITICAL: Variable declarations at top** - Fortran requires all variables declared before executable statements
+  - All `integer`, `real`, `logical`, etc. declarations must be at the top of subroutines/functions
+  - Cannot declare variables mid-routine like in C/C++
+  - Move all variable declarations above any executable code to avoid compilation errors
 - **⚠️ Endianness handling** - TrueType is big-endian, ensure proper byte order
   - Use `read_be_uint32()`, `read_be_uint16()` functions consistently
   - Test on both little-endian (Intel) and big-endian systems if possible
