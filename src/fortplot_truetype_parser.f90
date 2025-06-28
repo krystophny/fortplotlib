@@ -316,6 +316,12 @@ contains
         integer, intent(in) :: offset
         integer :: value
 
+        ! Bounds check
+        if (offset < 1 .or. offset + 3 > size(data)) then
+            value = 0
+            return
+        end if
+
         value = ishft(iand(int(data(offset)), 255), 24) + &
                 ishft(iand(int(data(offset+1)), 255), 16) + &
                 ishft(iand(int(data(offset+2)), 255), 8) + &
@@ -329,6 +335,12 @@ contains
         integer, intent(in) :: offset
         integer :: value
 
+        ! Bounds check
+        if (offset < 1 .or. offset + 1 > size(data)) then
+            value = 0
+            return
+        end if
+
         value = ishft(iand(int(data(offset)), 255), 8) + &
                 iand(int(data(offset+1)), 255)
 
@@ -340,6 +352,12 @@ contains
         integer, intent(in) :: offset
         integer :: value
         integer :: unsigned_value
+
+        ! Bounds check
+        if (offset < 1 .or. offset + 1 > size(data)) then
+            value = 0
+            return
+        end if
 
         unsigned_value = ishft(iand(int(data(offset)), 255), 8) + &
                         iand(int(data(offset+1)), 255)
@@ -814,11 +832,9 @@ contains
             kern_offset = font_info%tables(kern_table_idx)%offset  ! Already 1-based
             kern_length = font_info%tables(kern_table_idx)%length
 
-            ! Temporarily disable kern table parsing to avoid array bounds issues
-            ! TODO: Fix kern table parsing bounds issues
-            success = .false.
-            ! success = parse_kern_table(font_info%font_data, kern_offset, &
-            !                          kern_length, font_info%kern_table)
+            ! Re-enable kern table parsing
+            success = parse_kern_table(font_info%font_data, kern_offset, &
+                                     kern_length, font_info%kern_table)
         else
             success = .false.
         end if
