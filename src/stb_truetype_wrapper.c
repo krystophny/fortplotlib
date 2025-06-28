@@ -579,3 +579,43 @@ void stb_wrapper_get_codepoint_bitmap_box_subpixel(const stb_fontinfo_wrapper_t 
     stbtt_GetCodepointBitmapBoxSubpixel(&context->font_info, codepoint, scale_x, scale_y, 
                                        shift_x, shift_y, ix0, iy0, ix1, iy1);
 }
+
+/*
+ * Render character into provided buffer with subpixel positioning and prefiltering
+ */
+void stb_wrapper_make_codepoint_bitmap_subpixel_prefilter(const stb_fontinfo_wrapper_t *wrapper, 
+                                                         unsigned char *output,
+                                                         int out_w, int out_h, int out_stride,
+                                                         float scale_x, float scale_y, 
+                                                         float shift_x, float shift_y,
+                                                         int oversample_x, int oversample_y,
+                                                         float sub_x, float sub_y, int codepoint) {
+    if (!wrapper || !wrapper->private_data || !output) {
+        return;
+    }
+    
+    stb_font_context_t *context = (stb_font_context_t*)wrapper->private_data;
+    stbtt_MakeCodepointBitmapSubpixelPrefilter(&context->font_info, output, out_w, out_h, out_stride, 
+                                              scale_x, scale_y, shift_x, shift_y,
+                                              oversample_x, oversample_y, &sub_x, &sub_y, codepoint);
+}
+
+/*
+ * Render glyph into provided buffer with subpixel positioning and prefiltering
+ */
+void stb_wrapper_make_glyph_bitmap_subpixel_prefilter(const stb_fontinfo_wrapper_t *wrapper, 
+                                                     unsigned char *output,
+                                                     int out_w, int out_h, int out_stride,
+                                                     float scale_x, float scale_y, 
+                                                     float shift_x, float shift_y,
+                                                     int oversample_x, int oversample_y,
+                                                     float sub_x, float sub_y, int glyph) {
+    if (!wrapper || !wrapper->private_data || !output) {
+        return;
+    }
+    
+    stb_font_context_t *context = (stb_font_context_t*)wrapper->private_data;
+    stbtt_MakeGlyphBitmapSubpixelPrefilter(&context->font_info, output, out_w, out_h, out_stride, 
+                                          scale_x, scale_y, shift_x, shift_y,
+                                          oversample_x, oversample_y, &sub_x, &sub_y, glyph);
+}

@@ -23,6 +23,8 @@ module fortplot_stb_truetype
     public :: stb_make_codepoint_bitmap_subpixel
     public :: stb_get_glyph_bitmap_box_subpixel
     public :: stb_get_codepoint_bitmap_box_subpixel
+    public :: stb_make_codepoint_bitmap_subpixel_prefilter
+    public :: stb_make_glyph_bitmap_subpixel_prefilter
     public :: STB_SUCCESS, STB_ERROR
     
     ! Constants
@@ -332,6 +334,37 @@ module fortplot_stb_truetype
             real(c_float), value :: scale_x, scale_y, shift_x, shift_y
             integer(c_int), intent(out) :: ix0, iy0, ix1, iy1
         end subroutine stb_wrapper_get_codepoint_bitmap_box_subpixel
+        
+        ! Prefiltered rendering functions
+        subroutine stb_wrapper_make_codepoint_bitmap_subpixel_prefilter( &
+                   font_info, output, out_w, out_h, out_stride, scale_x, &
+                   scale_y, shift_x, shift_y, oversample_x, oversample_y, &
+                   sub_x, sub_y, codepoint) &
+                   bind(C, name="stb_wrapper_make_codepoint_bitmap_subpixel_prefilter")
+            import :: c_ptr, c_int, c_float, stb_fontinfo_t
+            type(stb_fontinfo_t), intent(in) :: font_info
+            type(c_ptr), value :: output
+            integer(c_int), value :: out_w, out_h, out_stride
+            real(c_float), value :: scale_x, scale_y, shift_x, shift_y
+            integer(c_int), value :: oversample_x, oversample_y
+            real(c_float), value :: sub_x, sub_y
+            integer(c_int), value :: codepoint
+        end subroutine stb_wrapper_make_codepoint_bitmap_subpixel_prefilter
+        
+        subroutine stb_wrapper_make_glyph_bitmap_subpixel_prefilter( &
+                   font_info, output, out_w, out_h, out_stride, scale_x, &
+                   scale_y, shift_x, shift_y, oversample_x, oversample_y, &
+                   sub_x, sub_y, glyph) &
+                   bind(C, name="stb_wrapper_make_glyph_bitmap_subpixel_prefilter")
+            import :: c_ptr, c_int, c_float, stb_fontinfo_t
+            type(stb_fontinfo_t), intent(in) :: font_info
+            type(c_ptr), value :: output
+            integer(c_int), value :: out_w, out_h, out_stride
+            real(c_float), value :: scale_x, scale_y, shift_x, shift_y
+            integer(c_int), value :: oversample_x, oversample_y
+            real(c_float), value :: sub_x, sub_y
+            integer(c_int), value :: glyph
+        end subroutine stb_wrapper_make_glyph_bitmap_subpixel_prefilter
         
     end interface
     
@@ -973,5 +1006,79 @@ contains
         ix1 = int(c_ix1); iy1 = int(c_iy1)
         
     end subroutine stb_get_codepoint_bitmap_box_subpixel
+
+    subroutine stb_make_codepoint_bitmap_subpixel_prefilter(font_info, &
+                                                           output_buffer, &
+                                                           out_w, out_h, &
+                                                           out_stride, &
+                                                           scale_x, scale_y, &
+                                                           shift_x, shift_y, &
+                                                           oversample_x, &
+                                                           oversample_y, &
+                                                           sub_x, sub_y, &
+                                                           codepoint)
+        !! Render character with subpixel positioning and prefiltering
+        type(stb_fontinfo_t), intent(in) :: font_info
+        integer(c_int8_t), intent(inout), target :: output_buffer(*)
+        integer, intent(in) :: out_w, out_h, out_stride
+        real(wp), intent(in) :: scale_x, scale_y, shift_x, shift_y
+        integer, intent(in) :: oversample_x, oversample_y
+        real(wp), intent(in) :: sub_x, sub_y
+        integer, intent(in) :: codepoint
+        
+        if (.not. c_associated(font_info%private_data)) return
+        
+        call stb_wrapper_make_codepoint_bitmap_subpixel_prefilter(font_info, &
+                                                                 c_loc(output_buffer), &
+                                                                 int(out_w, c_int), &
+                                                                 int(out_h, c_int), &
+                                                                 int(out_stride, c_int), &
+                                                                 real(scale_x, c_float), &
+                                                                 real(scale_y, c_float), &
+                                                                 real(shift_x, c_float), &
+                                                                 real(shift_y, c_float), &
+                                                                 int(oversample_x, c_int), &
+                                                                 int(oversample_y, c_int), &
+                                                                 real(sub_x, c_float), &
+                                                                 real(sub_y, c_float), &
+                                                                 int(codepoint, c_int))
+        
+    end subroutine stb_make_codepoint_bitmap_subpixel_prefilter
+    
+    subroutine stb_make_glyph_bitmap_subpixel_prefilter(font_info, &
+                                                       output_buffer, &
+                                                       out_w, out_h, &
+                                                       out_stride, scale_x, &
+                                                       scale_y, shift_x, &
+                                                       shift_y, oversample_x, &
+                                                       oversample_y, sub_x, &
+                                                       sub_y, glyph)
+        !! Render glyph with subpixel positioning and prefiltering
+        type(stb_fontinfo_t), intent(in) :: font_info
+        integer(c_int8_t), intent(inout), target :: output_buffer(*)
+        integer, intent(in) :: out_w, out_h, out_stride
+        real(wp), intent(in) :: scale_x, scale_y, shift_x, shift_y
+        integer, intent(in) :: oversample_x, oversample_y
+        real(wp), intent(in) :: sub_x, sub_y
+        integer, intent(in) :: glyph
+        
+        if (.not. c_associated(font_info%private_data)) return
+        
+        call stb_wrapper_make_glyph_bitmap_subpixel_prefilter(font_info, &
+                                                             c_loc(output_buffer), &
+                                                             int(out_w, c_int), &
+                                                             int(out_h, c_int), &
+                                                             int(out_stride, c_int), &
+                                                             real(scale_x, c_float), &
+                                                             real(scale_y, c_float), &
+                                                             real(shift_x, c_float), &
+                                                             real(shift_y, c_float), &
+                                                             int(oversample_x, c_int), &
+                                                             int(oversample_y, c_int), &
+                                                             real(sub_x, c_float), &
+                                                             real(sub_y, c_float), &
+                                                             int(glyph, c_int))
+        
+    end subroutine stb_make_glyph_bitmap_subpixel_prefilter
 
 end module fortplot_stb_truetype
