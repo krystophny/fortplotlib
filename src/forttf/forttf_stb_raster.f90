@@ -1009,7 +1009,8 @@ contains
                 m_val = int(k_val)
                 if (m_val > 255) m_val = 255
                 if (m_val < 0) m_val = 0  ! Ensure non-negative values for bitmap
-                bitmap_array(y * result%stride + i + 1) = int(m_val, c_int8_t)
+                ! Flip Y coordinate to match STB's coordinate system
+                bitmap_array((result%h - 1 - y) * result%stride + i + 1) = int(m_val, c_int8_t)
             end do
 
             ! Advance all the edges
