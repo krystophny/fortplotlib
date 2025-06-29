@@ -21,7 +21,7 @@ contains
         logical :: stb_success, pure_success
 
         integer, parameter :: codepoint_a = 65  ! 'A'
-        real(wp), parameter :: scale = 0.5_wp
+        real(wp), parameter :: scale = 0.02_wp
 
         ! STB C variables
         type(c_ptr) :: stb_bitmap_ptr

@@ -18,7 +18,7 @@ contains
         logical :: stb_success, pure_success
 
         integer, parameter :: codepoint_dollar = 36  ! '$' character
-        real(wp), parameter :: scale = 2.0_wp
+        real(wp), parameter :: scale = 0.02_wp
 
         ! STB C variables
         type(c_ptr) :: stb_bitmap_ptr

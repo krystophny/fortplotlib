@@ -201,6 +201,14 @@ All test commands build the code automatically. To build, just run the tests.
 - **Solution:** Validated that `c_int8_t` signed bitmap storage correctly handles 0-255 range
 - **Implementation:** Values 128-255 appear negative but are properly converted in all operations
 - **Result:** **VERIFIED CORRECT** - Bitmap data type handling working as designed (99.39% accuracy)
+- **Theory:** Edge direction calculation might be inverted (STB: `invert ? 1 : -1` vs our logic)
+- **Test:** Changed `edge%invert == 0` to `edge%invert /= 0` in direction calculation
+- **Result:** **NO CHANGE** - still 99.39% accuracy with identical 2,772 pixel differences
+- **Conclusion:** Edge direction was already correct; issue lies elsewhere in anti-aliasing pipeline
+- **Problem:** Concerns about negative pixel values in signed integer representation
+- **Solution:** Validated that `c_int8_t` signed bitmap storage correctly handles 0-255 range
+- **Implementation:** Values 128-255 appear negative but are properly converted in all operations
+- **Result:** **VERIFIED CORRECT** - Bitmap data type handling working as designed (99.39% accuracy)
 ### 4. **✅ VALIDATED: 100% Edge Building + 99.39% Bitmap Accuracy**
 - **Test:** `test_forttf_conversion_validation.f90` with proper C wrapper interface
 - **Results:** **HISTORIC PERFECTION**:
@@ -240,57 +248,79 @@ All test commands build the code automatically. To build, just run the tests.
 
 ### **Phase 1: Anti-Aliasing Precision Analysis**
 
-**STEP 1.1: Analyze the 2,772 Different Pixels**
-- ✅ **COMPLETED:** Detailed pixel-by-pixel comparison shows characteristic edge patterns
-- ✅ **CONFIRMED:** Small differences (-1 to +1): 237 pixels, Medium differences: Most common
-- ✅ **IDENTIFIED:** Large differences (±255): 39 pixels at boundary conditions
-- 🎯 **NEXT:** Focus on sub-pixel coverage calculation precision differences
+**STEP 1.1: Enhanced Pixel Analysis with Different Scale**
+- ✅ **COMPLETED:** Original test: 2,772/452,408 pixels different (99.39% accuracy)
+- ✅ **ENHANCED:** Modified scale test: 109/768 pixels different (85.8% accuracy) - makes issues more visible
+- ✅ **IDENTIFIED PATTERNS:**
+  - **Over-saturation:** Many cases where Pure=255, STB=65 (extreme over-estimation)
+  - **Under-estimation:** Cases where Pure=52, STB=203 (significant under-estimation)
+  - **Edge boundaries:** Concentrated at glyph edges where anti-aliasing occurs
+- 🎯 **ROOT CAUSE:** Coverage calculation logic differences, not the final pixel conversion formula
 
-**STEP 1.2: Test Individual Rasterization Components**
-- Test `stb_rasterize_sorted_edges()` in isolation with exact STB parameters
-- Test `stb_fill_active_edges()` with identical edge data
-- Test scanline processing functions step-by-step
-- Validate antialiasing coverage calculations match STB exactly
+**STEP 1.2: Anti-Aliasing Formula Validation**
+- ✅ **CONFIRMED:** Final pixel conversion formula matches STB exactly:
+  - STB: `k = (float) STBTT_fabs(k)*255 + 0.5f;`
+  - Ours: `k_val = abs(k_val) * 255.0_wp + 0.5_wp`
+- ✅ **VALIDATED:** Scanline conversion precision test shows 100% accuracy
+- ✅ **VERIFIED:** Area calculation functions working correctly within bounds
+- 🚨 **CONCLUSION:** The issue is NOT in the final conversion - it's in coverage calculation
 
-**STEP 1.3: Debug Floating-Point Precision Issues**
-- Create tests for edge case floating-point calculations
-- Test subpixel positioning precision (shift_x, shift_y parameters)
-- Validate flatness parameters match STB exactly (currently 0.35)
-- Check for rounding differences in coordinate transformations
+**STEP 1.3: Edge Direction and Winding Order Investigation**
+- ✅ **TESTED:** Edge direction logic comparison with STB
+  - STB: `z->direction = e->invert ? 1.0f : -1.0f;`
+  - Ours: `active_edge%direction = real(merge(1, -1, edge%invert == 0), wp)`
+- ✅ **VALIDATED:** Edge direction logic is correct (fix attempt showed no change)
+- ✅ **CONFIRMED:** Edge building and sorting algorithms working perfectly
+- 🎯 **RULED OUT:** Edge direction/winding issues are not the cause
 
-### **Phase 2: Test Helper Functions and Internal Operations**
+**🔍 CRITICAL FINDINGS:**
 
-**STEP 2.1: Test Internal Rasterization Helpers (Currently UNTESTED)**
-- Test coordinate scaling functions in isolation
-- Test coordinate transformation functions
-- Test subpixel positioning functions
-- Test pixel accumulation and threshold logic
+1. **Over-saturation Pattern:** Cases like `Pixel (9,2): STB=65, Pure=255` (diff=+190)
+   - Suggests our coverage calculation is drastically over-estimating
+   - Leading to full saturation (255) when should be partial coverage
 
-**STEP 2.2: Test Edge Case Scenarios**
-- Test with different font sizes and scales
-- Test with different characters (not just 'A')
-- Test boundary conditions (very small/large glyphs)
-- Test composite glyph rendering (if applicable)
+2. **Under-estimation Pattern:** Cases like `Pixel (14,2): STB=203, Pure=52` (diff=-151)
+   - Suggests our coverage calculation is drastically under-estimating
+   - Leading to minimal coverage when should be nearly full
 
-**STEP 2.3: Validate STB Constants and Parameters**
-- Verify `TTF_FLATNESS_IN_PIXELS = 0.35` matches STB exactly
-- Verify `TTF_COVERAGE_SCALE = 255` matches STB exactly
-- Test with different flatness values to see impact
-- Validate all magic numbers match STB implementation
+3. **Edge Processing Focus:** Issue is in `stb_handle_clipped_edge` or `stb_fill_active_edges_with_offset`
+   - Not in final pixel conversion (confirmed working correctly)
+   - Not in edge direction/winding (confirmed working correctly)
+   - Must be in sub-pixel coverage accumulation logic
 
-### **Phase 3: Deep Algorithmic Analysis**
+**🎯 IMMEDIATE INVESTIGATION TARGETS:**
+1. **Coverage Accumulation Logic** - Check for double-counting or missing edges
+2. **Floating-Point vs Double Precision** - STB uses float, we use double (64-bit)
+3. **Edge Intersection Calculations** - Sub-pixel boundary handling differences
+4. **Scanline Fill Buffer Logic** - Verify accumulation matches STB exactly
 
-**STEP 3.1: Scanline Algorithm Comparison**
-- Compare Fortran vs STB scanline intersection calculations
-- Test active edge update algorithms step-by-step
-- Validate edge sorting stability between implementations
-- Check for differences in edge removal criteria
+### **Phase 2: Coverage Calculation Deep Dive**
 
-**STEP 3.2: Antialiasing and Coverage Analysis**
-- Compare antialiasing coverage calculation methods
-- Test subpixel coverage accumulation
-- Validate pixel value scaling and clamping
-- Check for differences in coverage-to-pixel-value conversion
+**STEP 2.1: Coverage Precision Test Implementation**
+- ✅ **CREATED:** `test_forttf_coverage_precision.f90` for targeted coverage testing
+- 🎯 **TESTING:** Specific problematic cases (STB=65, Pure=255 differences)
+- 🎯 **VALIDATING:** Area calculation bounds (must stay within 0.0 to 1.0)
+- 🎯 **CHECKING:** Single pixel coverage scenarios vs STB reference
+
+**STEP 2.2: Precision Differences Analysis**
+- 🎯 **INVESTIGATING:** Double (64-bit) vs Float (32-bit) precision impact
+- 🎯 **CHECKING:** Edge intersection calculation differences
+- 🎯 **VALIDATING:** Sub-pixel boundary handling consistency
+- 🎯 **TESTING:** Accumulation logic in `scanline_fill_buffer` vs STB
+
+### **Phase 3: Systematic Coverage Algorithm Comparison**
+
+**STEP 3.1: STB Reference Algorithm Analysis**
+- 🎯 **COMPARING:** `stbtt__fill_active_edges_new()` STB implementation
+- 🎯 **VALIDATING:** Our `stb_fill_active_edges_with_offset()` implementation
+- 🎯 **CHECKING:** Edge processing order and accumulation logic
+- 🎯 **TESTING:** Coverage area bounds checking (should not exceed 1.0)
+
+**STEP 3.2: Critical Coverage Issues to Resolve**
+- 🚨 **PRIORITY 1:** Fix over-saturation (Pure=255, STB=65) cases
+- 🚨 **PRIORITY 2:** Fix under-estimation (Pure=52, STB=203) cases
+- 🚨 **PRIORITY 3:** Validate edge intersection precision at sub-pixel boundaries
+- 🚨 **PRIORITY 4:** Ensure scanline accumulation matches STB bit-for-bit
 
 **STEP 3.3: Memory Layout and Data Structure Analysis**
 - Verify bitmap stride calculations match exactly
@@ -342,7 +372,7 @@ Following the detailed plan above, start with **Phase 1: Comprehensive Analysis*
 - `thirdparty/stb_truetype.h`: STB C reference implementation
 - `test_forttf_stb_vs_fortran.f90`: Comparison test framework
 
-**CONFIDENCE:** With edge building **100% solved**, this final 0.16% difference represents the smallest remaining gap in TrueType rasterization accuracy.
+**CONFIDENCE LEVEL:** **Medium-High** - We've systematically ruled out major issues (edge direction, pixel conversion, area calculations) and isolated the problem to **coverage calculation precision**. The enhanced test with different scale shows clear patterns that can be debugged systematically.
 
 ---
 
