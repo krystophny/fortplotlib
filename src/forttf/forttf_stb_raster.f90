@@ -624,18 +624,9 @@ contains
                     end if
                 end if
             else
-                ! Non-vertical edge - implement simplified version for now
-                ! This is a basic implementation to make triangle test pass
-                x0 = e%fx
-                if (x0 >= 0.0_wp .and. x0 < real(width, wp)) then
-                    x = int(x0)
-                    if (x >= 0 .and. x < width) then
-                        ! Simple coverage calculation for non-vertical edges
-                        height = e%direction * (y_bottom - scanline_y)
-                        scanline_buffer(x + 1) = scanline_buffer(x + 1) + height * 0.5_wp
-                        scanline_fill_buffer(x + 1) = scanline_fill_buffer(x + 1) + height
-                    end if
-                end if
+                ! Non-vertical edge - use full STB algorithm
+                call stb_process_non_vertical_edge(scanline_buffer, scanline_fill_buffer, width, &
+                                                 e, scanline_y, y_bottom)
             end if
 
             e => e%next
@@ -1031,6 +1022,8 @@ contains
             do i = 0, result%w - 1
                 sum_val = sum_val + scanline_fill_buffer(i + 1)
                 k_val = scanline_buffer(i + 1) + sum_val
+                
+                
                 k_val = abs(k_val) * 255.0_wp + 0.5_wp
                 m_val = int(k_val)
                 if (m_val > 255) m_val = 255
