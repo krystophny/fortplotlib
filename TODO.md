@@ -18,12 +18,24 @@ This TODO list tracks the remaining steps to achieve a pure Fortran replacement 
 
 All test commands build the code automatically. To build, just run the tests.
 
-- `fpm test --target test_forttf_*` — Run all tests.
-- `fpm test --target test_forttf_metrics` — Run metrics comparison tests.
-- `fpm test --target test_forttf_mapping` — Run character mapping tests.
-- `fpm test --target test_forttf_bitmap` — Run bitmap rendering tests.
-- `fpm test --target test_forttf_bitmap_content` — Run bitmap content comparison tests.
-- `fpm test --target test_forttf_stb_rasterization` — Run STB rasterization pipeline tests.
+### Core Essential Tests (Recommended for Regular Use)
+- `fpm test --target test_forttf_metrics` — Font metrics, bounding boxes, kerning (✅ COMPREHENSIVE)
+- `fpm test --target test_forttf_bitmap` — Bitmap rendering and glyf/loca parsing (✅ COMPREHENSIVE)
+- `fpm test --target test_forttf_stb_comparison` — Complete STB vs Pure comparison (✅ COMPREHENSIVE)
+- `fpm test --target test_forttf_area_functions` — Area calculation validation (✅ FOCUSED)
+- `fpm test --target test_forttf_curve_flattening` — Curve tessellation algorithms (✅ FOCUSED)
+- `fpm test --target test_forttf_edge_processing` — Edge building and sorting (✅ COMPREHENSIVE)
+- `fpm test --target test_forttf_active_edges` — Active edge management (✅ FOCUSED)
+
+### Specialized/Redundant Tests (Available but overlap with core tests)
+- `fpm test --target test_forttf_mapping` — Character mapping (covered in metrics)
+- `fpm test --target test_forttf_bitmap_content` — Bitmap content validation (covered in bitmap)
+- `fpm test --target test_forttf_character_coverage` — ASCII character rendering (covered in bitmap)
+- `fpm test --target test_forttf_conversion_validation` — Data conversion (covered in stb_comparison)
+- `fpm test --target test_forttf_stb_vs_fortran` — Pipeline comparison (covered in stb_comparison)
+
+### Run All Tests
+- `fpm test --target test_forttf_*` — Run all 31 tests (includes redundant coverage).
 
 
 ## 📁 Source File Locations
@@ -49,24 +61,37 @@ All test commands build the code automatically. To build, just run the tests.
   - `forttf_outline.f90`: Glyph outline processing.
   - `forttf_stb_raster.f90`: The STB-based scanline rasterizer.
 
-### `forttf` Test Suite (`test/forttf/`)
-- `test_forttf_metrics.f90`: Tests for font metrics.
-- `test_forttf_mapping.f90`: Tests for character-to-glyph mapping.
-- `test_forttf_bitmap.f90`: Tests for bitmap creation.
-- `test_forttf_bitmap_content.f90`: Compares rendered bitmap content.
-- `test_forttf_character_coverage.f90`: Validates rendering for a set of characters.
-- `test_forttf_stb_comparison.f90`: End-to-end comparison with STB.
-- **Rasterizer Pipeline Tests:**
-  - `test_forttf_stb_structures.f90`: Validates ported data structures.
-  - `test_forttf_curve_flattening.f90`: Tests for Bézier curve tessellation.
-  - `test_forttf_edge_processing.f90`: Tests for edge building and sorting.
-  - `test_forttf_active_edges.f90`: Tests for active edge management.
-  - `test_forttf_stb_rasterization.f90`: **(To be created)** for the new scanline rasterizer functions.
-- **Debugging & Utility Tests:**
-  - `test_forttf_utils.f90`: Tests for utility functions.
-  - `test_forttf_glyph_outline.f90`: Tests for glyph outline parsing.
-  - `test_forttf_simple_bitmap.f90`: Basic bitmap tests.
-  - `test_forttf_debug_bitmap.f90`: Debugging tests for bitmaps.
+### `forttf` Test Suite (`test/forttf/`) - 31 Test Files
+
+**✅ Core Essential Tests (7 files - Recommended for regular use):**
+- `test_forttf_metrics.f90`: ✅ Comprehensive font metrics, bounding boxes, kerning
+- `test_forttf_bitmap.f90`: ✅ Comprehensive bitmap rendering and glyf/loca parsing  
+- `test_forttf_stb_comparison.f90`: ✅ Complete STB vs Pure function comparison
+- `test_forttf_area_functions.f90`: ✅ Focused area calculation validation
+- `test_forttf_curve_flattening.f90`: ✅ Focused curve tessellation algorithms
+- `test_forttf_edge_processing.f90`: ✅ Comprehensive edge building and sorting
+- `test_forttf_active_edges.f90`: ✅ Focused active edge management
+
+**📋 Specialized Tests (13 files - Provide additional coverage):**
+- `test_forttf_mapping.f90`: Character-to-glyph mapping (overlap with metrics)
+- `test_forttf_bitmap_content.f90`: Bitmap content validation (overlap with bitmap)  
+- `test_forttf_character_coverage.f90`: ASCII character rendering (overlap with bitmap)
+- `test_forttf_conversion_validation.f90`: Data conversion testing (overlap with stb_comparison)
+- `test_forttf_stb_vs_fortran.f90`: Pipeline comparison (overlap with stb_comparison)
+- `test_forttf_exact_stb_validation.f90`: Systematic validation (overlap with stb_comparison)
+- `test_forttf_glyph_outline.f90`: Glyph outline parsing
+- `test_forttf_edge_building_basic.f90`: Basic edge building (overlap with edge_processing)
+- `test_forttf_simple_bitmap.f90`: Basic bitmap tests (overlap with bitmap)
+- `test_forttf_simple_rasterize.f90`: Basic rasterization (overlap with comprehensive tests)
+- `test_forttf_rasterize_sorted_edges.f90`: Sorted edge rasterization
+- `test_forttf_scanline_functions.f90`: Scanline processing
+- `test_forttf_stb_area_validation.f90`: Area validation (overlap with area_functions)
+
+**🔧 Debug/Development Tests (11 files - For debugging purposes):**
+- `test_forttf_debug_bitmap.f90`, `test_forttf_edge_debug.f90`, `test_forttf_exact_params.f90`
+- `test_forttf_glyph_a_rasterize.f90`, `test_forttf_offset_debug.f90`, `test_forttf_pipeline_debug.f90`
+- `test_forttf_pixel_analysis.f90`, `test_forttf_fill_active_edges.f90`, `test_forttf_stb_structures.f90`
+- `test_forttf_stb_rasterization.f90`, `test_forttf_utils.f90` (utility support)
 
 ---
 

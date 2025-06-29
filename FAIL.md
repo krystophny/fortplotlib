@@ -79,23 +79,33 @@ This document lists all forttf routines that have been tested and **ACTUALLY FAI
 
 ## Testing Commands
 
-To run tests for failing functions:
-
+### Core Failing Tests
 ```bash
-# Run bitmap tests (expect failures)
-fpm test --target test_forttf_bitmap
-fpm test --target test_forttf_bitmap_content
-
-# Run character coverage tests (expect failures)  
-fpm test --target test_forttf_character_coverage
-
-# Run complete rasterization tests (99.84% accuracy)
-fpm test --target test_forttf_stb_vs_fortran
-fpm test --target test_forttf_glyph_a_rasterize
-
-# Run fill active edges tests (expect failures)
-fpm test --target test_forttf_fill_active_edges
+# Primary bitmap rendering issues (content returns zeros)
+fpm test --target test_forttf_stb_comparison      # STB has content, Pure is empty
+fpm test --target test_forttf_bitmap_content      # Letter 'A' bitmap content mismatch  
+fpm test --target test_forttf_simple_bitmap       # Bitmap is all zeros
+fpm test --target test_forttf_character_coverage  # Multiple character rendering failures
 ```
+
+### Pipeline Accuracy Issues  
+```bash
+# 99.84% accurate but final gap remains
+fpm test --target test_forttf_stb_vs_fortran      # 270-pixel difference (0.16%)
+fpm test --target test_forttf_exact_params        # Large pixel count mismatch
+```
+
+### Debug/Development Tests (Expected failures for development)
+```bash
+# These are debug tests, failures expected during development
+fpm test --target test_forttf_glyph_a_rasterize   # Letter 'A' debugging
+fpm test --target test_forttf_exact_params        # Parameter debugging  
+fpm test --target test_forttf_pixel_analysis      # Pixel analysis debugging
+```
+
+### Note on Test Organization
+Many failing tests are redundant - the core issue is bitmap content rendering returning zeros. 
+The comprehensive `test_forttf_stb_comparison` covers most failing functionality and should be the primary focus for debugging.
 
 ## Root Cause Analysis
 

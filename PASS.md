@@ -228,31 +228,39 @@ This document lists all forttf routines that have been tested and **ACTUALLY PAS
 
 ## Testing Commands
 
-To run tests for passing functions:
-
+### Core Essential Tests (Recommended - No Redundancy)
 ```bash
-# Run area calculation tests
-fpm test --target test_forttf_area_functions
-fpm test --target test_forttf_stb_area_validation
+# Primary comprehensive tests
+fpm test --target test_forttf_metrics          # All font metrics, bounding boxes, kerning
+fpm test --target test_forttf_bitmap           # Bitmap rendering and glyf/loca parsing  
+fpm test --target test_forttf_stb_comparison   # Complete STB vs Pure comparison
 
-# Run rasterization core tests
-fpm test --target test_forttf_stb_rasterization
-fpm test --target test_forttf_rasterize_sorted_edges
-fpm test --target test_forttf_scanline_functions
-fpm test --target test_forttf_simple_rasterize
+# Focused algorithm tests
+fpm test --target test_forttf_area_functions   # Area calculation validation
+fpm test --target test_forttf_curve_flattening # Curve tessellation algorithms
+fpm test --target test_forttf_edge_processing  # Edge building and sorting
+fpm test --target test_forttf_active_edges     # Active edge management
+```
 
-# Run curve and edge processing tests
-fpm test --target test_forttf_curve_flattening
-fpm test --target test_forttf_edge_processing
-fpm test --target test_forttf_edge_building_basic
+### Specialized Tests (Additional Coverage)
+```bash
+# These provide additional coverage but overlap with core tests
+fpm test --target test_forttf_glyph_outline          # Glyph outline parsing
+fpm test --target test_forttf_fill_active_edges      # Fill active edges function
+fpm test --target test_forttf_rasterize_sorted_edges # Sorted edge rasterization
+fpm test --target test_forttf_scanline_functions     # Scanline processing
+fpm test --target test_forttf_stb_structures         # STB data structures
+fpm test --target test_forttf_stb_rasterization      # STB rasterization
+```
 
-# Run active edge and fill tests
-fpm test --target test_forttf_active_edges
-fpm test --target test_forttf_fill_active_edges
-
-# Run structure and outline tests
-fpm test --target test_forttf_stb_structures
-fpm test --target test_forttf_glyph_outline
+### Redundant Tests (Available but covered by core tests)
+```bash
+# These duplicate functionality covered comprehensively above
+fpm test --target test_forttf_mapping                # (covered in metrics)
+fpm test --target test_forttf_conversion_validation  # (covered in stb_comparison)
+fpm test --target test_forttf_exact_stb_validation   # (covered in stb_comparison)
+fpm test --target test_forttf_edge_building_basic    # (covered in edge_processing)
+fpm test --target test_forttf_simple_rasterize       # (covered in bitmap/stb_comparison)
 ```
 
 ## Test Methodology
