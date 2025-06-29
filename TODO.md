@@ -64,7 +64,7 @@ All test commands build the code automatically. To build, just run the tests.
 - `fpm test --target test_forttf_stb_vs_fortran` — Pipeline comparison (covered in stb_comparison)
 
 ### Run All Tests
-- `fpm test --target test_forttf_*` — Run all 31 tests (includes redundant coverage).
+- `fpm test --target "test_forttf_*"` — Run all 31 tests (includes redundant coverage).
 
 
 ## 📁 Source File Locations

@@ -1034,6 +1034,8 @@ contains
                 if (m_val > 255) m_val = 255
                 if (m_val < 0) m_val = 0  ! Ensure non-negative values for bitmap
                 ! Flip Y coordinate to match STB's coordinate system
+                ! Convert 0-255 range to c_int8_t, handling unsigned->signed mapping
+                ! STB uses unsigned char, we use signed c_int8_t, so values 128-255 become negative
                 bitmap_array((result%h - 1 - y) * result%stride + i + 1) = int(m_val, c_int8_t)
             end do
 
