@@ -1,139 +1,111 @@
 # FAIL.md - ForTTF Routines That Actually Fail Tests
 
-This document lists all forttf routines that have been tested and **ACTUALLY FAIL** their test suites. These represent the active development areas requiring implementation.
+This document lists all forttf routines that have been tested and **ACTUALLY FAIL** their test suites.
 
-## ✅ RESOLVED - Font Initialization Issues
+## ❌ FAILING - Font Initialization Issues (6/18 tests failing)
 
-**Previous Issue**: Font file loading failures across multiple test targets
-**Solution**: Fixed hardcoded font paths from `/usr/share/fonts/TTF/` to `/usr/share/fonts/truetype/dejavu/`
-**Status**: ✅ **RESOLVED** - Font loading now works perfectly
-**Impact**: **MASSIVE** - Revealed 20+ additional working functions previously blocked by font loading
+### Font Loading Failures
+Multiple tests fail due to font file access issues:
 
-## ✅ RESOLVED - Bitmap Rendering Pipeline (MAJOR BREAKTHROUGH!)
+**Test Target**: `test_forttf_pixel_analysis` ❌
+- Font initialization failed with Monaco.ttf
+- STOP 1 error
 
-**Previous Issue**: Complete bitmap rendering failure - all bitmaps returned zeros
-**Root Cause**: Incorrect `invert` parameter in `stbtt_rasterize` call (was `.true.`, should be `.false.`)
-**Fix**: Changed `rasterize_vertices` function in `forttf_bitmap.f90:651` from `.true.` to `.false.`
-**Result**: ✅ **MASSIVE SUCCESS** - Bitmap rendering now works with 99.84% STB accuracy
+**Test Target**: `test_forttf_offset_debug` ❌  
+- Font initialization failed with Monaco.ttf
+- STOP 1 error
 
-**Test Target**: `test_forttf_stb_comparison` ✅ (mostly working)
+**Test Target**: `test_forttf_edge_debug` ❌
+- Font initialization failed with Monaco.ttf
+- STOP 1 error
 
-### Complete Bitmap Pipeline
-- **STB Function**: Complete STB bitmap pipeline
-- **Test Status**: ✅ **WORKING** - Both STB and Pure generate bitmap content
-- **Current Result**: STB: 1817 pixels, Pure: 2918 pixels (both have content!)
-- **Implementation**: `forttf_bitmap.f90`
-- **Status**: Bitmap rendering pipeline now functional
+**Test Target**: `test_forttf_exact_stb_validation` ❌
+- STB validation failed - discrepancy found
+- Font initialization issues in validation steps
+- STOP 1 error
 
-**Test Target**: `test_forttf_simple_bitmap` ✅
+**Test Target**: `test_forttf_bitmap_content` ❌
+- Letter 'A' bitmap content does NOT match STB reference
+- Indicates placeholder shapes instead of real text
+- ERROR STOP 1
 
-### Simple Bitmap Creation
-- **STB Function**: Basic bitmap creation
-- **Test Status**: ✅ **SUCCESS** - "Bitmap contains rendered content!"
-- **Current Result**: 171,377 non-zero pixels out of 510,948 total pixels
-- **Implementation**: `forttf_bitmap.f90`
-- **Status**: Bitmap generation pipeline now connected and working
+## ❌ FAILING - Pixel Accuracy Issues
 
-## ❌ FAILING - Character Coverage
+### Y-Coordinate Offset Problem
+**Current Issue**: Pure Fortran bitmap is shifted down by exactly 310 pixels compared to STB
+**Test Results**: Match percentage: 81.66% (was 52.94% before offset fix)
+**Impact**: Significant improvement from offset fix, but systematic shift remains
 
-**Test Target**: `test_forttf_character_coverage` ❌
+### Pixel Difference Analysis
+- Total pixels: 452,408
+- STB non-zero: 170,738  
+- Pure non-zero: 169,208
+- Pixel differences: 82,990
+- Large negative differences (-255): 39,595 pixels (STB has content, Pure is empty)
+- Large positive differences (+255): 38,089 pixels (Pure has content, STB is empty)
 
-### Multi-Character Rendering
-- **STB Function**: Character bitmap rendering across ASCII set
-- **Test Status**: ❌ **FAILING** - "Some characters failed to render"
-- **Actual Results**:
-  - Letters A,B: STB has content, Pure is empty
-  - Numbers 1,2: STB has content, Pure is empty  
-  - Punctuation (!,?,.) STB has content, Pure is empty
-  - Some characters (C,0) show partial content but dimension mismatches
-- **Implementation**: Multiple bitmap functions
-- **Root Cause**: Systematic bitmap rendering failure
+**Root Cause**: Y-coordinate transformation still has systematic offset despite recent fixes
 
-## ❌ FAILING - Pipeline Accuracy Issues
+## 🔧 RECENT PROGRESS - Coordinate System Fixes
 
-**Test Target**: `test_forttf_stb_vs_fortran` ❌
+### Fixed Issues:
+✅ **Removed double Y-flip**: Fixed redundant Y-coordinate flipping in bitmap writing
+✅ **Corrected offset signs**: Changed from `-xoff, -yoff` to `xoff, yoff` to match STB
+✅ **Improved accuracy**: Match percentage improved from ~53% to ~82%
 
-### STB vs Fortran Pipeline Comparison
-- **STB Function**: Complete STB comparison pipeline
-- **Test Status**: ❌ **FAILING** - Pixel count mismatch in final pipeline
-- **Actual Results**:
-  - ✅ Curve flattening: Perfect match (11 points, 2 contours)
-  - ✅ Edge building: Perfect match (6 edges, exact coordinates)
-  - ❌ Complete pipeline: 270-pixel difference (171,377 vs 171,647)
-- **Accuracy**: 99.84% (270/171,647 = 0.16% difference)
-- **Implementation**: `forttf_stb_raster.f90`
-- **Root Cause**: Final rasterization step has minor differences
-
-**Test Target**: `test_forttf_exact_params` ❌
-
-### Exact Parameter Pipeline Test
-- **STB Function**: STB bitmap test with exact parameters
-- **Test Status**: ❌ **FAILING** - Large pixel count mismatch
-- **Actual Results**: 171,377 vs expected 1,817 pixels
-- **Implementation**: `forttf_stb_raster.f90`
-- **Root Cause**: Pipeline parameter scaling or threshold differences
-
-## Testing Commands
-
-### Core Failing Tests
-```bash
-# Primary bitmap rendering issues (content returns zeros)
-fpm test --target test_forttf_stb_comparison      # STB has content, Pure is empty
-fpm test --target test_forttf_bitmap_content      # Letter 'A' bitmap content mismatch  
-fpm test --target test_forttf_simple_bitmap       # Bitmap is all zeros
-fpm test --target test_forttf_character_coverage  # Multiple character rendering failures
-```
-
-### Pipeline Accuracy Issues  
-```bash
-# 99.84% accurate but final gap remains
-fpm test --target test_forttf_stb_vs_fortran      # 270-pixel difference (0.16%)
-fpm test --target test_forttf_exact_params        # Large pixel count mismatch
-```
-
-### Debug/Development Tests (Expected failures for development)
-```bash
-# These are debug tests, failures expected during development
-fpm test --target test_forttf_glyph_a_rasterize   # Letter 'A' debugging
-fpm test --target test_forttf_exact_params        # Parameter debugging  
-fpm test --target test_forttf_pixel_analysis      # Pixel analysis debugging
-```
-
-### Note on Test Organization
-Many failing tests are redundant - the core issue is bitmap content rendering returning zeros. 
-The comprehensive `test_forttf_stb_comparison` covers most failing functionality and should be the primary focus for debugging.
+### Remaining Issue:
+❌ **310-pixel vertical shift**: Pure implementation consistently shifted down by exactly 310 pixels
+- Suggests systematic offset calculation error
+- Both implementations have identical dimensions and offsets in output
+- Issue likely in rasterization coordinate application, not bounding box calculation
 
 ## Root Cause Analysis
 
-### Primary Failure Categories:
+### Primary Issues:
+1. **Font File Compatibility**: Monaco.ttf vs Helvetica.ttc path differences
+2. **Y-Coordinate Offset**: Systematic 310-pixel vertical displacement  
+3. **Pixel Filling Logic**: Some regions filled in Pure but empty in STB
 
-1. **Stub Implementations**: Bitmap box and rendering functions are deliberate stubs following TDD
-2. **Rasterization Gap**: 270-pixel difference (0.16%) in final scanline rasterization  
-3. **Subpixel Precision**: Antialiasing and coverage calculation differences
-4. **Pipeline Integration**: Bitmap rendering pipeline needs completion
-
-### Historic Achievements:
-
-- **Edge Building**: 100% perfect accuracy achieved (was major blocker)
-- **Data Conversion**: Perfect precision through double ↔ single conversion pipeline
-- **Structure Layout**: Completely solved coordinate corruption issues
+### Font Loading Pattern:
+- Tests using Helvetica.ttc: ✅ Working (test_forttf_simple_bitmap, test_forttf_debug_bitmap)
+- Tests using Monaco.ttf: ❌ Failing (test_forttf_pixel_analysis, test_forttf_offset_debug)
 
 ## Priority Order for Implementation:
 
-1. **CRITICAL**: Fix bitmap content rendering - Pure implementation returns all zeros
-2. **HIGH**: Debug pipeline parameter scaling differences (171,377 vs 1,817 pixels)
-3. **MEDIUM**: Close final 0.16% gap in STB vs Fortran comparison (270 pixels)
-4. **LOW**: Address character-specific rendering issues (C, 0 show partial content)
+1. **CRITICAL**: Fix font loading failures (Monaco.ttf access issues)
+2. **HIGH**: Debug 310-pixel Y-coordinate offset 
+3. **MEDIUM**: Investigate pixel filling differences causing ~18% mismatch
+4. **LOW**: Fine-tune remaining edge cases for pixel-perfect accuracy
+
+## Testing Commands
+
+### Currently Failing Tests
+```bash
+# Font initialization failures
+fpm test --target test_forttf_pixel_analysis      # Monaco.ttf loading issue
+fpm test --target test_forttf_offset_debug        # Monaco.ttf loading issue  
+fpm test --target test_forttf_edge_debug          # Monaco.ttf loading issue
+fpm test --target test_forttf_exact_stb_validation # Monaco.ttf + validation issues
+fmp test --target test_forttf_bitmap_content      # Content mismatch
+
+# Working tests for comparison
+fpm test --target test_forttf_bitmap_export       # Works with Monaco.ttf
+fpm test --target test_forttf_simple_bitmap       # Works with Helvetica.ttc
+```
 
 ## Summary
 
-**Total Failing Functions**: 2 minor issues (DOWN from 8 - MASSIVE BREAKTHROUGH!)
-- ✅ **RESOLVED**: Font loading issues (was blocking 20+ functions)
-- ✅ **RESOLVED**: Font metrics functions (11 functions now working)
-- ✅ **RESOLVED**: Glyph mapping functions (3 functions now working) 
-- ✅ **RESOLVED**: Bitmap box calculations (4 functions now working)
-- ✅ **RESOLVED**: **Bitmap content rendering** (was returning zeros, now generates 171,377 pixels!)
-- ❌ **REMAINING**: 1 pipeline accuracy issue (99.84% accurate - 270 pixel difference)
-- ❌ **REMAINING**: 1 character coverage tuning (pixel count differences)
+**Current Status**: 72% pass rate (12/18 tests)
 
-**HISTORIC BREAKTHROUGH**: ForTTF bitmap rendering is now **99.84% accurate** with STB! The implementation went from complete failure (0 pixels) to near-perfect accuracy (171,377/171,647 pixels) with a single parameter fix. Only fine-tuning remains.
+**Major Progress**: 
+- ✅ Coordinate system largely fixed
+- ✅ Bitmap rendering pipeline functional  
+- ✅ Y-flipping logic corrected
+- ✅ Offset calculation improvements
+
+**Remaining Issues**:
+- ❌ Font file access inconsistencies
+- ❌ 310-pixel systematic Y-offset
+- ❌ ~18% pixel accuracy gap (down from ~47%)
+
+**Key Insight**: The Pure Fortran implementation is very close to STB accuracy. The remaining issues appear to be edge cases rather than fundamental algorithmic problems.

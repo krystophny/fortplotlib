@@ -16,7 +16,16 @@
 2. **Zero offsets (0, 0)**: 52.7% match - same shift pattern (confirmed double-offset theory)
 3. **Negative offsets (-xoff, -yoff)**: 52.9% match - **glyph shifted up-left** (pattern flipped!)
 
-**Key Discovery:** The offset direction DOES affect positioning. We've confirmed the coordinate system relationship but need the exact transformation.
+**Latest Update (June 29, 2025):**
+4. **Current Status**: 81.66% match - significant improvement after coordinate fixes
+5. **Y-Offset Issue**: Pure Fortran bitmap shifted down exactly 310 pixels compared to STB
+6. **Critical Discovery**: `yoff` parameter may be zero or too small in our case
+   - Changing sign of `yoff` in `stbtt_rasterize` call doesn't change output
+   - Setting `yoff = 0` doesn't change output
+   - This suggests `yoff` offset application may not be working correctly in our rasterization pipeline
+   - Need to investigate how STB actually applies the Y offset during scanline processing
+
+**Key Discovery:** The offset direction DOES affect positioning, but `yoff` offset application appears to have no effect, indicating a deeper issue with coordinate transformation in the rasterization pipeline.
 
 ### **📊 Current Pattern Analysis**
 - **Bitmap dimensions match:** 583x776 pixels, offset (16, -776)
