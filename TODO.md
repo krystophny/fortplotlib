@@ -265,11 +265,13 @@ fpm test --target "test_forttf_*"
 - `fpm test --target test_forttf_edge_processing` — Edge building and sorting
 - `fpm test --target test_forttf_active_edges` — Active edge management
 
-### New Critical Tests (TO BE IMPLEMENTED)
-- `fpm test --target test_forttf_handle_clipped_edge_isolated` — **MISSING**
-- `fpm test --target test_forttf_process_non_vertical_edge_isolated` — **MISSING**  
-- `fpm test --target test_forttf_coverage_bounds_validation` — **MISSING**
-- `fpm test --target test_forttf_single_pixel_scenarios` — **MISSING**
+### New Critical Tests (IMPLEMENTED - Phase 1 & 2 Complete)
+- `fpm test --target test_forttf_handle_clipped_edge_isolated` — ✅ **IMPLEMENTED** (Phase 1.1)
+- `fpm test --target test_forttf_brute_force_clipping_isolated` — ✅ **IMPLEMENTED** (Phase 1.2)
+- `fpm test --target test_forttf_coverage_bounds_validation` — ✅ **IMPLEMENTED** (Phase 2.1)
+- `fpm test --target test_forttf_sub_pixel_intersection` — ✅ **IMPLEMENTED** (Phase 2.2)
+- `fpm test --target test_forttf_single_pixel_scenarios` — ✅ **IMPLEMENTED** (Phase 2.3)
+- `fpm test --target test_forttf_antialiasing_precision` — ✅ **ENHANCED** (Phase 3.1)
 
 ### Run All Tests
 - `fpm test --target "test_forttf_*"` — Run all 38+ tests
