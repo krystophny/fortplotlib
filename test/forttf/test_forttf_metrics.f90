@@ -24,9 +24,8 @@ contains
         write(*,*) "=== Running ForTTF Metrics Tests ==="
         all_tests_passed = .true.
         
-        ! Use a default test font path
-        font_path = "/usr/share/fonts/TTF/DejaVuSerif.ttf"
-        if (.not. init_both_fonts(font_path, stb_font, pure_font, stb_success, pure_success)) then
+        ! Find and use an available system font
+        if (.not. find_and_init_test_font(stb_font, pure_font, stb_success, pure_success, font_path)) then
             write(*,*) "❌ Failed to initialize test fonts"
             error stop 1
         end if

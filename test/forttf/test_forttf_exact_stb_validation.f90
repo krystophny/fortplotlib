@@ -63,7 +63,7 @@ contains
         
         write(*,*) "--- STEP 1: Vertex Extraction ---"
         
-        if (.not. stb_init_font_pure(font_info, "/usr/share/fonts/TTF/DejaVuSans.ttf")) then
+        if (.not. stb_init_font_pure(font_info, "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")) then
             write(*,*) "❌ Failed to initialize font"
             passed = .false.
             return
@@ -97,7 +97,7 @@ contains
         
         write(*,*) "--- STEP 2: Curve Flattening ---"
         
-        if (.not. stb_init_font_pure(font_info, "/usr/share/fonts/TTF/DejaVuSans.ttf")) then
+        if (.not. stb_init_font_pure(font_info, "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")) then
             write(*,*) "❌ Failed to initialize font"
             passed = .false.
             return
@@ -147,7 +147,7 @@ contains
         
         write(*,*) "--- STEP 3: Edge Building ---"
         
-        if (.not. stb_init_font_pure(font_info, "/usr/share/fonts/TTF/DejaVuSans.ttf")) then
+        if (.not. stb_init_font_pure(font_info, "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")) then
             write(*,*) "❌ Failed to initialize font"
             passed = .false.
             return

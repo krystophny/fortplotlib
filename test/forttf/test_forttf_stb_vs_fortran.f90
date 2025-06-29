@@ -106,7 +106,7 @@ contains
         
         write(*,*) "--- COMPARISON 1: Curve Flattening ---"
         
-        if (.not. stb_init_font_pure(font_info, "/usr/share/fonts/TTF/DejaVuSans.ttf")) then
+        if (.not. stb_init_font_pure(font_info, "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")) then
             write(*,*) "❌ Failed to initialize font"
             passed = .false.
             return
@@ -210,7 +210,7 @@ contains
         
         write(*,*) "--- COMPARISON 2: Edge Building ---"
         
-        if (.not. stb_init_font_pure(font_info, "/usr/share/fonts/TTF/DejaVuSans.ttf")) then
+        if (.not. stb_init_font_pure(font_info, "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")) then
             write(*,*) "❌ Failed to initialize font"
             passed = .false.
             return
@@ -318,7 +318,7 @@ contains
         write(*,*) "--- COMPARISON 3: Complete Pipeline ---"
         write(*,*) "  Testing with glyph 36 (same as exact params test)"
         
-        if (.not. stb_init_font_pure(font_info, "/usr/share/fonts/TTF/DejaVuSans.ttf")) then
+        if (.not. stb_init_font_pure(font_info, "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")) then
             write(*,*) "❌ Failed to initialize font"
             passed = .false.
             return

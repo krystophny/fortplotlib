@@ -22,7 +22,7 @@ program test_exact_params
     
     write(*,*) "=== Testing with EXACT bitmap test parameters ==="
     
-    if (.not. stb_init_font_pure(font_info, "/usr/share/fonts/TTF/DejaVuSans.ttf")) then
+    if (.not. stb_init_font_pure(font_info, "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")) then
         write(*,*) "❌ Failed to initialize font"
         stop 1
     end if

@@ -458,7 +458,9 @@ contains
         ! Debug: print vertex types
         print *, 'convert_coords_to_vertices: num_vertices=', num_vertices
         do i = 1, min(num_vertices, 10)
-            print *, '  vertex', i, ': type=', vertices(i)%type, 'x=', vertices(i)%x, 'y=', vertices(i)%y, 'cx=', vertices(i)%cx, 'cy=', vertices(i)%cy
+            print *, '  vertex', i, ': type=', vertices(i)%type, &
+     &               'x=', vertices(i)%x, 'y=', vertices(i)%y, &
+     &               'cx=', vertices(i)%cx, 'cy=', vertices(i)%cy
         end do
     end subroutine convert_coords_to_vertices
 

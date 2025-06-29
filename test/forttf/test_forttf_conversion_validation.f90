@@ -71,7 +71,7 @@ program test_forttf_conversion_validation
     integer :: i
 
     ! Initialize font
-    if (.not. stb_init_font_pure(font_info, "/usr/share/fonts/TTF/DejaVuSans.ttf")) then
+    if (.not. stb_init_font_pure(font_info, "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")) then
         write(*,*) "❌ Failed to initialize font"
         stop 1
     end if

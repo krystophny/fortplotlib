@@ -997,7 +997,8 @@ contains
 
             ! Process all active edges (matches STB scanline_fill-1 pattern)
             if (associated(active_head%next)) then
-                call stb_fill_active_edges_with_offset(active_head%next, scan_y_top, result%w, scanline_buffer, scanline_fill_buffer)
+                call stb_fill_active_edges_with_offset(active_head%next, scan_y_top, &
+     &                                                 result%w, scanline_buffer, scanline_fill_buffer)
             end if
 
             sum_val = 0.0_wp
