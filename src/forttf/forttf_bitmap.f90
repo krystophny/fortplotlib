@@ -648,7 +648,7 @@ contains
         
         ! Use exact STB rasterization pipeline (matches stbtt_Rasterize)
         call stbtt_rasterize(bitmap, flatness_in_pixels, vertices, num_vertices, &
-                            scale_x, scale_y, shift_x, shift_y, xoff, yoff, .true., c_null_ptr)
+                            scale_x, scale_y, shift_x, shift_y, xoff, yoff, .false., c_null_ptr)
 
     end subroutine rasterize_vertices
     
