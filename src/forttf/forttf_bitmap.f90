@@ -220,6 +220,9 @@ contains
         end if
 
         ! Render the glyph into the bitmap
+        write(*,*) "DEBUG stb_get_glyph_bitmap_pure: calling render_glyph_to_bitmap"
+        write(*,*) "DEBUG: scale_x=", scale_x, " scale_y=", scale_y
+        write(*,*) "DEBUG: width=", width, " height=", height, " xoff=", xoff, " yoff=", yoff
         call render_glyph_to_bitmap(font_info, glyph, scale_x, scale_y, 0.0_wp, 0.0_wp, &
                                    bitmap_ptr, width, height, xoff, yoff)
 
@@ -648,6 +651,9 @@ contains
 
         ! Use exact STB rasterization pipeline (matches stbtt_Rasterize)
         ! Pass the offsets to the rasterizer - this should match STB's behavior
+        write(*,*) "DEBUG rasterize_vertices: scale_x=", scale_x, " scale_y=", scale_y
+        write(*,*) "DEBUG rasterize_vertices: shift_x=", shift_x, " shift_y=", shift_y
+        write(*,*) "DEBUG rasterize_vertices: xoff=", xoff, " yoff=", yoff, " passing -xoff=", -xoff, " -yoff=", -yoff
         call stbtt_rasterize(bitmap, flatness_in_pixels, vertices, num_vertices, &
                             scale_x, scale_y, shift_x, shift_y, -xoff, -yoff, .false., c_null_ptr)
 

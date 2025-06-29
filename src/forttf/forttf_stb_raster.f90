@@ -920,6 +920,9 @@ contains
         integer, allocatable :: winding_lengths(:)
         integer :: winding_count
 
+        write(*,*) "DEBUG stbtt_rasterize: received x_off=", x_off, " y_off=", y_off
+        write(*,*) "DEBUG stbtt_rasterize: bitmap dimensions=", result%w, "x", result%h
+
         ! STB: float scale = scale_x > scale_y ? scale_y : scale_x;
         scale = min(scale_x, scale_y)
 
@@ -931,6 +934,7 @@ contains
                                      winding_lengths, winding_count)
 
         if (allocated(windings)) then
+            write(*,*) "DEBUG stbtt_rasterize: calling stb_rasterize with x_off=", x_off, " y_off=", y_off
             call stb_rasterize(result, windings, winding_lengths, winding_count, &
                               scale_x, scale_y, shift_x, shift_y, x_off, y_off, invert, userdata)
             deallocate(winding_lengths, windings)
@@ -943,7 +947,7 @@ contains
         type(stb_edge_t), intent(in) :: e(:)
         integer, intent(in) :: n
         integer, intent(in) :: vsubsample ! Unused in current implementation
-        integer, intent(in) :: off_x, off_y ! Unused in current implementation
+        integer, intent(in) :: off_x, off_y
         type(c_ptr), intent(in) :: userdata ! Unused in current implementation
 
         type(stb_active_edge_t), pointer :: active_head
@@ -954,6 +958,9 @@ contains
         integer :: y, edge_idx, i
         real(wp) :: scan_y_top, scan_y_bottom, sum_val, k_val
         integer :: m_val
+
+        write(*,*) "DEBUG stb_rasterize_sorted_edges: received off_x=", off_x, " off_y=", off_y
+        write(*,*) "DEBUG stb_rasterize_sorted_edges: bitmap dimensions=", result%w, "x", result%h, " stride=", result%stride
 
         ! Initialize active edge list (dummy head)
         allocate(active_head)
@@ -974,8 +981,14 @@ contains
             scanline_buffer = 0.0_wp
             scanline_fill_buffer = 0.0_wp
 
+            ! Apply off_y offset to match STB's coordinate system
+            ! STB: y = off_y; scan_y_top = y + 0.0f
             scan_y_top = real(y, wp) + 0.0_wp
             scan_y_bottom = real(y, wp) + 1.0_wp
+
+            if (y < 3) then  ! Debug first few scanlines
+                write(*,*) "DEBUG scanline y=", y, " scan_y_top=", scan_y_top, " off_y=", off_y
+            end if
 
             ! Remove all active edges that terminate before the top of this scanline
             call stb_remove_completed_edges(active_head, scan_y_top)
@@ -987,8 +1000,19 @@ contains
                 if (e(edge_idx)%y0 /= e(edge_idx)%y1) then
                     allocate(new_edge_ptr)
                     new_edge_ptr = stb_new_active_edge(e(edge_idx), off_x, scan_y_top)
-                    if (new_edge_ptr%ey < scan_y_top) then
-                        new_edge_ptr%ey = scan_y_top
+                    if (edge_idx <= 3) then  ! Debug first few edges
+                        write(*,*) "DEBUG edge", edge_idx, ": y0=", e(edge_idx)%y0, " y1=", e(edge_idx)%y1
+                        write(*,*) "DEBUG edge", edge_idx, ": sy=", new_edge_ptr%sy, " ey=", new_edge_ptr%ey
+                        write(*,*) "DEBUG edge", edge_idx, ": scan_y_top=", scan_y_top, " off_x=", off_x
+                    end if
+                    ! STB: if (j == 0 && off_y != 0) { if (z->ey < scan_y_top) z->ey = scan_y_top; }
+                    if (y == 0 .and. off_y /= 0) then
+                        if (new_edge_ptr%ey < scan_y_top) then
+                            if (edge_idx <= 3) then
+                                write(*,*) "DEBUG extending edge", edge_idx, " ey from", new_edge_ptr%ey, " to", scan_y_top
+                            end if
+                            new_edge_ptr%ey = scan_y_top
+                        end if
                     end if
                     call stb_insert_active_edge(active_head, new_edge_ptr)
                 end if
