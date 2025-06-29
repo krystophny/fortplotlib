@@ -50,11 +50,11 @@ contains
         integer, intent(in) :: glyph_index
         type(ttf_vertex_t), allocatable, intent(out) :: vertices(:)
         integer :: num_vertices
-        
+
         ! --- Parameter declarations must be at the top ---
         integer, parameter :: ARG_1_AND_2_ARE_WORDS = 1
         integer, parameter :: MORE_COMPONENTS = 32
-        
+
         type(ttf_glyf_header_t) :: glyph_header
         logical :: success
         integer :: glyf_table_idx, i
@@ -77,7 +77,7 @@ contains
                 exit
             end if
         end do
-        
+
         if (glyf_table_idx == 0) then
             ! No glyf table found
             return
@@ -139,7 +139,7 @@ contains
     subroutine stb_free_shape_pure(vertices)
         !! Free allocated vertex array
         type(ttf_vertex_t), allocatable, intent(inout) :: vertices(:)
-        
+
         if (allocated(vertices)) then
             deallocate(vertices)
         end if
@@ -153,31 +153,31 @@ contains
         type(ttf_glyf_header_t), intent(in) :: glyph_header
         type(ttf_vertex_t), allocatable, intent(out) :: vertices(:)
         integer :: num_vertices
-        
+
         integer :: glyph_offset, data_offset, i, j
         integer :: num_contours, num_points, instruction_length
         integer(1), allocatable :: flags(:)
         integer, allocatable :: x_coords(:), y_coords(:), contour_ends(:)
         logical :: success
-        
+
         num_vertices = 0
-        
+
         if (glyph_header%num_contours <= 0) then
             allocate(vertices(0))
             print *, 'parse_simple_glyph: no contours for glyph', glyph_index
             return ! No contours
         end if
-        
+
         num_contours = glyph_header%num_contours
-        
+
         ! Calculate glyph data offset
         glyph_offset = font_info%tables(glyf_table_idx)%offset + &
                       font_info%loca_table%offsets(glyph_index + 1)
-        
+
         ! Parse contour endpoints
         allocate(contour_ends(num_contours))
         data_offset = glyph_offset + 10  ! Skip glyph header
-        
+
         do i = 1, num_contours
             if (data_offset + 1 >= size(font_info%font_data)) then
                 allocate(vertices(0))
@@ -187,11 +187,11 @@ contains
             contour_ends(i) = parse_uint16(font_info%font_data, data_offset)
             data_offset = data_offset + 2
         end do
-        
+
         ! Get total number of points
         num_points = contour_ends(num_contours) + 1  ! TrueType uses 0-based indexing
         print *, 'parse_simple_glyph: glyph', glyph_index, 'num_contours', num_contours, 'num_points', num_points
-        
+
         ! Skip instruction length and instructions
         if (data_offset + 1 >= size(font_info%font_data)) then
             allocate(vertices(0))
@@ -200,7 +200,7 @@ contains
         end if
         instruction_length = parse_uint16(font_info%font_data, data_offset)
         data_offset = data_offset + 2 + instruction_length
-        
+
         ! Parse coordinate data using simplified approach
         success = parse_glyph_coordinates(font_info%font_data, data_offset, num_points, &
                                         flags, x_coords, y_coords)
@@ -212,7 +212,7 @@ contains
         print *, 'parse_simple_glyph: flags(1:5)=', flags(1:min(5,num_points))
         print *, 'parse_simple_glyph: x_coords(1:5)=', x_coords(1:min(5,num_points))
         print *, 'parse_simple_glyph: y_coords(1:5)=', y_coords(1:min(5,num_points))
-        
+
         ! Convert coordinates to vertices
         call convert_coords_to_vertices(x_coords, y_coords, flags, contour_ends, &
                                        num_contours, vertices, num_vertices)
@@ -220,23 +220,23 @@ contains
             print *, 'parse_simple_glyph: convert_coords_to_vertices returned 0 vertices for glyph', glyph_index
         end if
     end function parse_simple_glyph
-    
+
     function parse_uint16(data, offset) result(value)
         !! Parse big-endian 16-bit unsigned integer
         integer(1), intent(in) :: data(:)
         integer, intent(in) :: offset
         integer :: value
-        
+
         if (offset + 1 > size(data)) then
             value = 0
             return
         end if
-        
+
         value = iand(int(data(offset), kind=4), 255) * 256 + &
                iand(int(data(offset + 1), kind=4), 255)
-        
+
     end function parse_uint16
-    
+
     function parse_glyph_coordinates(data, start_offset, num_points, flags, x_coords, y_coords) result(success)
         !! Parse glyph coordinate data following TrueType specification
         integer(1), intent(in) :: data(:)
@@ -244,34 +244,34 @@ contains
         integer(1), allocatable, intent(out) :: flags(:)
         integer, allocatable, intent(out) :: x_coords(:), y_coords(:)
         logical :: success
-        
+
         integer :: offset, i, j, x, y, flag_byte, repeat_count
         logical :: x_short, y_short, x_same, y_same
         integer :: dx, dy
-        
+
         success = .false.
         offset = start_offset
-        
+
         if (num_points <= 0 .or. offset >= size(data)) return
-        
+
         allocate(flags(num_points))
         allocate(x_coords(num_points))
         allocate(y_coords(num_points))
-        
+
         ! Parse flags array following TrueType specification
         i = 1
         do while (i <= num_points .and. offset < size(data))
             flag_byte = iand(int(data(offset), kind=4), 255)
             offset = offset + 1
             flags(i) = int(flag_byte, kind=1)
-            
+
             ! Check for repeat flag (bit 3)
             if (iand(flag_byte, 8) /= 0) then
                 ! Next byte contains repeat count
                 if (offset >= size(data)) exit
                 repeat_count = iand(int(data(offset), kind=4), 255)
                 offset = offset + 1
-                
+
                 ! Repeat the flag for the specified count
                 do j = 1, repeat_count
                     if (i + j <= num_points) then
@@ -283,14 +283,14 @@ contains
                 i = i + 1
             end if
         end do
-        
+
         ! Parse X coordinates
         x = 0
         do i = 1, num_points
             flag_byte = iand(int(flags(i), kind=4), 255)
             x_short = iand(flag_byte, 2) /= 0     ! Bit 1: X_SHORT_VECTOR
             x_same = iand(flag_byte, 16) /= 0     ! Bit 4: THIS_X_IS_SAME
-            
+
             if (x_short) then
                 ! X coordinate is stored as unsigned byte
                 if (offset >= size(data)) exit
@@ -306,18 +306,18 @@ contains
                 ! X coordinate is the same as previous (delta = 0)
                 dx = 0
             end if
-            
+
             x = x + dx
             x_coords(i) = x
         end do
-        
+
         ! Parse Y coordinates
         y = 0
         do i = 1, num_points
             flag_byte = iand(int(flags(i), kind=4), 255)
             y_short = iand(flag_byte, 4) /= 0     ! Bit 2: Y_SHORT_VECTOR
             y_same = iand(flag_byte, 32) /= 0     ! Bit 5: THIS_Y_IS_SAME
-            
+
             if (y_short) then
                 ! Y coordinate is stored as unsigned byte
                 if (offset >= size(data)) exit
@@ -333,40 +333,40 @@ contains
                 ! Y coordinate is the same as previous (delta = 0)
                 dy = 0
             end if
-            
+
             y = y + dy
             y_coords(i) = y
         end do
-        
+
         success = .true.
         print *, 'parse_glyph_coordinates: num_points', num_points
         print *, 'parse_glyph_coordinates: flags(1:5)=', flags(1:min(5,num_points))
         print *, 'parse_glyph_coordinates: x_coords(1:5)=', x_coords(1:min(5,num_points))
         print *, 'parse_glyph_coordinates: y_coords(1:5)=', y_coords(1:min(5,num_points))
-        
+
     end function parse_glyph_coordinates
-    
+
     function parse_int16(data, offset) result(value)
         !! Parse big-endian 16-bit signed integer
         integer(1), intent(in) :: data(:)
         integer, intent(in) :: offset
         integer :: value
-        
+
         if (offset + 1 > size(data)) then
             value = 0
             return
         end if
-        
+
         value = iand(int(data(offset), kind=4), 255) * 256 + &
                iand(int(data(offset + 1), kind=4), 255)
-        
+
         ! Convert to signed 16-bit value
         if (value >= 32768) then
             value = value - 65536
         end if
-        
+
     end function parse_int16
-    
+
     subroutine convert_coords_to_vertices(x_coords, y_coords, flags, contour_ends, &
                                          num_contours, vertices, num_vertices)
         !! Convert parsed coordinates to vertex array handling on/off curve points
@@ -374,19 +374,19 @@ contains
         integer(1), intent(in) :: flags(:)
         type(ttf_vertex_t), allocatable, intent(out) :: vertices(:)
         integer, intent(out) :: num_vertices
-        
+
         integer :: max_vertices, i, contour, point_idx, contour_start, contour_end
         logical :: prev_was_off, was_off, start_off
         logical, allocatable :: is_on_curve(:)
         integer :: sx, sy, cx, cy, scx, scy, qx, qy
         integer, allocatable :: px(:), py(:)
         integer :: flag_byte, n, m, j, k
-        
+
         ! Allocate maximum possible vertices (conservative estimate)
         max_vertices = size(x_coords) * 2 + num_contours  ! Points + curves + moves
         allocate(vertices(max_vertices))
         num_vertices = 0
-        
+
         point_idx = 1
         do contour = 1, num_contours
             if (contour == 1) then
@@ -398,7 +398,7 @@ contains
             if (contour_start > size(x_coords) .or. contour_end > size(x_coords)) exit
             n = contour_end - contour_start + 1
             if (n <= 0) cycle
-            
+
             ! Build list of points for this contour
             m = n
             allocate(px(m), py(m))
@@ -406,14 +406,18 @@ contains
                 px(j) = x_coords(contour_start + j - 1)
                 py(j) = y_coords(contour_start + j - 1)
             end do
-            
+
             ! Build list of on-curve flags
             allocate(is_on_curve(m))
             do j = 1, m
                 is_on_curve(j) = iand(int(flags(contour_start + j - 1), kind=4), 1) /= 0
             end do
-            
+
             ! STB logic: walk through points, handling on/off curve transitions
+            ! Remember the starting point for contour closure
+            sx = px(1)
+            sy = py(1)
+
             j = 1
             do while (j <= m)
                 if (is_on_curve(j)) then
@@ -445,9 +449,17 @@ contains
                     end if
                 end if
             end do
+
+            ! CRITICAL FIX: Close contour by adding line back to starting point (like STB does)
+            ! This matches STB's stbtt__close_shape() behavior
+            if (m > 0) then
+                num_vertices = num_vertices + 1
+                vertices(num_vertices) = ttf_vertex_t(x=sx, y=sy, type=TTF_VERTEX_LINE)
+            end if
+
             deallocate(px, py, is_on_curve)
         end do
-        
+
         ! Resize to actual number of vertices
         if (num_vertices > 0) then
             vertices = vertices(1:num_vertices)
