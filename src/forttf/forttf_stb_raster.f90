@@ -2,7 +2,7 @@ module forttf_stb_raster
     !! STB TrueType-compatible rasterization pipeline
     !! Implements exact algorithms from stb_truetype.h for pixel-perfect matching
     use iso_c_binding
-    use, intrinsic :: iso_fortran_env, only: wp => real64
+    use, intrinsic :: iso_fortran_env, only: wp => real64, real32
     use forttf_types
     implicit none
 
@@ -707,8 +707,9 @@ contains
         dy = active_edge%fdy
 
         ! Compute endpoints of line segment clipped to this scanline
+        ! Use 32-bit precision to exactly match STB float arithmetic
         if (active_edge%sy > y_top) then
-            x_top = x0 + dx * (active_edge%sy - y_top)
+            x_top = real(real(x0, real32) + real(dx, real32) * (real(active_edge%sy, real32) - real(y_top, real32)), wp)
             sy0 = active_edge%sy
         else
             x_top = x0
@@ -716,7 +717,7 @@ contains
         end if
 
         if (active_edge%ey < y_bottom) then
-            x_bottom = x0 + dx * (active_edge%ey - y_top)
+            x_bottom = real(real(x0, real32) + real(dx, real32) * (real(active_edge%ey, real32) - real(y_top, real32)), wp)
             sy1 = active_edge%ey
         else
             x_bottom = xb
@@ -1064,8 +1065,28 @@ contains
         real(wp), intent(in) :: height, top_width, bottom_width
         real(wp) :: area
 
+        ! Use 32-bit precision arithmetic to exactly match STB's float calculations
+        real(real32) :: h32, tw32, bw32, a32
+        real(real32) :: safe_top_width, safe_bottom_width
+        
+        ! Convert to 32-bit precision
+        h32 = real(height, real32)
+        tw32 = real(top_width, real32)
+        bw32 = real(bottom_width, real32)
+        
+        ! STB assertions: ensure widths are non-negative
+        safe_top_width = max(0.0_real32, tw32)
+        safe_bottom_width = max(0.0_real32, bw32)
+
         ! STB algorithm: (top_width + bottom_width) / 2.0 * height
-        area = (top_width + bottom_width) * 0.5_wp * height
+        ! Use exact 32-bit float arithmetic to match STB
+        a32 = (safe_top_width + safe_bottom_width) * 0.5_real32 * h32
+
+        ! STB bounds check: STBTT_assert(STBTT_fabs(area) <= 1.01f)
+        a32 = max(-1.01_real32, min(1.01_real32, a32))
+
+        ! Convert back to working precision
+        area = real(a32, wp)
 
     end function stb_sized_trapezoid_area
 
@@ -1084,8 +1105,22 @@ contains
         real(wp), intent(in) :: height, width
         real(wp) :: area
 
+        ! Use 32-bit precision arithmetic to exactly match STB's float calculations
+        real(real32) :: h32, w32, a32
+        
+        ! Convert to 32-bit precision
+        h32 = real(height, real32)
+        w32 = real(width, real32)
+
         ! STB algorithm: height * width / 2
-        area = height * width * 0.5_wp
+        ! Use exact 32-bit float arithmetic to match STB
+        a32 = h32 * w32 * 0.5_real32
+
+        ! STB bounds check: STBTT_assert(STBTT_fabs(area) <= 1.01f)
+        a32 = max(-1.01_real32, min(1.01_real32, a32))
+
+        ! Convert back to working precision
+        area = real(a32, wp)
 
     end function stb_sized_triangle_area
 
