@@ -947,6 +947,7 @@ contains
         type(stb_active_edge_t), pointer :: new_edge_ptr
         real(wp), allocatable :: scanline_buffer(:)
         real(wp), allocatable :: scanline_fill_buffer(:)
+        logical :: has_nonzero
         integer(c_int8_t), pointer :: bitmap_array(:)
         integer :: y, edge_idx, i
         real(wp) :: scan_y_top, scan_y_bottom, sum_val, k_val
@@ -1018,11 +1019,17 @@ contains
      &                                                 result%w, scanline_buffer, scanline_fill_buffer)
             end if
 
+            ! DEBUG: Removed excessive buffer debug output
+
             sum_val = 0.0_wp
             do i = 0, result%w - 1
                 sum_val = sum_val + scanline_fill_buffer(i + 1)
                 k_val = scanline_buffer(i + 1) + sum_val
                 
+                ! DEBUG: Show final pixel values for first row only
+                if (y == 0 .and. i <= 10) then
+                    write(*,'(A,I2,A,I3)') 'ForTTF Row 0 Col ', i, ' final=', m_val
+                end if
                 
                 k_val = abs(k_val) * 255.0_wp + 0.5_wp
                 m_val = int(k_val)
