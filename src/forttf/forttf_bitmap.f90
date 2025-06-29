@@ -655,7 +655,7 @@ contains
         write(*,*) "DEBUG rasterize_vertices: shift_x=", shift_x, " shift_y=", shift_y
         write(*,*) "DEBUG rasterize_vertices: xoff=", xoff, " yoff=", yoff, " passing -xoff=", -xoff, " -yoff=", -yoff
         call stbtt_rasterize(bitmap, flatness_in_pixels, vertices, num_vertices, &
-                            scale_x, scale_y, shift_x, shift_y, -xoff, -yoff, .false., c_null_ptr)
+                            scale_x, scale_y, shift_x, shift_y, -xoff, -(height + yoff), .false., c_null_ptr)
 
     end subroutine rasterize_vertices
 

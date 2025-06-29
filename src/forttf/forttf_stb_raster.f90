@@ -983,8 +983,8 @@ contains
 
             ! Apply off_y offset to match STB's coordinate system
             ! STB: y = off_y; scan_y_top = y + 0.0f
-            scan_y_top = real(y, wp) + 0.0_wp
-            scan_y_bottom = real(y, wp) + 1.0_wp
+            scan_y_top = real(y + off_y, wp) + 0.0_wp
+            scan_y_bottom = real(y + off_y, wp) + 1.0_wp
 
             if (y < 3) then  ! Debug first few scanlines
                 write(*,*) "DEBUG scanline y=", y, " scan_y_top=", scan_y_top, " off_y=", off_y
