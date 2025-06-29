@@ -235,27 +235,30 @@ contains
 
     subroutine test_scanline_with_offset()
         !! Test scanline filling with Y offset (known issue area)
-        type(stb_active_edge_t) :: edge
+        type(stb_active_edge_t), target :: edge
+        type(stb_active_edge_t), pointer :: edge_ptr
         real(wp) :: scanline(10), fill_buffer(10)
         real(wp) :: y_top, y_bottom
         integer :: off_y = 5  ! Test with offset
         
-        edge%sy = 0.0_wp
-        edge%ey = 2.0_wp
+        ! Set up edge that spans the Y position we're testing
+        y_top = 1.0_wp + real(off_y, wp)
+        y_bottom = 2.0_wp + real(off_y, wp)
+        
+        edge%sy = y_top - 1.0_wp  ! Start before our test Y
+        edge%ey = y_top + 1.0_wp  ! End after our test Y
         edge%fx = 2.5_wp
         edge%fdx = 0.0_wp
+        edge%fdy = 2.0_wp
         edge%direction = 1.0_wp
         edge%next => null()
 
         scanline = 0.0_wp
         fill_buffer = 0.0_wp
-        
-        y_top = 1.0_wp + real(off_y, wp)
-        y_bottom = 2.0_wp + real(off_y, wp)
 
         ! Create pointer to edge for the function call
-        edge%next => null()
-        call stb_fill_active_edges_with_offset(edge%next, y_top, 10, scanline, fill_buffer)
+        edge_ptr => edge
+        call stb_fill_active_edges_with_offset(edge_ptr, y_top, 10, scanline, fill_buffer)
 
         if (all(abs(scanline) < TOLERANCE)) then
             pipeline_issues = pipeline_issues + 1
