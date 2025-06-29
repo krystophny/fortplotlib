@@ -33,6 +33,8 @@ module forttf_stb_raster
     public :: stb_position_trapezoid_area
     public :: stb_sized_triangle_area
     public :: stb_handle_clipped_edge
+    public :: stb_brute_force_edge_clipping
+    public :: stb_process_non_vertical_edge
 
 contains
 
