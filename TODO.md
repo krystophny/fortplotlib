@@ -1,19 +1,30 @@
 # Pure Fortran TrueType Implementation TODO
 
-## 🚨 **CURRENT CRITICAL ISSUE: Pipeline Integration**
+## 🚨 **CURRENT CRITICAL ISSUE: Coordinate System & Offset Handling**
 
 ### **✅ PROVEN: Isolated Components Work Perfectly**
 - **Vertex Generation:** 100% match (15=15 vertices)
 - **Rasterization Engine:** 100% match (900/900 pixels)
 - **Edge Building:** 100% match (proven in previous work)
+- **Bounding Box Calculation:** 100% match (583x776 offset 16,-776)
 
-### **❌ ISSUE: Full Pipeline Integration**
-- **Isolated Test:** `stbtt_rasterize()` vs `stb_rasterize_sorted_edges()` = **100% PERFECT**
-- **Full Pipeline:** `stb_get_codepoint_bitmap()` vs `stb_get_codepoint_bitmap_pure()` = **52% MATCH**
+### **❌ ISSUE: Coordinate Transformation in Full Pipeline**
+- **Full Pipeline:** `stb_get_codepoint_bitmap()` vs `stb_get_codepoint_bitmap_pure()` = **52.9% MATCH**
 
-### **🔍 ROOT CAUSE: Pipeline Differences**
-**Pattern:** STB generates **255-value pixels** where Pure Fortran sees **0-value background**
-**Suggests:** Issues in coordinate transforms, bitmap bounds, or tessellation parameters
+### **🔍 COORDINATE OFFSET INVESTIGATION STATUS**
+1. **Original (xoff, yoff)**: 52.7% match - glyph shifted down-right
+2. **Zero offsets (0, 0)**: 52.7% match - same shift pattern (confirmed double-offset theory)
+3. **Negative offsets (-xoff, -yoff)**: 52.9% match - **glyph shifted up-left** (pattern flipped!)
+
+**Key Discovery:** The offset direction DOES affect positioning. We've confirmed the coordinate system relationship but need the exact transformation.
+
+### **📊 Current Pattern Analysis**
+- **Bitmap dimensions match:** 583x776 pixels, offset (16, -776)
+- **Vertex data matches:** Same 15 vertices with identical coordinates
+- **Pixel count similar:** STB=170,738 vs Pure=170,774 pixels
+- **Systematic shift:** Large regions of STB=255/Pure=0 and STB=0/Pure=255
+
+**Next Step:** Find the correct coordinate transformation between font space and bitmap space.
 
 ---
 

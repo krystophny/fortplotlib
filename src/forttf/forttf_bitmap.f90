@@ -489,7 +489,7 @@ contains
         integer(c_int8_t), pointer :: bitmap_array(:)
 
         total_pixels = width * height
-        
+
         ! Allocate bitmap buffer using C malloc for compatibility with STB interface
         bitmap_ptr = c_malloc(int(total_pixels, c_size_t))
         if (.not. c_associated(bitmap_ptr)) then
@@ -527,7 +527,7 @@ contains
         real(wp), intent(in) :: scale_x, scale_y, shift_x, shift_y
         type(c_ptr), intent(in) :: bitmap_ptr
         integer, intent(in) :: width, height, xoff, yoff
-        
+
         integer(c_int8_t), pointer :: bitmap_array(:)
         type(ttf_vertex_t), allocatable :: vertices(:)
         integer :: num_vertices, total_pixels
@@ -538,7 +538,7 @@ contains
 
         ! Initialize bitmap to transparent
         bitmap_array = 0_c_int8_t
-        
+
         ! Get glyph outline vertices
         num_vertices = stb_get_glyph_shape_pure(font_info, glyph_index, vertices)
         if (num_vertices <= 0) then
@@ -631,27 +631,28 @@ contains
         integer, intent(in) :: width, height
         real(wp), intent(in) :: scale_x, scale_y, shift_x, shift_y
         integer, intent(in) :: xoff, yoff
-        
+
         type(stb_bitmap_t) :: bitmap
         real(wp), parameter :: flatness_in_pixels = 0.35_wp  ! STB default
-        
+
         if (num_vertices <= 0) then
             call create_fallback_bitmap(bitmap_array, width, height)
             return
         end if
-        
+
         ! Set up STB bitmap structure
         bitmap%w = width
         bitmap%h = height
         bitmap%stride = width
         bitmap%pixels => bitmap_array
-        
+
         ! Use exact STB rasterization pipeline (matches stbtt_Rasterize)
+        ! Pass the offsets to the rasterizer - this should match STB's behavior
         call stbtt_rasterize(bitmap, flatness_in_pixels, vertices, num_vertices, &
-                            scale_x, scale_y, shift_x, shift_y, xoff, yoff, .false., c_null_ptr)
+                            scale_x, scale_y, shift_x, shift_y, -xoff, -yoff, .false., c_null_ptr)
 
     end subroutine rasterize_vertices
-    
+
     subroutine vertices_to_edges(vertices, num_vertices, scale_x, scale_y, &
                                 shift_x, shift_y, xoff, yoff, edges, num_edges)
         !! Convert vertex outline to edges for scanline rasterization
@@ -661,23 +662,23 @@ contains
         integer, intent(in) :: xoff, yoff
         type(ttf_edge_t), allocatable, intent(out) :: edges(:)
         integer, intent(out) :: num_edges
-        
+
         integer :: i, contour_start
         real(wp) :: x0, y0, x1, y1
         real(wp) :: prev_x, prev_y, curr_x, curr_y
         logical :: in_contour
-        
+
         ! Allocate maximum possible edges (one per vertex)
         allocate(edges(num_vertices))
         num_edges = 0
         in_contour = .false.
         contour_start = 0
-        
+
         do i = 1, num_vertices
             ! Scale coordinates to bitmap space
             curr_x = real(vertices(i)%x, wp) * scale_x + shift_x - real(xoff, wp)
             curr_y = real(-vertices(i)%y, wp) * scale_y + shift_y - real(yoff, wp)  ! Flip Y
-            
+
             if (vertices(i)%type == TTF_VERTEX_MOVE) then
                 ! Start new contour
                 in_contour = .true.
@@ -698,7 +699,7 @@ contains
                 prev_y = curr_y
             end if
         end do
-        
+
         ! Resize to actual number of edges
         if (num_edges > 0) then
             edges = edges(1:num_edges)
@@ -706,31 +707,31 @@ contains
             deallocate(edges)
             allocate(edges(0))
         end if
-        
+
     end subroutine vertices_to_edges
-    
+
     subroutine scanline_rasterize(edges, num_edges, bitmap_array, width, height)
         !! Scanline rasterization algorithm for precise shape filling
         type(ttf_edge_t), intent(in) :: edges(:)
         integer, intent(in) :: num_edges
         integer(c_int8_t), intent(inout) :: bitmap_array(:)
         integer, intent(in) :: width, height
-        
+
         real(wp), allocatable :: intersections(:)
         integer :: num_intersections, y, i, j, pixel_idx
         real(wp) :: edge_x, edge_y
         integer :: x_start, x_end
         logical :: inside
-        
+
         if (num_edges == 0) return
-        
+
         allocate(intersections(num_edges))
-        
+
         ! Process each scanline
         do y = 0, height - 1
             edge_y = real(y, wp) + 0.5_wp  ! Sample at pixel center
             num_intersections = 0
-            
+
             ! Find intersections with all edges
             do i = 1, num_edges
                 if (edges(i)%y0 <= edge_y .and. edge_y < edges(i)%y1) then
@@ -738,7 +739,7 @@ contains
                     if (abs(edges(i)%y1 - edges(i)%y0) > 0.001_wp) then
                         edge_x = edges(i)%x0 + (edge_y - edges(i)%y0) * &
                                 (edges(i)%x1 - edges(i)%x0) / (edges(i)%y1 - edges(i)%y0)
-                        
+
                         if (edge_x >= 0.0_wp .and. edge_x <= real(width, wp)) then
                             num_intersections = num_intersections + 1
                             intersections(num_intersections) = edge_x
@@ -746,34 +747,34 @@ contains
                     end if
                 end if
             end do
-            
+
             ! Sort intersections
             if (num_intersections > 1) then
                 call sort_intersections(intersections, num_intersections)
             end if
-            
+
             ! Fill between pairs of intersections (even-odd rule)
             do i = 1, num_intersections - 1, 2
                 x_start = max(0, int(intersections(i)))
                 x_end = min(width - 1, int(intersections(i + 1)))
-                
+
                 do j = x_start, x_end
                     pixel_idx = y * width + j + 1
                     bitmap_array(pixel_idx) = 127_c_int8_t
                 end do
             end do
         end do
-        
+
     end subroutine scanline_rasterize
-    
+
     subroutine sort_intersections(intersections, n)
         !! Simple bubble sort for intersection array
         real(wp), intent(inout) :: intersections(:)
         integer, intent(in) :: n
-        
+
         integer :: i, j
         real(wp) :: temp
-        
+
         do i = 1, n - 1
             do j = 1, n - i
                 if (intersections(j) > intersections(j + 1)) then
@@ -783,7 +784,7 @@ contains
                 end if
             end do
         end do
-        
+
     end subroutine sort_intersections
 
 end module forttf_bitmap
