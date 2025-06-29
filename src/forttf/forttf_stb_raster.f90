@@ -566,7 +566,7 @@ contains
         do while (associated(e))
             ! Assert that edge extends at least to scanline_y (STB requirement)
             ! This matches STBTT_assert(e->ey >= y_top) in STB
-            if (e%ey < scanline_y) then
+            if (e%ey <= scanline_y) then
                 ! Skip edges that end before this scanline
                 e => e%next
                 cycle
@@ -661,7 +661,7 @@ contains
         e => active_edges
         do while (associated(e))
             ! Assert that edge extends at least to scanline_y (STB requirement)
-            if (e%ey < scanline_y) then
+            if (e%ey <= scanline_y) then
                 e => e%next
                 cycle
             end if
