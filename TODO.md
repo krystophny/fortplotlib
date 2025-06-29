@@ -1,127 +1,223 @@
 # Pure Fortran TrueType Implementation TODO
 
-## 🎯 **CURRENT STATUS: ~99.95% Accuracy - Anti-Aliasing Issues RESOLVED** ✅
+## 🎯 **CURRENT STATUS: 87.86% Accuracy - Major Anti-Aliasing Issues Remain** ⚠️
 
-### **📊 Latest Results (June 29, 2025) - MAJOR BREAKTHROUGH**
-- **Accuracy achieved:** **~99.95%** (1817 vs 1818 pixels - only 1 pixel difference!)
-- **Root cause identified and fixed:** Missing scanline interior fill between edges
-- **All pipeline issues resolved:** 0 pipeline issues found in comprehensive testing
-- **Production status:** ✅ Ready for deployment with near-perfect STB accuracy
+### **📊 Actual Results (June 29, 2025) - REALITY CHECK**
+- **Real accuracy:** **87.86%** (102 pixel differences out of 840 total pixels)
+- **Previous claim of 99.95% was incorrect** - based on misleading pixel count, not actual values
+- **Major issues identified:** Over-saturation (Pure=255, STB=low) and under-estimation patterns
+- **Production status:** ❌ NOT ready - requires significant improvement for production use
 
-### **🔍 Anti-Aliasing Issues Analysis - RESOLVED** ✅
-**Previous issues (now fixed):**
-- ~~Over-saturation cases: Pure=255, STB=65~~ → **FIXED** by proper scanline interior fill
-- ~~Under-estimation cases: Pure=52, STB=203~~ → **FIXED** by correct edge filtering (`<=` not `<`)  
-- ~~Missing interior fill between edges~~ → **FIXED** by using proper `stb_build_edges()` process
-- **Result:** 99.95% pixel-perfect accuracy achieved
+### **🔍 Current Anti-Aliasing Issues Analysis - MAJOR PROBLEMS REMAIN** ⚠️
 
----
+**Critical Issues Still Present:**
+1. **Over-Saturation Pattern (Pure=255, STB=low values):**
+   - Example: Pixel (11,0): STB=97, Pure=255, Diff=+158
+   - Example: Pixel (17,1): STB=0, Pure=255, Diff=+255
+   - **Root Cause:** Anti-aliasing calculations producing full saturation instead of partial coverage
 
-## 🔧 **DETAILED TEST AND VALIDATION PLAN FOR ANTI-ALIASING**
+2. **Under-Estimation Pattern (Pure=low, STB=high values):**
+   - Example: Pixel (11,10): STB=165, Pure=90, Diff=-75
+   - Example: Pixel (26,27): STB=185, Pure=70, Diff=-115
+   - **Root Cause:** Coverage calculations missing partial edge contributions
 
-**Target:** Isolate and test all intermediate steps and helper functions to achieve 100% pixel-perfect accuracy.
+3. **Edge Boundary Precision Issues:**
+   - Binary behavior (255 vs 0) instead of smooth anti-aliased gradients
+   - Large value jumps indicate missing sub-pixel precision
+   - **Root Cause:** Edge calculations lack proper sub-pixel precision
 
-### **📁 SOURCE CODE MAPPING**
-
-#### **Core Anti-Aliasing Functions (`src/forttf/forttf_stb_raster.f90`)**
-
-**🎯 CRITICAL ANTI-ALIASING PIPELINE FUNCTIONS:**
-- **Line 39:** `stb_flatten_curves()` - Main curve flattening (matches stbtt_FlattenCurves)
-- **Line 143:** `stb_add_point()` - Add point to tessellation array
-- **Line 157:** `stb_tesselate_curve()` - Recursive quadratic Bézier tessellation
-- **Line 207:** `stb_tesselate_cubic()` - Recursive cubic Bézier tessellation
-- **Line 280:** `stb_build_edges()` - Build edge list from flattened points
-- **Line 377:** `stb_sort_edges()` - Sort edges by Y coordinate
-- **Line 457:** `stb_new_active_edge()` - Create active edge with slope calculations
-- **Line 490:** `stb_update_active_edges()` - Update edge X positions per scanline
-- **Line 506:** `stb_remove_completed_edges()` - Remove finished edges
-- **Line 530:** `stb_insert_active_edge()` - Insert edge into sorted active list
-- **Line 549:** `stb_fill_active_edges()` - **CRITICAL** Main scanline filling with anti-aliasing
-- **Line 644:** `stb_fill_active_edges_with_offset()` - Scanline filling with STB offset pattern
-- **Line 698:** `stb_process_non_vertical_edge()` - **CRITICAL** Non-vertical edge processing
-- **Line 801:** `stb_brute_force_edge_clipping()` - **CRITICAL** STB brute force clipping
-- **Line 862:** `stb_rasterize()` - Main rasterization function
-- **Line 906:** `stbtt_rasterize()` - **CRITICAL** Main entry point (stbtt_Rasterize)
-- **Line 945:** `stb_rasterize_sorted_edges()` - **CRITICAL** Core scanline rasterization
-- **Line 1060:** `stb_sized_trapezoid_area()` - Trapezoid area calculation
-- **Line 1070:** `stb_position_trapezoid_area()` - Positioned trapezoid area
-- **Line 1080:** `stb_sized_triangle_area()` - Triangle area calculation
-- **Line 1090:** `stb_handle_clipped_edge_with_offset()` - Edge clipping with offset
-- **Line 1144:** `stb_handle_clipped_edge()` - **CRITICAL** Main edge clipping logic
-
-#### **Bitmap Functions (`src/forttf/forttf_bitmap.f90`)**
-- **Line 525:** `render_glyph_to_bitmap()` - **CRITICAL** Main glyph rendering
-- **Line 627:** `rasterize_vertices()` - **CRITICAL** Vertex rasterization pipeline
-
-#### **Outline Functions (`src/forttf/forttf_outline.f90`)**
-- **Line 47:** `stb_get_glyph_shape_pure()` - **CRITICAL** Glyph outline extraction
-- **Line 370:** `convert_coords_to_vertices()` - **CRITICAL** Coordinate to vertex conversion
-
-#### **STB Reference (`thirdparty/stb_truetype.h`)**
-- **Line 533:** `stbtt_BakeFontBitmap()` - Reference bitmap baking
-- **Line 549:** `stbtt_GetBakedQuad()` - Reference quad generation
-- **Line 3796:** `stbtt__rasterize()` - **REFERENCE** Core rasterization
-- **Line 3890:** `stbtt__fill_active_edges_new()` - **REFERENCE** Anti-aliasing fill
-- **Line 4026:** `stbtt__handle_clipped_edge()` - **REFERENCE** Edge clipping
-
-#### **C Wrappers (`src/*.c`)**
-- **`stb_exact_validation_wrapper.c`** - Complete STB validation infrastructure
-- **`stb_fill_test_wrapper.c`** - Fill function validation
-- **`stb_rasterize_test_wrapper.c`** - Rasterization validation
-- **`stb_area_test_wrapper.c`** - Area calculation validation
+**Previous Progress:**
+- ✅ **Interior fill fixed** - solid areas now match between edges
+- ✅ **Basic edge filtering fixed** - edges are processed correctly
+- ⚠️ **Edge anti-aliasing still broken** - coverage values wrong at boundaries
 
 ---
 
-### **🧪 EXISTING TEST COVERAGE ANALYSIS**
+## 🔧 **COMPREHENSIVE FIX PLAN FOR 87.86% → 95%+ ACCURACY**
 
-#### **✅ TESTED AND PASSING (38 test files):**
+**Target:** Fix the remaining anti-aliasing issues to achieve production-ready 95%+ pixel accuracy.
 
-**Core Essential Tests:**
-- `test_forttf_metrics.f90` - ✅ Font metrics, bounding boxes, kerning
-- `test_forttf_bitmap.f90` - ✅ Bitmap rendering and glyph parsing  
-- `test_forttf_stb_comparison.f90` - ✅ Complete STB vs Pure comparison
-- `test_forttf_area_functions.f90` - ✅ Area calculation validation
-- `test_forttf_curve_flattening.f90` - ✅ Curve tessellation algorithms
-- `test_forttf_edge_processing.f90` - ✅ Edge building and sorting
-- `test_forttf_active_edges.f90` - ✅ Active edge management
+## 🚨 **CRITICAL ISSUES TO FIX (Based on 87.86% Accuracy Analysis)**
 
-**Specialized Anti-Aliasing Tests:**
-- `test_forttf_fill_active_edges.f90` - ✅ Tests `stb_fill_active_edges()` vs STB C
-- `test_forttf_rasterize_sorted_edges.f90` - ✅ Tests `stb_rasterize_sorted_edges()` vs STB C
-- `test_forttf_stb_area_validation.f90` - ✅ Area calculation functions vs STB C
-- `test_forttf_coverage_precision.f90` - ✅ Coverage calculations
-- `test_forttf_scanline_conversion_precision.f90` - ✅ Scanline precision
-- `test_forttf_pixel_by_pixel_comparison.f90` - ✅ Pixel-level validation
+### **Priority 1: Fix Over-Saturation (Pure=255, STB=low) - HIGH IMPACT**
 
-**Debug/Analysis Tests:**
-- `test_forttf_antialiasing_precision.f90` - ⚠️ **STUB TESTS ONLY** (needs implementation)
-- `test_forttf_pixel_analysis.f90` - ✅ Pixel difference analysis
-- `test_forttf_exact_stb_validation.f90` - ✅ Step-by-step STB validation
+**Root Cause:** Anti-aliasing calculations producing full saturation instead of partial coverage
+
+**Technical Issues:**
+1. **`stb_handle_clipped_edge()` over-calculation**
+   - Our implementation may be double-counting coverage
+   - Need exact STB formula matching for partial edge coverage
+   - Sub-pixel intersection calculations wrong
+
+2. **`stb_fill_active_edges()` accumulation error**
+   - Coverage values being clamped to 255 too early
+   - Missing STB-specific scaling factors
+   - Incorrect scanline2 buffer handling
+
+**Action Items:**
+- [ ] **Compare STB vs our `stb_handle_clipped_edge()` formula exactly**
+- [ ] **Debug specific over-saturation pixels: (11,0), (17,1), (9,5)**
+- [ ] **Validate coverage calculation ranges (should be 0.0-1.0, not 0-255)**
+- [ ] **Test with minimal edge cases to isolate exact formula differences**
+
+### **Priority 2: Fix Under-Estimation (Pure=low, STB=high) - HIGH IMPACT**
+
+**Root Cause:** Coverage calculations missing partial edge contributions
+
+**Technical Issues:**
+1. **Missing edge coverage at boundaries**
+   - Edges not being processed that STB processes
+   - Sub-pixel contributions being dropped
+   - Rounding errors in edge intersection
+
+2. **Coordinate precision loss**
+   - Scale=0.02 creating very small values
+   - Edge positions losing sub-pixel precision
+   - Floating-point rounding differences vs STB
+
+**Action Items:**
+- [ ] **Debug specific under-estimation pixels: (11,10), (26,27)**
+- [ ] **Check edge active detection - are we missing edges STB finds?**
+- [ ] **Validate coordinate precision at scale=0.02**
+- [ ] **Compare edge intersection calculations vs STB**
+
+### **Priority 3: Fix Final Pixel Value Calculation - MEDIUM IMPACT**
+
+**Root Cause:** `stb_rasterize_sorted_edges()` final accumulation formula mismatch
+
+**Technical Issues:**
+1. **Accumulation formula differences**
+   - STB: `sum += scanline2[i]; k = scanline[i] + sum; k = abs(k)*255`
+   - Our version may have different formula
+   - Clamping/saturation happening at wrong point
+
+2. **Buffer indexing errors**
+   - Off-by-one errors in pixel addressing
+   - Scanline vs scanline2 buffer coordination
+   - Stride/offset calculation differences
+
+**Action Items:**
+- [ ] **Compare exact STB vs our final pixel calculation formula**
+- [ ] **Debug pixel indexing - are we writing to correct positions?**
+- [ ] **Validate accumulation buffer coordination**
+- [ ] **Test with simple single-pixel cases**
+
+### **Priority 4: Coordinate System Validation - LOW IMPACT**
+
+**Root Cause:** Scale=0.02 creating precision challenges
+
+**Technical Issues:**
+1. **Sub-pixel precision loss**
+   - Very small coordinate values losing precision
+   - Edge positions rounded incorrectly
+   - STB vs Fortran float vs double differences
+
+**Action Items:**
+- [ ] **Test with larger scale values to isolate precision issues**
+- [ ] **Compare coordinate calculations at various scales**
+- [ ] **Validate STB float vs Fortran double precision impact**
 
 ---
 
-### **🚨 CRITICAL MISSING ISOLATED UNIT TESTS**
+## 📋 **IMPLEMENTATION STRATEGY**
 
-**PRIORITY 1: Core Anti-Aliasing Functions (UNTESTED IN ISOLATION)**
+### **Phase 1: Critical Bug Isolation (Week 1)**
 
-1. **`test_forttf_handle_clipped_edge_isolated.f90`** - **MISSING**
-   - **Target:** `stb_handle_clipped_edge()` (line 1144)
-   - **Purpose:** Test edge clipping logic in isolation vs STB `stbtt__handle_clipped_edge()`
-   - **Focus:** Single edge scenarios, boundary conditions, coverage calculations
-   
-2. **`test_forttf_process_non_vertical_edge_isolated.f90`** - **MISSING**
-   - **Target:** `stb_process_non_vertical_edge()` (line 698)
-   - **Purpose:** Test non-vertical edge processing vs STB
-   - **Focus:** Slope calculations, sub-pixel precision, intersection logic
+**Step 1.1: Create specific pixel debugging tests**
+```fortran
+! Target the exact problematic pixels from 87.86% analysis
+! Test pixels: (11,0), (17,1), (9,5), (11,10), (26,27)
+fpm test --target test_forttf_specific_pixel_debug
+```
 
-3. **`test_forttf_brute_force_clipping_isolated.f90`** - **MISSING**
-   - **Target:** `stb_brute_force_edge_clipping()` (line 801)
-   - **Purpose:** Test brute force clipping algorithm vs STB
-   - **Focus:** Edge intersection, clipping boundaries, precision
+**Step 1.2: Compare STB vs our edge clipping formula**
+```fortran
+! Isolate stb_handle_clipped_edge() with exact same inputs as STB
+! Debug coverage calculation differences step-by-step
+fpm test --target test_forttf_edge_clipping_formula_debug
+```
 
-4. **`test_forttf_scanline_filling_precision.f90`** - **MISSING**
-   - **Target:** `stb_fill_active_edges_with_offset()` (line 644)
-   - **Purpose:** Test scanline filling with exact STB offset patterns
+**Step 1.3: Debug final pixel value calculation**
+```fortran
+! Compare final accumulation: sum += scanline2[i]; k = scanline[i] + sum
+! Test exact STB formula vs our implementation
+fpm test --target test_forttf_final_pixel_calculation_debug
+```
+
+### **Phase 2: Formula Corrections (Week 2)**
+
+**Step 2.1: Fix over-saturation formula**
+- Identify exact STB coverage calculation formula
+- Correct any double-counting or scaling errors
+- Ensure coverage stays in 0.0-1.0 range before final scaling
+
+**Step 2.2: Fix under-estimation edge detection**
+- Verify all edges STB finds are processed by our code
+- Fix any missing sub-pixel edge contributions
+- Correct coordinate precision issues
+
+**Step 2.3: Fix final accumulation**
+- Match STB's exact final pixel calculation formula
+- Correct any buffer indexing or stride issues
+- Ensure proper clamping to 0-255 range
+
+### **Phase 3: Validation and Target Achievement (Week 3)**
+
+**Target: 95%+ accuracy for production readiness**
+
+**Step 3.1: Comprehensive accuracy testing**
+```bash
+# Test multiple glyphs and scales
+fpm test --target test_forttf_pixel_by_pixel_comparison
+# Target: <5% pixel differences (42 or fewer out of 840)
+```
+
+**Step 3.2: Visual quality validation**
+```bash
+# Ensure anti-aliasing looks smooth, not binary
+# Validate edge gradients are proper
+fpm test --target test_forttf_visual_quality_validation
+```
+
+**Step 3.3: Production readiness**
+```bash
+# Full test suite passing with high accuracy
+./validate_production_ready.sh
+# Target: 95%+ accuracy confirmed across multiple test cases
+```
+
+---
+
+## 🎯 **SUCCESS METRICS FOR COMPLETION**
+
+**Minimum Production Standards:**
+- **Accuracy Target:** 95%+ pixel match (less than 42 differences out of 840 pixels)
+- **Visual Quality:** Smooth anti-aliased edges, no binary artifacts
+- **Robustness:** Consistent accuracy across different glyphs and scales
+- **Test Coverage:** All critical anti-aliasing functions validated
+
+**Current Status:**
+- ❌ **87.86% accuracy** - Below production threshold
+- ❌ **102 pixel differences** - Too many for production use
+- ❌ **Binary artifacts** - Over-saturation/under-estimation patterns
+- ✅ **Interior fill working** - Solid areas match correctly
+
+**Next Steps:**
+1. Start with Phase 1.1: Create specific pixel debugging tests
+2. Focus on Priority 1: Fix over-saturation issues first  
+3. Systematic debugging approach targeting the exact problematic pixels identified
+
+---
+
+## 🚀 **SUMMARY - JOB STATUS**
+
+**Current Status:** ❌ **NOT FINISHED** - Major work remains to achieve production quality
+
+**Reality Check:** Previous 99.95% claim was incorrect. Real pixel-by-pixel analysis shows **87.86% accuracy**.
+
+**Production Status:** ❌ **NOT READY** - Requires substantial improvement for production use
+
+**Path Forward:** Focus on fixing specific problematic pixels through systematic STB formula matching
    - **Focus:** Y-offset handling, accumulation logic, precision
 
 **PRIORITY 2: Coverage Calculation Functions (NEEDS ENHANCEMENT)**
