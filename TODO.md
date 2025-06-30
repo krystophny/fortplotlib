@@ -199,7 +199,7 @@ fpm test --target test_forttf_bitmap_export > debug.log 2>&1
 - ✅ **Fill buffer updates:** Both `scanline_buffer` and `scanline_fill_buffer` updated correctly
 
 **8. Precision and Arithmetic Accuracy**
-- ✅ **32-bit float matching:** Using `real(real32)` conversions to match STB exactly
+- ❌ **32-bit float matching:** NOT the issue - differences persist despite real32 usage
 - ✅ **Coordinate calculation precision:** `x_top = real(real(x0, real32) + real(dx, real32) * ...)` working
 - ✅ **No systematic errors:** Debug output shows correct coordinate progression
 - ✅ **Floating-point consistency:** No NaN or infinity values detected
@@ -217,21 +217,53 @@ fpm test --target test_forttf_bitmap_export > debug.log 2>&1
 - ✅ **Visual analysis support:** Both PGM and PNG outputs for flexible viewing
 - ✅ **File generation:** All three outputs (stb_bitmap, pure_bitmap, diff_bitmap) in both formats
 
+**11. Final Pixel Conversion and Accumulation (VALIDATED JUNE 30, 2025)**
+- ✅ **Coverage calculation:** Real-valued coverage correctly computed (0.025→6, 1.164→255, etc.)
+- ✅ **Integer conversion:** `abs(k_val) * 255.0 + 0.5` rounding working correctly
+- ✅ **Value clamping:** Proper bounds checking (0-255 range enforced)
+- ✅ **Accumulation logic:** `sum_val + scanline_buffer(i+1)` accumulating correctly
+- ✅ **Coordinate mapping:** Y-flip and stride calculations working correctly
+
 **NOT THE ISSUE - CONFIRMED WORKING:**
 - Vertex extraction and parsing
 - Edge building and sorting algorithms (48 edges from 53 points validated)
 - Horizontal stripe artifacts (FIXED)
 - Vertical edge antialiasing (PERFECT)
-- Non-vertical coordinate calculations
-- Area calculation functions
+- Non-vertical coordinate calculations (but may have different order)
+- Area calculation functions (formula correct, but application may differ)
 - Single-pixel coverage scenarios
 - Active edge processing logic
-- 32-bit precision arithmetic matching
 - PNG export functionality (color-coded difference visualization)
+- Final pixel conversion and accumulation (coverage→integer mapping validated)
+
+**NOT THE ISSUE - RULED OUT:**
+- Float32 vs Float64 precision (confirmed NOT the cause)
+- Basic arithmetic operations (all match STB formulas)
 
 ### **🎯 CURRENT REMAINING ISSUE (June 30, 2025)**
 **Isolated scattered differences:** 71 non-128 pixel values in 20x39 diff bitmap
 **Pattern:** No systematic structure - scattered individual pixel differences
-**Root cause hypothesis:** Extremely subtle floating-point precision accumulation in complex antialiasing edge cases
+**Root cause:** Extremely subtle floating-point precision differences in accumulated calculations
+
+### **⚠️ INVESTIGATION UPDATE - 100% ACCURACY REQUIRED**
+**CURRENT STATUS:** 71 pixel differences (9.1%) is NOT acceptable for production use
+**REQUIREMENT:** Must achieve 100% pixel-perfect accuracy with STB reference
+
+**CRITICAL FINDING:** This is NOT a float32 vs float64 precision issue!
+
+**REMAINING WORK:**
+- **71 scattered differences MUST be eliminated**
+- **Every pixel must match STB exactly**
+- **No tolerance for "minor" precision differences**
+- **Must find algorithmic differences, not precision differences**
+
+**INVESTIGATION FOCUS:**
+1. STB may use different edge processing order
+2. STB may have special cases we're missing
+3. Accumulation order differences (a+b+c vs c+b+a)
+4. Rounding differences in intermediate calculations
+5. Edge case handling for boundary conditions
+
+**HYPOTHESIS:** The differences are due to algorithmic variations, not floating-point precision
 
 **DEBUGGING RULE:** Always add ruled-out components to this section to prevent re-investigation of confirmed working code.

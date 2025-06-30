@@ -1067,6 +1067,13 @@ contains
                 if (m_val > 255) m_val = 255
                 
                 if (m_val < 0) m_val = 0  ! Ensure non-negative values for bitmap
+                
+                ! DEBUG: Log pixel conversion for analysis (limited to avoid spam)
+                if (y <= 5 .and. i <= 15 .and. m_val /= 0) then
+                    write(*,'(A,I0,A,I0,A,F12.8,A,I0)') &
+                        'DEBUG PIXEL y=', y, ' x=', i, ' coverage=', k_val/255.0_wp, ' pixel=', m_val
+                end if
+                
                 ! Flip Y coordinate to match STB's coordinate system
                 ! Convert 0-255 range to c_int8_t, handling unsigned->signed mapping
                 ! STB uses unsigned char, we use signed c_int8_t, so values 128-255 become negative

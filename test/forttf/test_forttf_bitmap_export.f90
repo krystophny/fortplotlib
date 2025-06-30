@@ -158,56 +158,91 @@ contains
         integer(c_int8_t), intent(in) :: stb_bitmap(:), pure_bitmap(:)
         integer, intent(in) :: width, height
         
-        integer(1), allocatable :: rgb_data(:)
-        integer :: i, pixel_idx, rgb_idx, stb_val, pure_val, diff_val
+        integer(1), allocatable :: png_buffer(:)
+        integer :: i, j, pixel_idx, buf_idx, stb_val, pure_val, diff_val
         integer :: total_pixels
         
         total_pixels = width * height
-        allocate(rgb_data(total_pixels * 3))  ! RGB = 3 bytes per pixel
+        ! PNG buffer includes filter bytes: height * (1 filter byte + width * 3 RGB bytes)
+        allocate(png_buffer(height * (1 + width * 3)))
+        
+        ! Initialize buffer with filter bytes (0 = no filtering)
+        png_buffer = 0
         
         ! Export STB bitmap as PNG (grayscale -> RGB)
-        do i = 1, total_pixels
-            rgb_idx = (i - 1) * 3 + 1
-            stb_val = int(stb_bitmap(i), kind=1)
-            rgb_data(rgb_idx:rgb_idx+2) = [stb_val, stb_val, stb_val]  ! R=G=B for grayscale
+        do j = 1, height
+            ! Set filter byte for this row
+            buf_idx = (j - 1) * (1 + width * 3) + 1
+            png_buffer(buf_idx) = 0  ! No filter
+            
+            do i = 1, width
+                pixel_idx = (j - 1) * width + i
+                stb_val = int(stb_bitmap(pixel_idx), kind=1)
+                
+                ! Convert to RGB (grayscale means R=G=B)
+                buf_idx = (j - 1) * (1 + width * 3) + 1 + (i - 1) * 3 + 1
+                png_buffer(buf_idx)     = stb_val  ! R
+                png_buffer(buf_idx + 1) = stb_val  ! G
+                png_buffer(buf_idx + 2) = stb_val  ! B
+            end do
         end do
-        call write_png_file('stb_bitmap.png', width, height, rgb_data)
+        call write_png_file('stb_bitmap.png', width, height, png_buffer)
         
         ! Export Pure Fortran bitmap as PNG (grayscale -> RGB)
-        do i = 1, total_pixels
-            rgb_idx = (i - 1) * 3 + 1
-            pure_val = int(pure_bitmap(i), kind=1)
-            rgb_data(rgb_idx:rgb_idx+2) = [pure_val, pure_val, pure_val]  ! R=G=B for grayscale
+        do j = 1, height
+            ! Set filter byte for this row
+            buf_idx = (j - 1) * (1 + width * 3) + 1
+            png_buffer(buf_idx) = 0  ! No filter
+            
+            do i = 1, width
+                pixel_idx = (j - 1) * width + i
+                pure_val = int(pure_bitmap(pixel_idx), kind=1)
+                
+                ! Convert to RGB (grayscale means R=G=B)
+                buf_idx = (j - 1) * (1 + width * 3) + 1 + (i - 1) * 3 + 1
+                png_buffer(buf_idx)     = pure_val  ! R
+                png_buffer(buf_idx + 1) = pure_val  ! G
+                png_buffer(buf_idx + 2) = pure_val  ! B
+            end do
         end do
-        call write_png_file('pure_bitmap.png', width, height, rgb_data)
+        call write_png_file('pure_bitmap.png', width, height, png_buffer)
         
         ! Export difference bitmap as PNG (colored: red=STB higher, blue=Pure higher, gray=same)
-        do i = 1, total_pixels
-            rgb_idx = (i - 1) * 3 + 1
-            stb_val = int(stb_bitmap(i))
-            pure_val = int(pure_bitmap(i))
-            diff_val = pure_val - stb_val
+        do j = 1, height
+            ! Set filter byte for this row
+            buf_idx = (j - 1) * (1 + width * 3) + 1
+            png_buffer(buf_idx) = 0  ! No filter
             
-            if (diff_val > 0) then
-                ! Pure higher - blue tint
-                rgb_data(rgb_idx) = int(127, 1)      ! R
-                rgb_data(rgb_idx+1) = int(127, 1)    ! G  
-                rgb_data(rgb_idx+2) = int(min(127, 127 + abs(diff_val)/2), 1)  ! B (clamped)
-            else if (diff_val < 0) then
-                ! STB higher - red tint  
-                rgb_data(rgb_idx) = int(min(127, 127 + abs(diff_val)/2), 1)    ! R (clamped)
-                rgb_data(rgb_idx+1) = int(127, 1)    ! G
-                rgb_data(rgb_idx+2) = int(127, 1)    ! B
-            else
-                ! Same - neutral gray
-                rgb_data(rgb_idx) = int(127, 1)      ! R
-                rgb_data(rgb_idx+1) = int(127, 1)    ! G
-                rgb_data(rgb_idx+2) = int(127, 1)    ! B
-            end if
+            do i = 1, width
+                pixel_idx = (j - 1) * width + i
+                stb_val = int(stb_bitmap(pixel_idx))
+                pure_val = int(pure_bitmap(pixel_idx))
+                diff_val = pure_val - stb_val
+                
+                ! Convert to RGB position
+                buf_idx = (j - 1) * (1 + width * 3) + 1 + (i - 1) * 3 + 1
+                
+                if (diff_val > 0) then
+                    ! Pure higher - blue tint
+                    png_buffer(buf_idx)     = int(127, 1)      ! R
+                    png_buffer(buf_idx + 1) = int(127, 1)      ! G  
+                    png_buffer(buf_idx + 2) = int(min(127, 127 + abs(diff_val)/2), 1)  ! B (clamped)
+                else if (diff_val < 0) then
+                    ! STB higher - red tint  
+                    png_buffer(buf_idx)     = int(min(127, 127 + abs(diff_val)/2), 1)  ! R (clamped)
+                    png_buffer(buf_idx + 1) = int(127, 1)      ! G
+                    png_buffer(buf_idx + 2) = int(127, 1)      ! B
+                else
+                    ! Same - neutral gray
+                    png_buffer(buf_idx)     = int(127, 1)      ! R
+                    png_buffer(buf_idx + 1) = int(127, 1)      ! G
+                    png_buffer(buf_idx + 2) = int(127, 1)      ! B
+                end if
+            end do
         end do
-        call write_png_file('diff_bitmap.png', width, height, rgb_data)
+        call write_png_file('diff_bitmap.png', width, height, png_buffer)
         
-        deallocate(rgb_data)
+        deallocate(png_buffer)
         
     end subroutine export_png_bitmaps
 
