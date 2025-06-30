@@ -241,29 +241,35 @@ fpm test --target test_forttf_bitmap_export > debug.log 2>&1
 - Basic arithmetic operations (all match STB formulas)
 
 ### **🎯 CURRENT REMAINING ISSUE (June 30, 2025)**
-**Isolated scattered differences:** 71 non-128 pixel values in 20x39 diff bitmap
-**Pattern:** No systematic structure - scattered individual pixel differences
-**Root cause:** Extremely subtle floating-point precision differences in accumulated calculations
+**Systematic algorithmic differences:** 83 pixel differences (10.6%) with deviations up to ±247
+**Pattern:** Large systematic discrepancies indicating fundamental algorithmic differences
+**Root cause:** Subtle edge processing and coverage accumulation order differences
 
-### **⚠️ INVESTIGATION UPDATE - 100% ACCURACY REQUIRED**
-**CURRENT STATUS:** 71 pixel differences (9.1%) is NOT acceptable for production use
+### **⚠️ MAJOR ALGORITHMIC FIXES IMPLEMENTED**
+**COMPLETED FIXES:**
+- ✅ **Edge sorting algorithm**: Fixed to always run quicksort + insertion sort (like STB)
+- ✅ **Active edge insertion**: Changed from sorted order to front insertion (LIFO like STB)
+- ✅ **32-bit precision arithmetic**: Verified area calculations use exact STB float32 precision
+- ✅ **Coordinate system**: Confirmed Y-flipping is correct for our setup
+
+**CURRENT STATUS:** 83 pixel differences (10.6%) remain after major algorithmic fixes
 **REQUIREMENT:** Must achieve 100% pixel-perfect accuracy with STB reference
 
-**CRITICAL FINDING:** This is NOT a float32 vs float64 precision issue!
+**CRITICAL CONFIRMED:** This is NOT a precision issue - it's algorithmic differences!
 
-**REMAINING WORK:**
-- **71 scattered differences MUST be eliminated**
-- **Every pixel must match STB exactly**
-- **No tolerance for "minor" precision differences**
-- **Must find algorithmic differences, not precision differences**
+**REMAINING ALGORITHMIC ISSUES:**
+- **Edge traversal order** during scanline processing may differ from STB LIFO pattern
+- **Edge state management timing** - subtle differences in active/inactive transitions
+- **Coverage accumulation sequence** - order of operations when multiple edges affect same pixels
+- **Edge deactivation patterns** - different linked list traversal affecting subsequent calculations
 
 **INVESTIGATION FOCUS:**
-1. STB may use different edge processing order
-2. STB may have special cases we're missing
-3. Accumulation order differences (a+b+c vs c+b+a)
-4. Rounding differences in intermediate calculations
-5. Edge case handling for boundary conditions
+1. ✅ Edge processing order (LIFO insertion implemented)
+2. **Edge traversal order** during scanline filling
+3. **Multi-edge intersection handling** - coverage accumulation sequence
+4. **Edge deactivation timing** - when edges are removed vs processed
+5. **Boundary condition handling** - edges at exact pixel boundaries
 
-**HYPOTHESIS:** The differences are due to algorithmic variations, not floating-point precision
+**HYPOTHESIS:** Remaining differences are due to subtle edge interaction algorithms, not basic processing order
 
 **DEBUGGING RULE:** Always add ruled-out components to this section to prevent re-investigation of confirmed working code.
