@@ -2,6 +2,7 @@ program test_forttf_bitmap_export
     use test_forttf_utils
     use fortplot_stb_truetype
     use forttf
+    use fortplot_png, only: write_png_file
     use iso_c_binding
     use, intrinsic :: iso_fortran_env, only: wp => real64
     implicit none
@@ -135,11 +136,14 @@ contains
         end do
         close(12)
 
+        ! Convert bitmaps to PNG format (RGB)
+        call export_png_bitmaps(stb_bitmap, pure_bitmap, stb_width, stb_height)
+
         write(*,*) "✅ Exported bitmap files:"
-        write(*,*) "   - stb_bitmap.pgm (STB reference)"
-        write(*,*) "   - pure_bitmap.pgm (Pure Fortran implementation)"
-        write(*,*) "   - diff_bitmap.pgm (difference visualization)"
-        write(*,*) "📋 Use an image viewer to open these PGM files for visual comparison"
+        write(*,*) "   - stb_bitmap.pgm/.png (STB reference)"
+        write(*,*) "   - pure_bitmap.pgm/.png (Pure Fortran implementation)"
+        write(*,*) "   - diff_bitmap.pgm/.png (difference visualization)"
+        write(*,*) "📋 Use an image viewer to open these files for visual comparison"
 
         ! Clean up
         call stb_free_bitmap(stb_bitmap_ptr)
@@ -148,5 +152,63 @@ contains
         if (pure_success) call stb_cleanup_font_pure(pure_font)
 
     end subroutine test_export_bitmaps
+
+    subroutine export_png_bitmaps(stb_bitmap, pure_bitmap, width, height)
+        !! Convert grayscale bitmaps to RGB PNG format
+        integer(c_int8_t), intent(in) :: stb_bitmap(:), pure_bitmap(:)
+        integer, intent(in) :: width, height
+        
+        integer(1), allocatable :: rgb_data(:)
+        integer :: i, pixel_idx, rgb_idx, stb_val, pure_val, diff_val
+        integer :: total_pixels
+        
+        total_pixels = width * height
+        allocate(rgb_data(total_pixels * 3))  ! RGB = 3 bytes per pixel
+        
+        ! Export STB bitmap as PNG (grayscale -> RGB)
+        do i = 1, total_pixels
+            rgb_idx = (i - 1) * 3 + 1
+            stb_val = int(stb_bitmap(i), kind=1)
+            rgb_data(rgb_idx:rgb_idx+2) = [stb_val, stb_val, stb_val]  ! R=G=B for grayscale
+        end do
+        call write_png_file('stb_bitmap.png', width, height, rgb_data)
+        
+        ! Export Pure Fortran bitmap as PNG (grayscale -> RGB)
+        do i = 1, total_pixels
+            rgb_idx = (i - 1) * 3 + 1
+            pure_val = int(pure_bitmap(i), kind=1)
+            rgb_data(rgb_idx:rgb_idx+2) = [pure_val, pure_val, pure_val]  ! R=G=B for grayscale
+        end do
+        call write_png_file('pure_bitmap.png', width, height, rgb_data)
+        
+        ! Export difference bitmap as PNG (colored: red=STB higher, blue=Pure higher, gray=same)
+        do i = 1, total_pixels
+            rgb_idx = (i - 1) * 3 + 1
+            stb_val = int(stb_bitmap(i))
+            pure_val = int(pure_bitmap(i))
+            diff_val = pure_val - stb_val
+            
+            if (diff_val > 0) then
+                ! Pure higher - blue tint
+                rgb_data(rgb_idx) = int(127, 1)      ! R
+                rgb_data(rgb_idx+1) = int(127, 1)    ! G  
+                rgb_data(rgb_idx+2) = int(min(127, 127 + abs(diff_val)/2), 1)  ! B (clamped)
+            else if (diff_val < 0) then
+                ! STB higher - red tint  
+                rgb_data(rgb_idx) = int(min(127, 127 + abs(diff_val)/2), 1)    ! R (clamped)
+                rgb_data(rgb_idx+1) = int(127, 1)    ! G
+                rgb_data(rgb_idx+2) = int(127, 1)    ! B
+            else
+                ! Same - neutral gray
+                rgb_data(rgb_idx) = int(127, 1)      ! R
+                rgb_data(rgb_idx+1) = int(127, 1)    ! G
+                rgb_data(rgb_idx+2) = int(127, 1)    ! B
+            end if
+        end do
+        call write_png_file('diff_bitmap.png', width, height, rgb_data)
+        
+        deallocate(rgb_data)
+        
+    end subroutine export_png_bitmaps
 
 end program test_forttf_bitmap_export

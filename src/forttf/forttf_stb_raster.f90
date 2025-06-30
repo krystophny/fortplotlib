@@ -299,6 +299,9 @@ contains
         max_edges = size(points)
         allocate(edges(max_edges))
         num_edges = 0
+        
+        ! DEBUG: Log edge building start
+        write(*,'(A,I0,A,I0)') 'DEBUG EDGE BUILD: Starting with ', size(points), ' points, ', num_contours, ' contours'
 
         ! Set winding direction based on invert flag
         winding = merge(1, 0, invert)
@@ -367,6 +370,16 @@ contains
         ! Resize to actual number of edges
         if (num_edges > 0) then
             edges = edges(1:num_edges)
+            
+            ! DEBUG: Log edge building results
+            write(*,'(A,I0,A)') 'DEBUG EDGE BUILD: Built ', num_edges, ' edges'
+            ! Show first few edges for validation
+            do i = 1, min(5, num_edges)
+                write(*,'(A,I0,A,F8.3,A,F8.3,A,F8.3,A,F8.3,A,I0)') &
+                    'DEBUG EDGE ', i, ': y0=', edges(i)%y0, ' y1=', edges(i)%y1, &
+                    ' x0=', edges(i)%x0, ' x1=', edges(i)%x1, ' invert=', edges(i)%invert
+            end do
+            
             ! Sort edges to match STB behavior (matches stbtt__sort_edges call in STB)
             call stb_sort_edges(edges, num_edges)
         else
