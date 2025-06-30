@@ -665,8 +665,9 @@ contains
                         ! STB: stbtt__handle_clipped_edge(scanline,(int) x0,e, x0,y_top, x0,y_bottom);
                         call stb_handle_clipped_edge(scanline_buffer, int(x0), e, x0, scanline_y, x0, y_bottom)
                         ! STB: stbtt__handle_clipped_edge(scanline_fill-1,(int) x0+1,e, x0,y_top, x0,y_bottom);
-                        ! STB effectively writes to scanline_fill[x0] due to the -1 offset
-                        ! But only if x0+1 would be within bounds (since STB checks x0 < len)
+                        ! STB effective index: scanline_fill-1[(int) x0+1] = scanline_fill[x0]
+                        ! ForTTF equivalent with 1-based indexing: scanline_fill_buffer[int(x0) + 1]
+                        ! CRITICAL FIX: Use int(x0) + 1 to match STB's effective x0 index
                         if (int(x0) + 1 <= width) then
                             call stb_handle_clipped_edge(scanline_fill_buffer, int(x0) + 1, e, x0, scanline_y, x0, y_bottom)
                         end if
@@ -780,7 +781,8 @@ contains
                 scanline_buffer(x2 + 1) = scanline_buffer(x2 + 1) + area + &
                     sign * stb_position_trapezoid_area(sy1 - y_final, real(x2, wp), real(x2 + 1, wp), &
                                                      x_bottom, real(x2 + 1, wp))
-                scanline_fill_buffer(x2 + 1) = scanline_fill_buffer(x2 + 1) + sign * (sy1 - sy0) * active_edge%direction
+                ! STB L3228: scanline_fill[x2] += sign * (sy1-sy0);
+                scanline_fill_buffer(x2 + 1) = scanline_fill_buffer(x2 + 1) + sign * (sy1 - sy0)
             end if
         else
             ! Slow path - STB brute force clipping algorithm  
@@ -1015,25 +1017,6 @@ contains
 
             ! Process all active edges (matches STB scanline_fill-1 pattern)
             if (associated(active_head%next)) then
-                ! DEBUG: Log edge parameters for Row 5 specifically to find exact problematic edge
-                if (y == 5) then
-                    block
-                        type(stb_active_edge_t), pointer :: debug_edge
-                        integer :: edge_count
-                        debug_edge => active_head%next
-                        edge_count = 0
-                        write(*,*) 'DEBUG Row 5: Active edges before processing:'
-                        do while (associated(debug_edge))
-                            edge_count = edge_count + 1
-                            write(*,'(A,I2,A,F8.3,A,F8.3,A,F8.3,A,F8.3,A,F8.3,A,F8.3)') &
-                                'Edge ', edge_count, ': fx=', debug_edge%fx, ' fdx=', debug_edge%fdx, &
-                                ' fdy=', debug_edge%fdy, ' dir=', debug_edge%direction, &
-                                ' sy=', debug_edge%sy, ' ey=', debug_edge%ey
-                            debug_edge => debug_edge%next
-                        end do
-                        write(*,'(A,I2,A)') 'Total edges for Row 5: ', edge_count, ' edges'
-                    end block
-                end if
                 
                 call stb_fill_active_edges_with_offset(active_head%next, scan_y_top, &
      &                                                 result%w, scanline_buffer, scanline_fill_buffer)
@@ -1051,13 +1034,6 @@ contains
                 m_val = int(k_val)
                 if (m_val > 255) m_val = 255
                 
-                ! DEBUG: Show problematic rows and specific columns with CORRECT final value
-                if (y >= 5 .and. y <= 8 .and. &
-                    (i == 2 .or. i == 3 .or. i == 5 .or. i == 6 .or. i == 8 .or. i == 14 .or. i == 17)) then
-                    write(*,'(A,I2,A,I2,A,F12.6,A,F12.6,A,F12.6,A,I3)') &
-                        'DEBUG Row ', y, ' Col ', i, ' scanline=', scanline_buffer(i + 1), &
-                        ' fill_sum=', sum_val, ' k=', (scanline_buffer(i + 1) + sum_val), ' final=', m_val
-                end if
                 if (m_val < 0) m_val = 0  ! Ensure non-negative values for bitmap
                 ! Flip Y coordinate to match STB's coordinate system
                 ! Convert 0-255 range to c_int8_t, handling unsigned->signed mapping
