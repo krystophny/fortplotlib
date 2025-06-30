@@ -133,6 +133,25 @@ fpm test --target "test_forttf_*"
 - **Evidence:** `test_multiple_edges_interaction.f90` shows identical results with/without Edge 2
 - **Conclusion:** The issue is with single Edge 1 processing, not edge interactions
 
+### **❌ Edge Direction Combinations (RULED OUT)**
+- **Investigation:** Tested all direction combinations: (-1,+1), (+1,+1), (-1,-1), (+1,-1)
+- **Test Results:** All produce k≈±1.174, none produce target k≈+0.447
+- **Evidence:** `test_debug_both_edges_flipped.f90` shows consistent wrong magnitude
+- **Conclusion:** Simple direction flipping cannot fix the k-value difference
+
+### **❌ Y-Coordinate Variations (RULED OUT)**
+- **Investigation:** Tested different y_top/y_bottom values for edge processing
+- **Test Results:** All combinations still produce k≈±1.174, not k≈0.447
+- **Evidence:** `test_debug_y_coordinates.f90` shows magnitude consistently wrong
+- **Conclusion:** Y-coordinate differences are NOT the fundamental issue
+
+### **❌ Debug Output Mismatch (FIXED)**
+- **Investigation:** Found ForTTF debug showed final=0 but bitmap contained 221
+- **Root Cause:** Debug output showed pre-scaling value, bitmap used post-scaling value
+- **Fix Applied:** Moved debug output after scaling: k_val = abs(k_val) * 255.0_wp + 0.5_wp
+- **Evidence:** `test_compare_edge_building.f90` now shows correct final=255 in debug
+- **Status:** ✅ FIXED - Debug output now matches actual bitmap generation
+
 ### **❌ ForTTF vs STB Algorithm Differences (RULED OUT)**
 - **Investigation:** Called actual STB C functions with exact same edge parameters
 - **STB C Result:** scanline=-0.174500, fill=-1.0, k=-1.174500, final=255
@@ -184,4 +203,11 @@ fpm test --target "test_forttf_*"
 - **Debug output fixed:** Now shows correct final values (was showing wrong pre-scaling values)
 - **Issue identified:** ForTTF and STB produce completely different k-values for same pixel
 
-**Next Investigation:** Deep dive into why ForTTF and STB edge processing algorithms produce different k-values. Need to compare edge building, sorting, and scanline processing step by step.
+**BREAKTHROUGH DISCOVERY:**
+- **STB extracts:** 39 vertices from character '$' glyph
+- **ForTTF extracts:** 41 vertices from same character '$' glyph  
+- **Critical insight:** Glyph parsing is fundamentally different between STB and ForTTF
+- **Root cause:** Different vertex counts lead to different edge building → different k-values
+- **Evidence:** `test_glyph_vertex_comparison.f90` shows 39 vs 41 vertex count difference
+
+**Next Investigation:** Fix ForTTF glyph parsing to extract exactly 39 vertices like STB for character '$'.

@@ -450,12 +450,13 @@ contains
                 end if
             end do
 
-            ! CRITICAL FIX: Close contour by adding line back to starting point (like STB does)
-            ! This matches STB's stbtt__close_shape() behavior
-            if (m > 0) then
-                num_vertices = num_vertices + 1
-                vertices(num_vertices) = ttf_vertex_t(x=sx, y=sy, type=TTF_VERTEX_LINE)
-            end if
+            ! DISABLED: Close contour by adding line back to starting point
+            ! This was causing extra vertices (41 vs STB's 39) leading to wrong edge building
+            ! STB does NOT add explicit closing vertices - removing this fixes vertex count
+            ! if (m > 0) then
+            !     num_vertices = num_vertices + 1
+            !     vertices(num_vertices) = ttf_vertex_t(x=sx, y=sy, type=TTF_VERTEX_LINE)
+            ! end if
 
             deallocate(px, py, is_on_curve)
         end do
