@@ -709,6 +709,12 @@ contains
         xb = x0 + dx
         dy = active_edge%fdy
 
+        ! DEBUG: Log input parameters
+        if (active_edge%fx > 0.0_wp .and. active_edge%fx < 20.0_wp) then
+            write(*,'(A,F12.6,A,F12.6,A,F8.3,A,F8.3)') &
+                'DEBUG NON-VERTICAL: x0=', x0, ' dx=', dx, ' y_top=', y_top, ' y_bottom=', y_bottom
+        end if
+
         ! Compute endpoints of line segment clipped to this scanline
         ! Use 32-bit precision to exactly match STB float arithmetic
         if (active_edge%sy > y_top) then
@@ -727,6 +733,12 @@ contains
             sy1 = y_bottom
         end if
 
+        ! DEBUG: Log computed coordinates
+        if (active_edge%fx > 0.0_wp .and. active_edge%fx < 20.0_wp) then
+            write(*,'(A,F12.6,A,F12.6,A,F8.3,A,F8.3)') &
+                'DEBUG COORDS: x_top=', x_top, ' x_bottom=', x_bottom, ' sy0=', sy0, ' sy1=', sy1
+        end if
+
         ! EXACT STB bounds check - use STB's exact condition  
         if (x_top >= 0.0_wp .and. x_bottom >= 0.0_wp .and. &
             x_top < real(width, wp) .and. x_bottom < real(width, wp)) then
@@ -736,8 +748,15 @@ contains
                 ! Simple case, only spans one pixel
                 x = int(x_top)
                 height = (sy1 - sy0) * active_edge%direction
-                scanline_buffer(x + 1) = scanline_buffer(x + 1) + &
-                    stb_position_trapezoid_area(height, x_top, real(x + 1, wp), x_bottom, real(x + 1, wp))
+                area = stb_position_trapezoid_area(height, x_top, real(x + 1, wp), x_bottom, real(x + 1, wp))
+                
+                ! DEBUG: Log single pixel coverage
+                if (active_edge%fx > 0.0_wp .and. active_edge%fx < 20.0_wp) then
+                    write(*,'(A,I3,A,F12.8,A,F12.8)') &
+                        'DEBUG SINGLE: x=', x, ' area=', area, ' height=', height
+                end if
+                
+                scanline_buffer(x + 1) = scanline_buffer(x + 1) + area
                 scanline_fill_buffer(x + 1) = scanline_fill_buffer(x + 1) + height
             else
                 ! Covers 2+ pixels

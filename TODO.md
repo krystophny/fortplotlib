@@ -1,5 +1,8 @@
 # Pure Fortran TrueType Implementation TODO
 
+## ⚠️ **MANDATORY DEBUGGING PRACTICE**
+**🔒 RULE: When investigating issues, ALWAYS document ruled-out components in the "CONFIRMED NOT THE ISSUE" section below to prevent re-investigation of verified working code. This practice is MANDATORY for all debugging work.**
+
 ## ⚠️ **ANTIALIASING ACCURACY ISSUES**
 
 ### **🚨 Current Status: June 30, 2025**
@@ -141,3 +144,80 @@ fpm test --target test_forttf_bitmap_export > debug.log 2>&1
 - `test_forttf_exact_stb_validation.f90` - Exact validation test
 - `test_stb_debug_wrapper.f90` - Debug wrapper test
 - `test_forttf_stb_rasterization.f90` - Rasterization test
+
+---
+
+## ✅ **CONFIRMED NOT THE ISSUE - RULED OUT COMPONENTS**
+
+**⚠️ MANDATORY PRACTICE: Always document ruled-out issues to avoid repeating investigative work ⚠️**
+
+### **🔍 June 30, 2025 Investigation - Components Confirmed Working**
+
+**✅ VERIFIED WORKING CORRECTLY:**
+
+**1. Vertex Extraction (src/forttf/forttf_stb_raster.f90:L41-144)**
+- ✅ **Input verification:** 42 vertices extracted - exact match with STB
+- ✅ **Coordinate accuracy:** Vertex coordinates identical to STB reference
+- ✅ **Parse logic:** `convert_coords_to_vertices` working correctly
+- ✅ **Debug output:** Vertex type, x/y coordinates, control points all correct
+
+**2. Edge Building and Sorting (src/forttf/forttf_stb_raster.f90:L282-432)**
+- ✅ **Edge list creation:** `stb_build_edges` produces correct edge arrays
+- ✅ **Y-ordering:** `stb_sort_edges` correctly sorts edges by Y-coordinate
+- ✅ **Edge coordinates:** Input/output edge coordinates verified correct
+- ✅ **Edge direction:** Direction calculations working correctly
+
+**3. Horizontal Stripe Artifacts (MAJOR FIX CONFIRMED)**
+- ✅ **Fill buffer indexing:** Fixed - no more systematic band artifacts
+- ✅ **Scanline processing:** Working correctly across all Y-coordinates
+- ✅ **Vertical edge antialiasing:** Perfect pixel-level accuracy achieved
+- ✅ **Stripe elimination:** Confirmed - no horizontal bands in diff bitmap
+
+**4. Non-Vertical Edge Coordinate Processing (src/forttf/forttf_stb_raster.f90:L694-795)**
+- ✅ **Input parameters:** x0, dx, y_top, y_bottom values correct
+- ✅ **Coordinate clipping:** x_top, x_bottom calculations using proper 32-bit precision
+- ✅ **STB bounds checking:** Fast path condition `x_top >= 0 && x_bottom >= 0 && x_top < width && x_bottom < width` working
+- ✅ **Scanline coordinate calculation:** Exact match with STB arithmetic using `real32` precision
+
+**5. Area Calculation Functions (src/forttf/forttf_stb_raster.f90:L1081-1119)**
+- ✅ **stb_position_trapezoid_area:** Correctly calls `stb_sized_trapezoid_area(height, tx1-tx0, bx1-bx0)`
+- ✅ **stb_sized_trapezoid_area:** Exact implementation match with STB - `(top_width + bottom_width) * 0.5 * height`
+- ✅ **32-bit precision arithmetic:** Using `real32` calculations to exactly match STB float precision
+- ✅ **STB bounds checking:** `max(-1.01, min(1.01, area))` clamping correctly applied
+- ✅ **Safe width handling:** `max(0.0, width)` for negative width protection
+
+**6. Single Pixel Coverage Scenarios**
+- ✅ **Simple case logic:** `int(x_top) == int(x_bottom)` condition working correctly
+- ✅ **Height calculation:** `(sy1 - sy0) * active_edge%direction` correct
+- ✅ **Area computation:** Trapezoid area calculation producing correct coverage values
+- ✅ **Buffer accumulation:** `scanline_buffer[x+1] += area` working correctly
+
+**7. Active Edge Processing (src/forttf/forttf_stb_raster.f90:L551-636)**
+- ✅ **Edge activation:** Active edges correctly identified and processed
+- ✅ **Y-coordinate matching:** Edges activated at correct scanlines
+- ✅ **Edge traversal:** `active_edge%next` pointer logic working correctly
+- ✅ **Fill buffer updates:** Both `scanline_buffer` and `scanline_fill_buffer` updated correctly
+
+**8. Precision and Arithmetic Accuracy**
+- ✅ **32-bit float matching:** Using `real(real32)` conversions to match STB exactly
+- ✅ **Coordinate calculation precision:** `x_top = real(real(x0, real32) + real(dx, real32) * ...)` working
+- ✅ **No systematic errors:** Debug output shows correct coordinate progression
+- ✅ **Floating-point consistency:** No NaN or infinity values detected
+
+**NOT THE ISSUE - CONFIRMED WORKING:**
+- Vertex extraction and parsing
+- Edge building and sorting algorithms  
+- Horizontal stripe artifacts (FIXED)
+- Vertical edge antialiasing (PERFECT)
+- Non-vertical coordinate calculations
+- Area calculation functions
+- Single-pixel coverage scenarios
+- Active edge processing logic
+- 32-bit precision arithmetic matching
+
+### **🎯 CURRENT REMAINING ISSUE (June 30, 2025)**
+**Isolated scattered differences:** 71 non-128 pixel values in 20x39 diff bitmap
+**Pattern:** No systematic structure - scattered individual pixel differences
+**Root cause hypothesis:** Extremely subtle floating-point precision accumulation in complex antialiasing edge cases
+
+**DEBUGGING RULE:** Always add ruled-out components to this section to prevent re-investigation of confirmed working code.

@@ -6,6 +6,7 @@ program test_forttf_bitmap_export
     use, intrinsic :: iso_fortran_env, only: wp => real64
     implicit none
 
+
     call test_export_bitmaps()
 
 contains
