@@ -390,16 +390,15 @@ contains
     end function stb_build_edges
 
     subroutine stb_sort_edges(edges, n)
-        !! Sort edges by y0 coordinate (matches stbtt__sort_edges)
+        !! Sort edges by y0 coordinate (matches stbtt__sort_edges EXACTLY)
+        !! STB ALWAYS runs quicksort + insertion sort for deterministic ordering
         type(stb_edge_t), intent(inout) :: edges(:)
         integer, intent(in) :: n
 
-        ! Use quicksort for larger arrays, insertion sort for smaller
-        if (n > 12) then
-            call stb_sort_edges_quicksort(edges, n)
-        else
-            call stb_sort_edges_ins_sort(edges, n)
-        end if
+        ! CRITICAL FIX: Match STB exactly - always run both sorts
+        ! STB runs quicksort followed by insertion sort for stable edge ordering
+        call stb_sort_edges_quicksort(edges, n)
+        call stb_sort_edges_ins_sort(edges, n)
 
     end subroutine stb_sort_edges
 
@@ -1042,7 +1041,10 @@ contains
                             new_edge_ptr%ey = scan_y_top
                         end if
                     end if
-                    call stb_insert_active_edge(active_head, new_edge_ptr)
+                    ! CRITICAL FIX: STB inserts at FRONT (LIFO), not sorted order
+                    ! STB: z->next = active; active = z;
+                    new_edge_ptr%next => active_head%next
+                    active_head%next => new_edge_ptr
                 end if
                 edge_idx = edge_idx + 1
             end do
@@ -1074,7 +1076,7 @@ contains
                         'DEBUG PIXEL y=', y, ' x=', i, ' coverage=', k_val/255.0_wp, ' pixel=', m_val
                 end if
                 
-                ! Flip Y coordinate to match STB's coordinate system
+                ! Keep Y coordinate flipping for our coordinate system
                 ! Convert 0-255 range to c_int8_t, handling unsigned->signed mapping
                 ! STB uses unsigned char, we use signed c_int8_t, so values 128-255 become negative
                 bitmap_array((result%h - 1 - y) * result%stride + i + 1) = int(m_val, c_int8_t)
