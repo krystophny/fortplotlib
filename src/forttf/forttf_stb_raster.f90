@@ -1027,9 +1027,12 @@ contains
                 sum_val = sum_val + scanline_fill_buffer(i + 1)
                 k_val = scanline_buffer(i + 1) + sum_val
                 
-                ! DEBUG: Show final pixel values for first row only
-                if (y == 0 .and. i <= 10) then
-                    write(*,'(A,I2,A,I3)') 'ForTTF Row 0 Col ', i, ' final=', m_val
+                ! DEBUG: Show problematic rows and specific columns
+                if (y >= 5 .and. y <= 8 .and. &
+                    (i == 2 .or. i == 3 .or. i == 5 .or. i == 6 .or. i == 8 .or. i == 14 .or. i == 17)) then
+                    write(*,'(A,I2,A,I2,A,F12.6,A,F12.6,A,F12.6,A,I3)') &
+                        'DEBUG Row ', y, ' Col ', i, ' scanline=', scanline_buffer(i + 1), &
+                        ' fill_sum=', sum_val, ' k=', k_val, ' final=', m_val
                 end if
                 
                 k_val = abs(k_val) * 255.0_wp + 0.5_wp
