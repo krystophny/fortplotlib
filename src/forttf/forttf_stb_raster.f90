@@ -664,10 +664,12 @@ contains
                     if (x0 >= 0.0_wp) then
                         ! STB: stbtt__handle_clipped_edge(scanline,(int) x0,e, x0,y_top, x0,y_bottom);
                         call stb_handle_clipped_edge(scanline_buffer, int(x0), e, x0, scanline_y, x0, y_bottom)
-                        ! STB: stbtt__handle_clipped_edge(scanline2+1-1,(int) x0+1,e, x0,y_top, x0,y_bottom);
-                        ! This is equivalent to stbtt__handle_clipped_edge(scanline2,(int) x0+1,e, x0,y_top, x0,y_bottom);
-                        ! The offset is already handled in the buffer indexing
-                        call stb_handle_clipped_edge(scanline_fill_buffer, int(x0) + 1, e, x0, scanline_y, x0, y_bottom)
+                        ! STB: stbtt__handle_clipped_edge(scanline_fill-1,(int) x0+1,e, x0,y_top, x0,y_bottom);
+                        ! STB effectively writes to scanline_fill[x0] due to the -1 offset
+                        ! But only if x0+1 would be within bounds (since STB checks x0 < len)
+                        if (int(x0) + 1 <= width) then
+                            call stb_handle_clipped_edge(scanline_fill_buffer, int(x0) + 1, e, x0, scanline_y, x0, y_bottom)
+                        end if
                     else
                         ! STB: stbtt__handle_clipped_edge(scanline2+1-1,0,e, x0,y_top, x0,y_bottom);
                         call stb_handle_clipped_edge(scanline_fill_buffer, 0, e, x0, scanline_y, x0, y_bottom)
@@ -724,7 +726,7 @@ contains
             sy1 = y_bottom
         end if
 
-        ! EXACT STB bounds check
+        ! EXACT STB bounds check - use STB's exact condition  
         if (x_top >= 0.0_wp .and. x_bottom >= 0.0_wp .and. &
             x_top < real(width, wp) .and. x_bottom < real(width, wp)) then
             ! Fast path - exact STB algorithm
@@ -781,11 +783,8 @@ contains
                 scanline_fill_buffer(x2 + 1) = scanline_fill_buffer(x2 + 1) + sign * (sy1 - sy0) * active_edge%direction
             end if
         else
-            ! Slow path - STB brute force clipping algorithm
-            ! DEBUG: Add a simple pixel to verify this path is hit
-            if (width > 0) then
-                scanline_buffer(1) = scanline_buffer(1) + 0.1_wp  ! Debug marker
-            end if
+            ! Slow path - STB brute force clipping algorithm  
+            ! STB brute force clipping - no additional boundary check needed
             call stb_brute_force_edge_clipping(scanline_buffer, scanline_fill_buffer, width, &
                                              active_edge, y_top, y_bottom, x0, dx, xb)
         end if
@@ -804,7 +803,7 @@ contains
         integer :: x
         real(wp) :: x1, x2, x3, y0, y3, y1, y2
 
-        ! STB brute force - process every pixel
+        ! STB brute force - process every pixel, but ensure we don't exceed bounds
         do x = 0, width - 1
             ! Exact STB variable assignments
             y0 = y_top
@@ -961,9 +960,9 @@ contains
         allocate(active_head)
         active_head%next => null()
 
-        ! Allocate scanline buffers
+        ! Allocate scanline buffers - exact STB sizing
         allocate(scanline_buffer(result%w))
-        allocate(scanline_fill_buffer(result%w + 1))
+        allocate(scanline_fill_buffer(result%w))
 
         ! Clear bitmap to background (matches STB)
         result%pixels = 0_c_int8_t
@@ -1046,6 +1045,7 @@ contains
             do i = 0, result%w - 1
                 sum_val = sum_val + scanline_fill_buffer(i + 1)
                 k_val = scanline_buffer(i + 1) + sum_val
+                
                 
                 k_val = abs(k_val) * 255.0_wp + 0.5_wp
                 m_val = int(k_val)
@@ -1209,6 +1209,7 @@ contains
         real(wp), intent(in) :: x0, y0, x1, y1
 
         real(wp) :: adj_x0, adj_y0, adj_x1, adj_y1
+
 
         ! Early exit for horizontal edges (matches STB)
         if (abs(y1 - y0) < epsilon(1.0_wp)) return
