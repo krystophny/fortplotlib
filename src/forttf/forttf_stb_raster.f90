@@ -517,6 +517,83 @@ contains
 
     end subroutine stb_update_active_edges
 
+    subroutine stb_resort_active_edges(active_head)
+        !! Resort active edges by X position (STB requirement)
+        !! Implements STB's bubble sort algorithm for maintaining left-to-right order
+        type(stb_active_edge_t), intent(inout), target :: active_head
+        
+        type(stb_active_edge_t), pointer :: step, temp_edge
+        logical :: changed
+        integer :: swap_count, edge_count
+        
+        ! Debug: Count edges before sorting
+        edge_count = 0
+        step => active_head%next
+        do while (associated(step))
+            edge_count = edge_count + 1
+            step => step%next
+        end do
+        
+        ! Debug: Commented out for production
+        ! if (edge_count > 1) then
+        !     write(*,*) "EDGE_RESORT: Called with", edge_count, "edges"
+        ! end if
+        
+        ! STB's edge resort algorithm (lines 2963-2980)
+        ! Keep sorting until no more swaps needed
+        swap_count = 0
+        do
+            changed = .false.
+            step => active_head
+            
+            do while (associated(step%next) .and. associated(step%next%next))
+                ! If current edge X > next edge X, swap them
+                if (step%next%fx > step%next%next%fx) then
+                    ! write(*,*) "EDGE_SWAP: fx=", step%next%fx, " > fx=", step%next%next%fx
+                    ! Swap step%next and step%next%next
+                    temp_edge => step%next
+                    step%next => step%next%next
+                    temp_edge%next => step%next%next
+                    step%next%next => temp_edge
+                    changed = .true.
+                    swap_count = swap_count + 1
+                end if
+                step => step%next
+            end do
+            
+            if (.not. changed) exit
+        end do
+        
+        ! if (edge_count > 1) then
+        !     write(*,*) "DEBUG: stb_resort_active_edges completed,", swap_count, "swaps made"
+        ! end if
+        
+    end subroutine stb_resort_active_edges
+
+    subroutine stb_insert_edge_sorted(active_head, new_edge)
+        !! Insert new edge in sorted X position (STB requirement)
+        !! Maintains left-to-right X ordering for correct winding calculations
+        type(stb_active_edge_t), intent(inout), target :: active_head
+        type(stb_active_edge_t), pointer, intent(in) :: new_edge
+        
+        type(stb_active_edge_t), pointer :: current, prev
+        
+        ! Find correct insertion point to maintain X order
+        prev => active_head
+        current => active_head%next
+        
+        do while (associated(current))
+            if (new_edge%fx <= current%fx) exit
+            prev => current
+            current => current%next
+        end do
+        
+        ! Insert new_edge between prev and current
+        new_edge%next => current
+        prev%next => new_edge
+        
+    end subroutine stb_insert_edge_sorted
+
     subroutine stb_remove_completed_edges(active_edges, current_y)
         !! Remove edges that have reached their end Y coordinate
         type(stb_active_edge_t), intent(inout), target :: active_edges
@@ -1041,22 +1118,30 @@ contains
                             new_edge_ptr%ey = scan_y_top
                         end if
                     end if
-                    ! CRITICAL FIX: STB inserts at FRONT (LIFO), not sorted order
-                    ! STB: z->next = active; active = z;
-                    new_edge_ptr%next => active_head%next
-                    active_head%next => new_edge_ptr
+                    ! CRITICAL FIX 3: Insert new edges in sorted X order (STB requirement)
+                    ! STB inserts new edges maintaining left-to-right X ordering
+                    call stb_insert_edge_sorted(active_head, new_edge_ptr)
                 end if
                 edge_idx = edge_idx + 1
             end do
 
-            ! Process all active edges (matches STB scanline_fill-1 pattern)
+            ! CRITICAL FIX 1: Update edge positions BEFORE filling (STB requirement)
+            ! STB updates fx += fdx BEFORE filling, not after
             if (associated(active_head%next)) then
-                
+                call stb_update_active_edges(active_head, 1.0_wp)
+            end if
+
+            ! CRITICAL FIX 2: Resort active edges by X position (STB requirement)
+            ! STB ensures edges are always processed left-to-right after updates
+            if (associated(active_head%next)) then
+                call stb_resort_active_edges(active_head)
+            end if
+
+            ! Process all active edges (now with correct positions and order)
+            if (associated(active_head%next)) then
                 call stb_fill_active_edges_with_offset(active_head%next, scan_y_top, &
      &                                                 result%w, scanline_buffer, scanline_fill_buffer)
             end if
-
-            ! DEBUG: Removed excessive buffer debug output
 
             sum_val = 0.0_wp
             do i = 0, result%w - 1
@@ -1082,8 +1167,7 @@ contains
                 bitmap_array((result%h - 1 - y) * result%stride + i + 1) = int(m_val, c_int8_t)
             end do
 
-            ! Advance all the edges
-            call stb_update_active_edges(active_head, 1.0_wp)
+            ! Edge positions already updated above (no longer needed here)
         end do
 
         deallocate(scanline_buffer, scanline_fill_buffer)

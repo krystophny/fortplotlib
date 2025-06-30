@@ -1,0 +1,297 @@
+Project is up to date
+ === Exporting STB vs Pure Fortran Bitmaps ===
+ ✅ Using font:/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
+ parse_simple_glyph: glyph           7 num_contours           3 num_points          48
+ parse_glyph_coordinates: num_points          48
+ parse_glyph_coordinates: flags(1:5)=    1   35    3   46   46
+ parse_glyph_coordinates: x_coords(1:5)=         692         592         591         486         276
+ parse_glyph_coordinates: y_coords(1:5)=        -301        -301           0           2          47
+ parse_simple_glyph: flags(1:5)=    1   35    3   46   46
+ parse_simple_glyph: x_coords(1:5)=         692         592         591         486         276
+ parse_simple_glyph: y_coords(1:5)=        -301        -301           0           2          47
+ convert_coords_to_vertices: num_vertices=          39
+   vertex           1 : type=           1 x=         692 y=        -301 cx=           0 cy=           0
+   vertex           2 : type=           2 x=         592 y=        -301 cx=           0 cy=           0
+   vertex           3 : type=           2 x=         591 y=           0 cx=           0 cy=           0
+   vertex           4 : type=           3 x=         381 y=          24 cx=         486 cy=           2
+   vertex           5 : type=           3 x=         170 y=          92 cx=         276 cy=          47
+   vertex           6 : type=           2 x=         170 y=         272 cx=           0 cy=           0
+   vertex           7 : type=           3 x=         376 y=         175 cx=         272 cy=         208
+   vertex           8 : type=           3 x=         592 y=         142 cx=         481 cy=         143
+   vertex           9 : type=           2 x=         592 y=         598 cx=           0 cy=           0
+   vertex          10 : type=           3 x=         270 y=         720 cx=         371 cy=         634
+ DEBUG rasterize_vertices: scale_x=   2.0000000000000000E-002  scale_y=   2.0000000000000000E-002
+ DEBUG rasterize_vertices: shift_x=   0.0000000000000000       shift_y=   0.0000000000000000     
+ DEBUG rasterize_vertices: xoff=           3  yoff=         -32  passing -xoff=          -3  -yoff=          32
+ DEBUG stbtt_rasterize: received x_off=          -3  y_off=          -7
+ DEBUG stbtt_rasterize: bitmap dimensions=          20 x          39
+ DEBUG stbtt_rasterize: calling stb_rasterize with x_off=          -3  y_off=          -7
+ DEBUG stb_rasterize_sorted_edges: received off_x=          -3  off_y=          -7
+ DEBUG stb_rasterize_sorted_edges: bitmap dimensions=          20 x          39  stride=          20
+ DEBUG scanline y=           0  scan_y_top=  -7.0000000000000000       off_y=          -7
+ DEBUG edge           1 : y0=  -6.0200000000000005       y1=   0.0000000000000000     
+ DEBUG edge           1 : sy=  -6.0200000000000005       ey=   0.0000000000000000     
+ DEBUG edge           1 : scan_y_top=  -7.0000000000000000       off_x=          -3
+ DEBUG edge           2 : y0=  -6.0200000000000005       y1=   4.0000000000000001E-002
+ DEBUG edge           2 : sy=  -6.0200000000000005       ey=   4.0000000000000001E-002
+ DEBUG edge           2 : scan_y_top=  -7.0000000000000000       off_x=          -3
+DEBUG NON-VERTICAL: x0=    8.843256 dx=   -0.003322 y_top=  -7.000 y_bottom=  -6.000
+DEBUG COORDS: x_top=    8.840000 x_bottom=    8.839934 sy0=  -6.020 sy1=  -6.000
+DEBUG SINGLE: x=  8 area=  0.00320066 height=  0.02000000
+ DEBUG scanline y=           1  scan_y_top=  -6.0000000000000000       off_y=          -7
+DEBUG NON-VERTICAL: x0=    8.839934 dx=   -0.003322 y_top=  -6.000 y_bottom=  -5.000
+DEBUG COORDS: x_top=    8.839934 x_bottom=    8.836611 sy0=  -6.000 sy1=  -5.000
+DEBUG SINGLE: x=  8 area=  0.16172758 height=  1.00000000
+ DEBUG scanline y=           2  scan_y_top=  -5.0000000000000000       off_y=          -7
+DEBUG NON-VERTICAL: x0=    8.836611 dx=   -0.003322 y_top=  -5.000 y_bottom=  -4.000
+DEBUG COORDS: x_top=    8.836611 x_bottom=    8.833289 sy0=  -5.000 sy1=  -4.000
+DEBUG SINGLE: x=  8 area=  0.16504982 height=  1.00000000
+DEBUG NON-VERTICAL: x0=    8.833289 dx=   -0.003322 y_top=  -4.000 y_bottom=  -3.000
+DEBUG COORDS: x_top=    8.833289 x_bottom=    8.829967 sy0=  -4.000 sy1=  -3.000
+DEBUG SINGLE: x=  8 area=  0.16837209 height=  1.00000000
+DEBUG NON-VERTICAL: x0=    8.829967 dx=   -0.003322 y_top=  -3.000 y_bottom=  -2.000
+DEBUG COORDS: x_top=    8.829967 x_bottom=    8.826645 sy0=  -3.000 sy1=  -2.000
+DEBUG SINGLE: x=  8 area=  0.17169434 height=  1.00000000
+DEBUG NON-VERTICAL: x0=    8.826645 dx=   -0.003322 y_top=  -2.000 y_bottom=  -1.000
+DEBUG COORDS: x_top=    8.826645 x_bottom=    8.823322 sy0=  -2.000 sy1=  -1.000
+DEBUG SINGLE: x=  8 area=  0.17501661 height=  1.00000000
+ DEBUG edge           3 : y0=   0.0000000000000000       y1=  0.47999999999999998     
+ DEBUG edge           3 : sy=   0.0000000000000000       ey=  0.47999999999999998     
+ DEBUG edge           3 : scan_y_top=  -1.0000000000000000       off_x=          -3
+DEBUG NON-VERTICAL: x0=    8.823322 dx=   -0.003322 y_top=  -1.000 y_bottom=   0.000
+DEBUG COORDS: x_top=    8.823322 x_bottom=    8.820000 sy0=  -1.000 sy1=   0.000
+DEBUG SINGLE: x=  8 area=  0.17833887 height=  1.00000000
+DEBUG NON-VERTICAL: x0=    6.109412 dx=   -3.102941 y_top=   0.000 y_bottom=   1.000
+DEBUG COORDS: x_top=    4.620000 x_bottom=    3.006471 sy0=   0.480 sy1=   1.000
+DEBUG NON-VERTICAL: x0=   10.627324 dx=    5.316901 y_top=   0.000 y_bottom=   1.000
+DEBUG COORDS: x_top=   10.840000 x_bottom=   14.615000 sy0=   0.040 sy1=   0.750
+DEBUG NON-VERTICAL: x0=    8.820000 dx=   -8.750000 y_top=   0.000 y_bottom=   1.000
+DEBUG COORDS: x_top=    8.820000 x_bottom=    4.620000 sy0=   0.000 sy1=   0.480
+DEBUG NON-VERTICAL: x0=   13.259608 dx=    1.807190 y_top=   0.000 y_bottom=   1.000
+DEBUG COORDS: x_top=   14.615001 x_bottom=   15.066797 sy0=   0.750 sy1=   1.000
+DEBUG NON-VERTICAL: x0=    3.006471 dx=   -3.102941 y_top=   1.000 y_bottom=   2.000
+DEBUG COORDS: x_top=    3.006471 x_bottom=    0.400000 sy0=   1.000 sy1=   1.840
+DEBUG NON-VERTICAL: x0=   15.066797 dx=    1.807190 y_top=   1.000 y_bottom=   2.000
+DEBUG COORDS: x_top=   15.066797 x_bottom=   16.873987 sy0=   1.000 sy1=   2.000
+DEBUG NON-VERTICAL: x0=    7.061698 dx=    4.198113 y_top=   2.000 y_bottom=   3.000
+DEBUG COORDS: x_top=   10.840000 x_bottom=   11.259811 sy0=   2.900 sy1=   3.000
+DEBUG NON-VERTICAL: x0=   14.338182 dx=   -6.545455 y_top=   2.000 y_bottom=   3.000
+DEBUG COORDS: x_top=    8.840000 x_bottom=    7.792727 sy0=   2.840 sy1=   3.000
+DEBUG NON-VERTICAL: x0=   16.873987 dx=    1.807190 y_top=   2.000 y_bottom=   3.000
+DEBUG COORDS: x_top=   16.873987 x_bottom=   17.380001 sy0=   2.000 sy1=   2.280
+DEBUG NON-VERTICAL: x0=   17.173175 dx=    0.738661 y_top=   2.000 y_bottom=   3.000
+DEBUG COORDS: x_top=   17.380001 x_bottom=   17.911836 sy0=   2.280 sy1=   3.000
+DEBUG SINGLE: x= 17 area= -0.25493872 height= -0.72000000
+DEBUG NON-VERTICAL: x0=    5.581856 dx=   -2.123711 y_top=   3.000 y_bottom=   4.000
+DEBUG COORDS: x_top=    4.520000 x_bottom=    3.458144 sy0=   3.500 sy1=   4.000
+DEBUG NON-VERTICAL: x0=   11.259811 dx=    4.198113 y_top=   3.000 y_bottom=   4.000
+DEBUG COORDS: x_top=   11.259811 x_bottom=   13.065001 sy0=   3.000 sy1=   3.430
+DEBUG NON-VERTICAL: x0=    7.792727 dx=   -6.545455 y_top=   3.000 y_bottom=   4.000
+DEBUG COORDS: x_top=    7.792727 x_bottom=    4.520000 sy0=   3.000 sy1=   3.500
+DEBUG NON-VERTICAL: x0=   12.311319 dx=    1.752747 y_top=   3.000 y_bottom=   4.000
+DEBUG COORDS: x_top=   13.065000 x_bottom=   14.064066 sy0=   3.430 sy1=   4.000
+DEBUG NON-VERTICAL: x0=   17.911836 dx=    0.738661 y_top=   3.000 y_bottom=   4.000
+DEBUG COORDS: x_top=   17.911836 x_bottom=   18.650497 sy0=   3.000 sy1=   4.000
+DEBUG NON-VERTICAL: x0=    3.458144 dx=   -2.123711 y_top=   4.000 y_bottom=   5.000
+DEBUG COORDS: x_top=    3.458144 x_bottom=    1.334433 sy0=   4.000 sy1=   5.000
+DEBUG NON-VERTICAL: x0=   14.064066 dx=    1.752747 y_top=   4.000 y_bottom=   5.000
+DEBUG COORDS: x_top=   14.064066 x_bottom=   14.660000 sy0=   4.000 sy1=   4.340
+DEBUG SINGLE: x= 14 area=  0.21690881 height=  0.34000000
+DEBUG NON-VERTICAL: x0=   14.400000 dx=    0.764706 y_top=   4.000 y_bottom=   5.000
+DEBUG COORDS: x_top=   14.660000 x_bottom=   15.164706 sy0=   4.340 sy1=   5.000
+DEBUG NON-VERTICAL: x0=   18.650497 dx=    0.738661 y_top=   4.000 y_bottom=   5.000
+DEBUG COORDS: x_top=   18.650497 x_bottom=   19.090000 sy0=   4.000 sy1=   4.595
+DEBUG NON-VERTICAL: x0=   18.977884 dx=    0.188430 y_top=   4.000 y_bottom=   5.000
+DEBUG COORDS: x_top=   19.090000 x_bottom=   19.166314 sy0=   4.595 sy1=   5.000
+DEBUG SINGLE: x= 19 area= -0.35309637 height= -0.40500000
+DEBUG NON-VERTICAL: x0=    1.334433 dx=   -2.123711 y_top=   5.000 y_bottom=   6.000
+DEBUG COORDS: x_top=    1.334433 x_bottom=    0.400000 sy0=   5.000 sy1=   5.440
+DEBUG NON-VERTICAL: x0=   15.164706 dx=    0.764706 y_top=   5.000 y_bottom=   6.000
+DEBUG COORDS: x_top=   15.164706 x_bottom=   15.635000 sy0=   5.000 sy1=   5.615
+DEBUG SINGLE: x= 15 area=  0.36909038 height=  0.61500000
+DEBUG NON-VERTICAL: x0=   15.512000 dx=    0.200000 y_top=   5.000 y_bottom=   6.000
+DEBUG COORDS: x_top=   15.635000 x_bottom=   15.712000 sy0=   5.615 sy1=   6.000
+DEBUG SINGLE: x= 15 area=  0.12570246 height=  0.38500000
+DEBUG NON-VERTICAL: x0=   19.166314 dx=    0.188430 y_top=   5.000 y_bottom=   6.000
+DEBUG COORDS: x_top=   19.166314 x_bottom=   19.354744 sy0=   5.000 sy1=   6.000
+DEBUG SINGLE: x= 19 area= -0.73947108 height= -1.00000000
+DEBUG NON-VERTICAL: x0=   15.712000 dx=    0.200000 y_top=   6.000 y_bottom=   7.000
+DEBUG COORDS: x_top=   15.712000 x_bottom=   15.912000 sy0=   6.000 sy1=   7.000
+DEBUG SINGLE: x= 15 area=  0.18799999 height=  1.00000000
+DEBUG NON-VERTICAL: x0=   19.354744 dx=    0.188430 y_top=   6.000 y_bottom=   7.000
+DEBUG COORDS: x_top=   19.354744 x_bottom=   19.543174 sy0=   6.000 sy1=   7.000
+DEBUG SINGLE: x= 19 area= -0.55104136 height= -1.00000000
+DEBUG NON-VERTICAL: x0=   15.912000 dx=    0.200000 y_top=   7.000 y_bottom=   8.000
+DEBUG COORDS: x_top=   15.912000 x_bottom=   15.960000 sy0=   7.000 sy1=   7.240
+DEBUG SINGLE: x= 15 area=  0.01535999 height=  0.24000000
+DEBUG NON-VERTICAL: x0=   16.007089 dx=   -0.196203 y_top=   7.000 y_bottom=   8.000
+DEBUG COORDS: x_top=   15.959999 x_bottom=   15.810886 sy0=   7.240 sy1=   8.000
+DEBUG SINGLE: x= 15 area=  0.08706364 height=  0.76000000
+DEBUG NON-VERTICAL: x0=   19.543174 dx=    0.188430 y_top=   7.000 y_bottom=   8.000
+DEBUG COORDS: x_top=   19.543174 x_bottom=   19.660000 sy0=   7.000 sy1=   7.620
+DEBUG SINGLE: x= 19 area= -0.24701625 height= -0.62000000
+DEBUG NON-VERTICAL: x0=   19.778889 dx=   -0.191756 y_top=   7.000 y_bottom=   8.000
+DEBUG COORDS: x_top=   19.660000 x_bottom=   19.587133 sy0=   7.620 sy1=   8.000
+DEBUG SINGLE: x= 19 area= -0.14304484 height= -0.38000000
+DEBUG NON-VERTICAL: x0=   15.810886 dx=   -0.196203 y_top=   8.000 y_bottom=   9.000
+DEBUG COORDS: x_top=   15.810886 x_bottom=   15.650001 sy0=   8.000 sy1=   8.820
+DEBUG SINGLE: x= 15 area=  0.22103646 height=  0.82000000
+DEBUG NON-VERTICAL: x0=   16.275082 dx=   -0.762295 y_top=   8.000 y_bottom=   9.000
+DEBUG COORDS: x_top=   15.650000 x_bottom=   15.512787 sy0=   8.820 sy1=   9.000
+DEBUG SINGLE: x= 15 area=  0.07534922 height=  0.18000000
+DEBUG NON-VERTICAL: x0=   19.587133 dx=   -0.191756 y_top=   8.000 y_bottom=   9.000
+DEBUG COORDS: x_top=   19.587133 x_bottom=   19.395376 sy0=   8.000 sy1=   9.000
+DEBUG SINGLE: x= 19 area= -0.50874555 height= -1.00000000
+DEBUG NON-VERTICAL: x0=   15.512787 dx=   -0.762295 y_top=   9.000 y_bottom=  10.000
+DEBUG COORDS: x_top=   15.512787 x_bottom=   14.750492 sy0=   9.000 sy1=  10.000
+DEBUG NON-VERTICAL: x0=   19.395376 dx=   -0.191756 y_top=   9.000 y_bottom=  10.000
+DEBUG COORDS: x_top=   19.395376 x_bottom=   19.203620 sy0=   9.000 sy1=  10.000
+DEBUG SINGLE: x= 19 area= -0.70050180 height= -1.00000000
+DEBUG NON-VERTICAL: x0=   14.750492 dx=   -0.762295 y_top=  10.000 y_bottom=  11.000
+DEBUG COORDS: x_top=   14.750492 x_bottom=   14.720000 sy0=  10.000 sy1=  10.040
+DEBUG SINGLE: x= 14 area=  0.01059016 height=  0.04000000
+DEBUG NON-VERTICAL: x0=   14.790222 dx=   -1.755556 y_top=  10.000 y_bottom=  11.000
+DEBUG COORDS: x_top=   14.720000 x_bottom=   13.140000 sy0=  10.040 sy1=  10.940
+DEBUG NON-VERTICAL: x0=   16.627097 dx=   -3.709677 y_top=  10.000 y_bottom=  11.000
+DEBUG COORDS: x_top=   13.140001 x_bottom=   12.917419 sy0=  10.940 sy1=  11.000
+DEBUG NON-VERTICAL: x0=   19.203620 dx=   -0.191756 y_top=  10.000 y_bottom=  11.000
+DEBUG COORDS: x_top=   19.203620 x_bottom=   19.125000 sy0=  10.000 sy1=  10.410
+DEBUG SINGLE: x= 19 area= -0.34263289 height= -0.41000000
+DEBUG NON-VERTICAL: x0=   19.433944 dx=   -0.753521 y_top=  10.000 y_bottom=  11.000
+DEBUG COORDS: x_top=   19.125000 x_bottom=   18.680423 sy0=  10.410 sy1=  11.000
+DEBUG NON-VERTICAL: x0=   12.620619 dx=   -3.938144 y_top=  11.000 y_bottom=  12.000
+DEBUG COORDS: x_top=    8.840000 x_bottom=    8.682474 sy0=  11.960 sy1=  12.000
+DEBUG SINGLE: x=  8 area=  0.00955051 height=  0.04000000
+DEBUG NON-VERTICAL: x0=   12.917419 dx=   -3.709677 y_top=  11.000 y_bottom=  12.000
+DEBUG COORDS: x_top=   12.917419 x_bottom=   10.839998 sy0=  11.000 sy1=  11.560
+DEBUG NON-VERTICAL: x0=   18.680423 dx=   -0.753521 y_top=  11.000 y_bottom=  12.000
+DEBUG COORDS: x_top=   18.680423 x_bottom=   17.926901 sy0=  11.000 sy1=  12.000
+DEBUG NON-VERTICAL: x0=    6.677551 dx=   -1.782313 y_top=  12.000 y_bottom=  13.000
+DEBUG COORDS: x_top=    5.020000 x_bottom=    4.895238 sy0=  12.930 sy1=  13.000
+DEBUG NON-VERTICAL: x0=    8.682474 dx=   -3.938144 y_top=  12.000 y_bottom=  13.000
+DEBUG COORDS: x_top=    8.682474 x_bottom=    5.019999 sy0=  12.000 sy1=  12.930
+DEBUG NON-VERTICAL: x0=   17.926901 dx=   -0.753521 y_top=  12.000 y_bottom=  13.000
+DEBUG COORDS: x_top=   17.926901 x_bottom=   17.519999 sy0=  12.000 sy1=  12.540
+DEBUG SINGLE: x= 17 area= -0.14933702 height= -0.54000000
+DEBUG NON-VERTICAL: x0=   18.490230 dx=   -1.796721 y_top=  12.000 y_bottom=  13.000
+DEBUG COORDS: x_top=   17.519999 x_bottom=   16.693508 sy0=  12.540 sy1=  13.000
+DEBUG NON-VERTICAL: x0=    4.895238 dx=   -1.782313 y_top=  13.000 y_bottom=  14.000
+DEBUG COORDS: x_top=    4.895238 x_bottom=    3.112925 sy0=  13.000 sy1=  14.000
+DEBUG NON-VERTICAL: x0=   16.693508 dx=   -1.796721 y_top=  13.000 y_bottom=  14.000
+DEBUG COORDS: x_top=   16.693508 x_bottom=   14.896787 sy0=  13.000 sy1=  14.000
+DEBUG NON-VERTICAL: x0=    2.694118 dx=   -0.735294 y_top=  14.000 y_bottom=  15.000
+DEBUG COORDS: x_top=    2.400000 x_bottom=    1.958824 sy0=  14.400 sy1=  15.000
+DEBUG NON-VERTICAL: x0=    3.112925 dx=   -1.782313 y_top=  14.000 y_bottom=  15.000
+DEBUG COORDS: x_top=    3.112925 x_bottom=    2.400001 sy0=  14.000 sy1=  14.400
+DEBUG NON-VERTICAL: x0=   14.896787 dx=   -1.796721 y_top=  14.000 y_bottom=  15.000
+DEBUG COORDS: x_top=   14.896787 x_bottom=   14.780001 sy0=  14.000 sy1=  14.065
+DEBUG SINGLE: x= 14 area= -0.01050440 height= -0.06500000
+DEBUG NON-VERTICAL: x0=   15.042667 dx=   -4.041026 y_top=  14.000 y_bottom=  15.000
+DEBUG COORDS: x_top=   14.780002 x_bottom=   11.001641 sy0=  14.065 sy1=  15.000
+DEBUG NON-VERTICAL: x0=    1.958824 dx=   -0.735294 y_top=  15.000 y_bottom=  16.000
+DEBUG COORDS: x_top=    1.958824 x_bottom=    1.223529 sy0=  15.000 sy1=  16.000
+DEBUG SINGLE: x=  1 area=  0.40882355 height=  1.00000000
+DEBUG NON-VERTICAL: x0=    8.393212 dx=   -1.793939 y_top=  15.000 y_bottom=  16.000
+DEBUG COORDS: x_top=    6.680000 x_bottom=    6.599273 sy0=  15.955 sy1=  16.000
+DEBUG SINGLE: x=  6 area= -0.01621636 height= -0.04500000
+DEBUG NON-VERTICAL: x0=   10.396757 dx=   -3.891892 y_top=  15.000 y_bottom=  16.000
+DEBUG COORDS: x_top=    8.840002 x_bottom=    6.680000 sy0=  15.400 sy1=  15.955
+DEBUG NON-VERTICAL: x0=   11.001641 dx=   -4.041026 y_top=  15.000 y_bottom=  16.000
+DEBUG COORDS: x_top=   11.001641 x_bottom=   10.840000 sy0=  15.000 sy1=  15.040
+DEBUG NON-VERTICAL: x0=    0.982090 dx=   -0.186567 y_top=  16.000 y_bottom=  17.000
+DEBUG COORDS: x_top=    0.900000 x_bottom=    0.795522 sy0=  16.440 sy1=  17.000
+DEBUG SINGLE: x=  0 area=  0.08525375 height=  0.56000000
+DEBUG NON-VERTICAL: x0=    1.223529 dx=   -0.735294 y_top=  16.000 y_bottom=  17.000
+DEBUG COORDS: x_top=    1.223529 x_bottom=    0.900000 sy0=  16.000 sy1=  16.440
+DEBUG NON-VERTICAL: x0=    5.525970 dx=   -0.417910 y_top=  16.000 y_bottom=  17.000
+DEBUG COORDS: x_top=    5.199999 x_bottom=    5.108060 sy0=  16.780 sy1=  17.000
+DEBUG SINGLE: x=  5 area= -0.18611351 height= -0.22000000
+DEBUG NON-VERTICAL: x0=    6.599273 dx=   -1.793939 y_top=  16.000 y_bottom=  17.000
+DEBUG COORDS: x_top=    6.599273 x_bottom=    5.199999 sy0=  16.000 sy1=  16.780
+DEBUG NON-VERTICAL: x0=    0.795522 dx=   -0.186567 y_top=  17.000 y_bottom=  18.000
+DEBUG COORDS: x_top=    0.795522 x_bottom=    0.608955 sy0=  17.000 sy1=  18.000
+DEBUG SINGLE: x=  0 area=  0.29776120 height=  1.00000000
+DEBUG NON-VERTICAL: x0=    5.108060 dx=   -0.417910 y_top=  17.000 y_bottom=  18.000
+DEBUG COORDS: x_top=    5.108060 x_bottom=    4.690149 sy0=  17.000 sy1=  18.000
+DEBUG NON-VERTICAL: x0=    0.608955 dx=   -0.186567 y_top=  18.000 y_bottom=  19.000
+DEBUG COORDS: x_top=    0.608955 x_bottom=    0.422388 sy0=  18.000 sy1=  19.000
+DEBUG SINGLE: x=  0 area=  0.48432833 height=  1.00000000
+DEBUG NON-VERTICAL: x0=    4.690149 dx=   -0.417910 y_top=  18.000 y_bottom=  19.000
+DEBUG COORDS: x_top=    4.690149 x_bottom=    4.272239 sy0=  18.000 sy1=  19.000
+DEBUG SINGLE: x=  4 area= -0.51880598 height= -1.00000000
+DEBUG NON-VERTICAL: x0=    0.377564 dx=    0.186964 y_top=  19.000 y_bottom=  20.000
+DEBUG COORDS: x_top=    0.400000 x_bottom=    0.564528 sy0=  19.120 sy1=  20.000
+DEBUG SINGLE: x=  0 area=  0.45560747 height=  0.88000000
+DEBUG NON-VERTICAL: x0=    0.422388 dx=   -0.186567 y_top=  19.000 y_bottom=  20.000
+DEBUG COORDS: x_top=    0.422388 x_bottom=    0.400000 sy0=  19.000 sy1=  19.120
+DEBUG SINGLE: x=  0 area=  0.07065672 height=  0.12000000
+DEBUG NON-VERTICAL: x0=    3.991483 dx=    0.192429 y_top=  19.000 y_bottom=  20.000
+DEBUG COORDS: x_top=    4.080000 x_bottom=    4.183912 sy0=  19.460 sy1=  20.000
+DEBUG SINGLE: x=  4 area= -0.46874389 height= -0.54000000
+DEBUG NON-VERTICAL: x0=    4.272239 dx=   -0.417910 y_top=  19.000 y_bottom=  20.000
+DEBUG COORDS: x_top=    4.272239 x_bottom=    4.080000 sy0=  19.000 sy1=  19.460
+DEBUG SINGLE: x=  4 area= -0.37898502 height= -0.46000000
+DEBUG NON-VERTICAL: x0=    0.564528 dx=    0.186964 y_top=  20.000 y_bottom=  21.000
+DEBUG COORDS: x_top=    0.564528 x_bottom=    0.751492 sy0=  20.000 sy1=  21.000
+DEBUG SINGLE: x=  0 area=  0.34198970 height=  1.00000000
+DEBUG NON-VERTICAL: x0=    4.183912 dx=    0.192429 y_top=  20.000 y_bottom=  21.000
+DEBUG COORDS: x_top=    4.183912 x_bottom=    4.376341 sy0=  20.000 sy1=  21.000
+DEBUG SINGLE: x=  4 area= -0.71987379 height= -1.00000000
+DEBUG NON-VERTICAL: x0=    0.751492 dx=    0.186964 y_top=  21.000 y_bottom=  22.000
+DEBUG COORDS: x_top=    0.751492 x_bottom=    0.938456 sy0=  21.000 sy1=  22.000
+DEBUG SINGLE: x=  0 area=  0.15502574 height=  1.00000000
+DEBUG NON-VERTICAL: x0=    4.351660 dx=    0.740891 y_top=  21.000 y_bottom=  22.000
+DEBUG COORDS: x_top=    4.385000 x_bottom=    5.092551 sy0=  21.045 sy1=  22.000
+DEBUG NON-VERTICAL: x0=    4.376341 dx=    0.192429 y_top=  21.000 y_bottom=  22.000
+DEBUG COORDS: x_top=    4.376341 x_bottom=    4.385000 sy0=  21.000 sy1=  21.045
+DEBUG SINGLE: x=  4 area= -0.02786983 height= -0.04500000
+DEBUG NON-VERTICAL: x0=   19.786769 dx=   -2.630769 y_top=  21.000 y_bottom=  22.000
+DEBUG COORDS: x_top=   17.840002 x_bottom=   17.156000 sy0=  21.740 sy1=  22.000
+DEBUG SINGLE: x= 17 area=  0.13051972 height=  0.26000000
+DEBUG NON-VERTICAL: x0=    0.919281 dx=    0.734831 y_top=  22.000 y_bottom=  23.000
+DEBUG COORDS: x_top=    0.945000 x_bottom=    1.654112 sy0=  22.035 sy1=  23.000
+DEBUG NON-VERTICAL: x0=    0.938456 dx=    0.186964 y_top=  22.000 y_bottom=  23.000
+DEBUG COORDS: x_top=    0.938456 x_bottom=    0.945000 sy0=  22.000 sy1=  22.035
+DEBUG SINGLE: x=  0 area=  0.00203952 height=  0.03500000
+DEBUG NON-VERTICAL: x0=    4.549091 dx=    2.681818 y_top=  22.000 y_bottom=  23.000
+DEBUG COORDS: x_top=    5.300002 x_bottom=    7.230909 sy0=  22.280 sy1=  23.000
+DEBUG NON-VERTICAL: x0=    5.092551 dx=    0.740891 y_top=  22.000 y_bottom=  23.000
+DEBUG COORDS: x_top=    5.092551 x_bottom=    5.300001 sy0=  22.000 sy1=  22.280
+DEBUG SINGLE: x=  5 area= -0.22504282 height= -0.28000000
+DEBUG NON-VERTICAL: x0=   17.156000 dx=   -2.630769 y_top=  22.000 y_bottom=  23.000
+DEBUG COORDS: x_top=   17.156000 x_bottom=   14.525231 sy0=  22.000 sy1=  23.000
+DEBUG NON-VERTICAL: x0=    1.654112 dx=    0.734831 y_top=  23.000 y_bottom=  24.000
+DEBUG COORDS: x_top=    1.654112 x_bottom=    2.388944 sy0=  23.000 sy1=  24.000
+DEBUG NON-VERTICAL: x0=    7.230909 dx=    2.681818 y_top=  23.000 y_bottom=  24.000
+DEBUG COORDS: x_top=    7.230909 x_bottom=    8.840001 sy0=  23.000 sy1=  23.600
+DEBUG NON-VERTICAL: x0=   14.685185 dx=   -6.629630 y_top=  23.000 y_bottom=  24.000
+DEBUG COORDS: x_top=   14.419994 x_bottom=   10.840001 sy0=  23.040 sy1=  23.580
+DEBUG NON-VERTICAL: x0=   14.525231 dx=   -2.630769 y_top=  23.000 y_bottom=  24.000
+DEBUG COORDS: x_top=   14.525231 x_bottom=   14.419997 sy0=  23.000 sy1=  23.040
+DEBUG SINGLE: x= 14 area=  0.02109544 height=  0.04000000
+DEBUG NON-VERTICAL: x0=    2.113581 dx=    1.793919 y_top=  24.000 y_bottom=  25.000
+DEBUG COORDS: x_top=    2.580000 x_bottom=    3.907500 sy0=  24.260 sy1=  25.000
+DEBUG NON-VERTICAL: x0=    2.388944 dx=    0.734831 y_top=  24.000 y_bottom=  25.000
+DEBUG COORDS: x_top=    2.388944 x_bottom=    2.580000 sy0=  24.000 sy1=  24.260
+DEBUG SINGLE: x=  2 area=  0.13403729 height=  0.26000000
+DEBUG NON-VERTICAL: x0=    1.311912 dx=    5.301471 y_top=  25.000 y_bottom=  26.000
+DEBUG COORDS: x_top=    5.234999 x_bottom=    6.613382 sy0=  25.740 sy1=  26.000
+DEBUG NON-VERTICAL: x0=    3.907500 dx=    1.793919 y_top=  25.000 y_bottom=  26.000
+DEBUG COORDS: x_top=    3.907500 x_bottom=    5.235000 sy0=  25.000 sy1=  25.740
+DEBUG NON-VERTICAL: x0=   18.811429 dx=   -4.047619 y_top=  25.000 y_bottom=  26.000
+DEBUG COORDS: x_top=   17.840000 x_bottom=   14.763810 sy0=  25.240 sy1=  26.000
+DEBUG NON-VERTICAL: x0=    6.613382 dx=    5.301471 y_top=  26.000 y_bottom=  27.000
+DEBUG COORDS: x_top=    6.613382 x_bottom=    8.840000 sy0=  26.000 sy1=  26.420
+DEBUG NON-VERTICAL: x0=   14.763810 dx=   -4.047619 y_top=  26.000 y_bottom=  27.000
+DEBUG COORDS: x_top=   14.763810 x_bottom=   14.440000 sy0=  26.000 sy1=  26.080
+DEBUG SINGLE: x= 14 area= -0.03184764 height= -0.08000000
+DEBUG NON-VERTICAL: x0=   15.160000 dx=   -9.000000 y_top=  26.000 y_bottom=  27.000
+DEBUG COORDS: x_top=   14.440001 x_bottom=   10.840004 sy0=  26.080 sy1=  26.480
+ --- Bitmap Dimensions ---
+ STB:            20 x          39  offset:           3         -32
+ Pure:           20 x          39  offset:           3         -32
+ ✅ Exported bitmap files:
+    - stb_bitmap.pgm (STB reference)
+    - pure_bitmap.pgm (Pure Fortran implementation)
+    - diff_bitmap.pgm (difference visualization)
+ 📋 Use an image viewer to open these PGM files for visual comparison

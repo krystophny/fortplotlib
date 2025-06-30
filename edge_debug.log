@@ -1,0 +1,12 @@
+[  0%]          forttf_stb_raster.f90
+<ERROR> Compilation failed for object " src_forttf_forttf_stb_raster.f90.o "
+[  0%]          forttf_stb_raster.f90  done.
+
+././src/forttf/forttf_stb_raster.f90:380:64:
+
+  380 |                         ' x0=', edges(i)%x0, ' dx=', edges(i)%dx
+      |                                                                1
+Error: ‘dx’ at (1) is not a member of the ‘stb_edge_t’ structure
+compilation terminated due to -fmax-errors=1.
+<ERROR> stopping due to failed compilation
+STOP 1

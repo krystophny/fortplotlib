@@ -1,0 +1,37 @@
+[  0%] stb_debug_nonvertical_wrapper.
+<ERROR> Compilation failed for object " src_stb_debug_nonvertical_wrapper.c.o "
+[  0%] stb_debug_nonvertical_wrapper.  done.
+
+././src/stb_debug_nonvertical_wrapper.c: In function ‘stbtt__fill_active_edges_new_debug’:
+././src/stb_debug_nonvertical_wrapper.c:23:52: warning: passing argument 2 of ‘stbtt__handle_clipped_edge’ makes integer from pointer without a cast [-Wint-conversion]
+   23 |                stbtt__handle_clipped_edge(scanline,scanline_fill,(int) x0,e->direction * (y_bottom - y_top));
+      |                                                    ^~~~~~~~~~~~~
+      |                                                    |
+      |                                                    float *
+In file included from ././src/stb_debug_nonvertical_wrapper.c:10:
+././src/../thirdparty/stb_truetype.h:3028:61: note: expected ‘int’ but argument is of type ‘float *’
+ 3028 | static void stbtt__handle_clipped_edge(float *scanline, int x, stbtt__active_edge *e, float x0, float y0, float x1, float y1)
+      |                                                         ~~~~^
+././src/stb_debug_nonvertical_wrapper.c:23:66: warning: passing argument 3 of ‘stbtt__handle_clipped_edge’ makes pointer from integer without a cast [-Wint-conversion]
+   23 |                stbtt__handle_clipped_edge(scanline,scanline_fill,(int) x0,e->direction * (y_bottom - y_top));
+      |                                                                  ^~~~~~~~
+      |                                                                  |
+      |                                                                  int
+././src/../thirdparty/stb_truetype.h:3028:84: note: expected ‘stbtt__active_edge *’ but argument is of type ‘int’
+ 3028 | static void stbtt__handle_clipped_edge(float *scanline, int x, stbtt__active_edge *e, float x0, float y0, float x1, float y1)
+      |                                                                ~~~~~~~~~~~~~~~~~~~~^
+././src/stb_debug_nonvertical_wrapper.c:23:16: error: too few arguments to function ‘stbtt__handle_clipped_edge’
+   23 |                stbtt__handle_clipped_edge(scanline,scanline_fill,(int) x0,e->direction * (y_bottom - y_top));
+      |                ^~~~~~~~~~~~~~~~~~~~~~~~~~
+././src/../thirdparty/stb_truetype.h:3028:13: note: declared here
+ 3028 | static void stbtt__handle_clipped_edge(float *scanline, int x, stbtt__active_edge *e, float x0, float y0, float x1, float y1)
+      |             ^~~~~~~~~~~~~~~~~~~~~~~~~~
+././src/stb_debug_nonvertical_wrapper.c: In function ‘stbtt_Rasterize_debug’:
+././src/stb_debug_nonvertical_wrapper.c:93:7: error: too many arguments to function ‘stbtt__rasterize’
+   93 |       stbtt__rasterize(result, windings, winding_lengths, winding_count, scale_x, scale_y, shift_x, shift_y, x_off, y_off, invert, stbtt__fill_active_edges_new_debug, userdata);
+      |       ^~~~~~~~~~~~~~~~
+././src/../thirdparty/stb_truetype.h:3490:13: note: declared here
+ 3490 | static void stbtt__rasterize(stbtt__bitmap *result, stbtt__point *pts, int *wcount, int windings, float scale_x, float scale_y, float shift_x, float shift_y, int off_x, int off_y, int invert, void *userdata)
+      |             ^~~~~~~~~~~~~~~~
+<ERROR> stopping due to failed compilation
+STOP 1
