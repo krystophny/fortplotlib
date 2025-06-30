@@ -450,13 +450,23 @@ contains
                 end if
             end do
 
-            ! DISABLED: Close contour by adding line back to starting point
-            ! This was causing extra vertices (41 vs STB's 39) leading to wrong edge building
-            ! STB does NOT add explicit closing vertices - removing this fixes vertex count
-            ! if (m > 0) then
-            !     num_vertices = num_vertices + 1
-            !     vertices(num_vertices) = ttf_vertex_t(x=sx, y=sy, type=TTF_VERTEX_LINE)
-            ! end if
+            ! SELECTIVE: Close contour only if it doesn't already end at starting point
+            ! Analysis showed ForTTF=38 vs STB=39, missing exactly 1 vertex
+            ! Only Contour 1 needs closing: starts (692,-301), ends (692,2) - different points
+            ! Contours 2&3 already closed: both end at same point as start
+            if (m > 0) then
+                ! Check if last vertex is different from starting point
+                if (px(m) /= sx .or. py(m) /= sy) then
+                    write(*,'(A,I0,A,I0,A,I0,A,I0,A,I0,A)') &
+                        'DEBUG: Closing contour ', contour, ' from (', px(m), ',', py(m), &
+                        ') to (', sx, ',', sy, ')'
+                    num_vertices = num_vertices + 1
+                    vertices(num_vertices) = ttf_vertex_t(x=sx, y=sy, type=TTF_VERTEX_LINE)
+                else
+                    write(*,'(A,I0,A,I0,A,I0,A)') &
+                        'DEBUG: NOT closing contour ', contour, ' - already ends at start (', sx, ',', sy, ')'
+                end if
+            end if
 
             deallocate(px, py, is_on_curve)
         end do
