@@ -272,4 +272,12 @@ fpm test --target test_forttf_bitmap_export > debug.log 2>&1
 
 **HYPOTHESIS:** Remaining differences are due to subtle edge interaction algorithms, not basic processing order
 
+**NEXT CRITICAL TEST CASE:**
+Create isolated single edge antialiasing test comparing STB vs ForTTF:
+- **Test**: Single diagonal edge (not vertical/horizontal) crossing 2-3 pixels
+- **Purpose**: Isolate edge antialiasing algorithm without multi-edge complexity
+- **Method**: Create minimal test glyph with one diagonal edge, compare pixel-by-pixel
+- **Expected**: Should reveal exact algorithmic differences in single edge processing
+- **Benefit**: Eliminate multi-edge interaction variables to focus on core antialiasing logic
+
 **DEBUGGING RULE:** Always add ruled-out components to this section to prevent re-investigation of confirmed working code.
