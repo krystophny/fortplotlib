@@ -121,21 +121,67 @@ fpm test --target "test_forttf_*"
 - **Conclusion:** Area calculation algorithm is CORRECT
 - **Evidence:** `test_area_calculation_debug.f90` shows exact match with manual calculation
 
+### **❌ Coordinate System Orientation (RULED OUT)**
+- **Investigation:** Tested y-axis flips, direction flips, and coordinate transformations
+- **Test Results:** No simple coordinate flip produces target k≈0.447
+- **Evidence:** `test_stb_coordinate_analysis.f90` tested all flip combinations
+- **Conclusion:** Simple coordinate system differences are NOT the root cause
+
+### **❌ Multiple Edge Interactions (RULED OUT)**
+- **Investigation:** Tested interaction between positive and negative direction edges
+- **Test Result:** Edge 2 (fx=10.840) doesn't affect column 8, only Edge 1 matters
+- **Evidence:** `test_multiple_edges_interaction.f90` shows identical results with/without Edge 2
+- **Conclusion:** The issue is with single Edge 1 processing, not edge interactions
+
+### **❌ ForTTF vs STB Algorithm Differences (RULED OUT)**
+- **Investigation:** Called actual STB C functions with exact same edge parameters
+- **STB C Result:** scanline=-0.174500, fill=-1.0, k=-1.174500, final=255
+- **ForTTF Result:** scanline=-0.175017, fill=-1.0, k=-1.175017, final=299
+- **Conclusion:** STB C and ForTTF produce nearly identical wrong results (both ≠ 114)
+- **Evidence:** `test_stb_direct_comparison.f90` shows STB C produces same wrong answer
+- **Key Insight:** The issue is NOT in algorithm differences - both are wrong!
+
 ---
 
-## 🎯 **ACTUAL ROOT CAUSE IDENTIFIED: Edge Parameter or Multiple Edge Issue**
+## 🎯 **ACTUAL ROOT CAUSE IDENTIFIED: Wrong Edge Parameters or Missing Context**
 
-**BREAKTHROUGH:** The ForTTF algorithm is CORRECT but produces different results than STB.
+**CRITICAL DISCOVERY:** Both STB C and ForTTF produce identical wrong results - the issue is NOT algorithmic.
 
-**Evidence Summary:**
-- **Area algorithm:** ✅ CORRECT (manual = ForTTF = 0.725000)
-- **Fill buffer:** ✅ CORRECT (1.0 for edge height y=5→6) 
-- **Final accumulation:** ✅ CORRECT (identical to STB)
-- **Issue:** ForTTF k=1.725 vs STB k≈0.447 (difference of ~1.278)
+**Evidence from comprehensive testing:**
+- **Edge parameters tested:** fx=8.827, fdx=-0.003, fdy=-301.0, dir=-1.0, sy=-6.02, ey=0.0
+- **STB C result:** scanline=-0.174500, k=-1.174500, final=255 (wrong)
+- **ForTTF result:** scanline=-0.175017, k=-1.175017, final=299 (wrong)  
+- **Expected result:** k≈+0.447, final=114 (from actual bitmap)
 
-**CRITICAL HYPOTHESIS:** The problem is either:
-1. **Different edge parameters** - Test edge doesn't match actual problematic edge
-2. **Multiple edges** - Multiple edges contribute to column 8, ForTTF processes differently 
-3. **Coordinate transformation** - Offset or scaling differences between STB and ForTTF
+**CRITICAL INSIGHT:** The problem is NOT in ForTTF implementation - both STB and ForTTF are wrong for these parameters.
 
-**Next Investigation:** Capture exact edge parameters from actual bitmap export test.
+**Possible causes:**
+1. **Wrong edge parameters** - The captured edge is not the one causing Row 5 Col 8 final=114
+2. **Wrong coordinate context** - Missing preprocessing or coordinate transformation  
+3. **Wrong function** - STB bitmap export uses different function than `stbtt__fill_active_edges_new`
+4. **Multiple processing steps** - Edge goes through multiple transformations before final result
+
+**CRITICAL DISCOVERY:** Found the real issue!
+- **STB correct result:** Row 5 Col 8 = 114 
+- **ForTTF wrong result:** Row 5 Col 8 = 221 (shows as -35 in signed PGM)
+- **ForTTF k-value:** k=-1.175017, which should give final=abs(-1.175017)*255+0.5=299
+- **Issue:** ForTTF final conversion is wrong - debug shows final=0 but bitmap shows 221
+
+**INVESTIGATION PROGRESS:**
+- **Edge direction flipping:** Tested all combinations (-1,+1), (+1,+1), (-1,-1), (+1,-1) - none produce k≈0.447
+- **Y-coordinate variations:** Tested different y_top/y_bottom values - still get k≈±1.174, not k≈0.447  
+- **Root cause hypothesis:** ForTTF captured edge parameters are different from STB's actual edge parameters
+
+**PROGRESS UPDATE:**
+- **STB confirmation:** STB correctly produces 114 for Row 5 Col 8 (verified)
+- **ForTTF issue confirmed:** ForTTF produces 221 instead of 114
+- **Edge parameter testing:** All ForTTF edge combinations produce k≈±1.174, never k≈0.447
+- **Root cause:** ForTTF edge parameters or processing fundamentally differ from STB
+
+**ROOT CAUSE CONFIRMED:**
+- **STB produces:** k ≈ +0.447 → final = 114 ✓ 
+- **ForTTF produces:** k = -1.175017 → final = 255 → stored as 221 ✗
+- **Debug output fixed:** Now shows correct final values (was showing wrong pre-scaling values)
+- **Issue identified:** ForTTF and STB produce completely different k-values for same pixel
+
+**Next Investigation:** Deep dive into why ForTTF and STB edge processing algorithms produce different k-values. Need to compare edge building, sorting, and scanline processing step by step.

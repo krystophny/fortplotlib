@@ -1047,17 +1047,17 @@ contains
                 sum_val = sum_val + scanline_fill_buffer(i + 1)
                 k_val = scanline_buffer(i + 1) + sum_val
                 
-                ! DEBUG: Show problematic rows and specific columns
+                k_val = abs(k_val) * 255.0_wp + 0.5_wp
+                m_val = int(k_val)
+                if (m_val > 255) m_val = 255
+                
+                ! DEBUG: Show problematic rows and specific columns with CORRECT final value
                 if (y >= 5 .and. y <= 8 .and. &
                     (i == 2 .or. i == 3 .or. i == 5 .or. i == 6 .or. i == 8 .or. i == 14 .or. i == 17)) then
                     write(*,'(A,I2,A,I2,A,F12.6,A,F12.6,A,F12.6,A,I3)') &
                         'DEBUG Row ', y, ' Col ', i, ' scanline=', scanline_buffer(i + 1), &
-                        ' fill_sum=', sum_val, ' k=', k_val, ' final=', m_val
+                        ' fill_sum=', sum_val, ' k=', (scanline_buffer(i + 1) + sum_val), ' final=', m_val
                 end if
-                
-                k_val = abs(k_val) * 255.0_wp + 0.5_wp
-                m_val = int(k_val)
-                if (m_val > 255) m_val = 255
                 if (m_val < 0) m_val = 0  ! Ensure non-negative values for bitmap
                 ! Flip Y coordinate to match STB's coordinate system
                 ! Convert 0-255 range to c_int8_t, handling unsigned->signed mapping
