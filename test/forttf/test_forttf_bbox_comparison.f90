@@ -1,4 +1,4 @@
-program test_bbox_comparison
+program test_forttf_bbox_comparison
     !! Debug test to compare bitmap bounding box calculations between STB and Pure Fortran
     use test_forttf_utils
     use fortplot_stb_truetype
@@ -90,4 +90,4 @@ contains
 
     end subroutine debug_bbox_calculations
 
-end program test_bbox_comparison
+end program test_forttf_bbox_comparison

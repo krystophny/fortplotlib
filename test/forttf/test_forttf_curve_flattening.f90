@@ -1,4 +1,4 @@
-program test_curve_flattening
+program test_forttf_curve_flattening
     !! Test STB-compatible curve flattening algorithms for exact matching
     use forttf_types
     use forttf_stb_raster
@@ -143,4 +143,4 @@ contains
         
     end subroutine print_points
 
-end program test_curve_flattening
+end program test_forttf_curve_flattening

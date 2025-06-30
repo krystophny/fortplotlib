@@ -1,4 +1,4 @@
-program test_stb_vs_fortran
+program test_forttf_stb_vs_fortran
     !! COMPREHENSIVE STB vs Pure Fortran comparison
     !! Test EVERY intermediate step for exact matching
     use forttf_types
@@ -398,4 +398,4 @@ contains
         
     end subroutine test_complete_pipeline_comparison
 
-end program test_stb_vs_fortran
+end program test_forttf_stb_vs_fortran

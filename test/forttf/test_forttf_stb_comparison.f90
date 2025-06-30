@@ -1,4 +1,4 @@
-program test_stb_comparison
+program test_forttf_stb_comparison
     !! Comprehensive test comparing STB and Pure Fortran implementations function by function
     use test_forttf_utils
     use fortplot_stb_truetype
@@ -283,4 +283,4 @@ contains
 
     end subroutine test_bitmap_rendering
 
-end program test_stb_comparison
+end program test_forttf_stb_comparison

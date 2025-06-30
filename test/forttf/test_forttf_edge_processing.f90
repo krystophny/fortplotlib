@@ -1,4 +1,4 @@
-program test_edge_processing
+program test_forttf_edge_processing
     !! Test STB-compatible edge building and sorting algorithms
     use forttf_types
     use forttf_stb_raster
@@ -174,4 +174,4 @@ contains
         
     end subroutine test_complex_edges
 
-end program test_edge_processing
+end program test_forttf_edge_processing

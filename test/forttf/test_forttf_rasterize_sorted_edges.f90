@@ -1,4 +1,4 @@
-program test_stb_rasterize_sorted_edges
+program test_forttf_rasterize_sorted_edges
     !! Test STB-compatible rasterize_sorted_edges function using TDD methodology
     !! Validates Fortran implementation against STB C reference
     use forttf_types
@@ -244,4 +244,4 @@ contains
         
     end subroutine compare_bitmaps
 
-end program test_stb_rasterize_sorted_edges
+end program test_forttf_rasterize_sorted_edges

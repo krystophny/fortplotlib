@@ -1,4 +1,4 @@
-program test_bitmap_content
+program test_forttf_bitmap_content
     !! Test that verifies actual bitmap content (not just dimensions)
     !! This test should FAIL until real glyph rendering is implemented
     use test_forttf_utils
@@ -121,4 +121,4 @@ contains
         
     end subroutine test_letter_a_bitmap_content
 
-end program test_bitmap_content
+end program test_forttf_bitmap_content

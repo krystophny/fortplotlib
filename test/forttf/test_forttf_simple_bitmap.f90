@@ -1,4 +1,4 @@
-program test_simple_bitmap
+program test_forttf_simple_bitmap
     !! Simple test to verify bitmap creation works
     use test_forttf_utils
     use forttf
@@ -111,4 +111,4 @@ contains
         
     end subroutine discover_system_fonts_simple
 
-end program test_simple_bitmap
+end program test_forttf_simple_bitmap

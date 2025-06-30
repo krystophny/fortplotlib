@@ -1,4 +1,4 @@
-program test_stb_structures
+program test_forttf_stb_structures
     !! Test STB-specific data structures for exact compatibility
     use forttf_types
     use iso_c_binding
@@ -91,4 +91,4 @@ contains
         
     end subroutine test_stb_data_structures
 
-end program test_stb_structures
+end program test_forttf_stb_structures

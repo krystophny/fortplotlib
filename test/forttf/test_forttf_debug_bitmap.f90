@@ -1,4 +1,4 @@
-program test_debug_bitmap
+program test_forttf_debug_bitmap
     !! Debug test to understand bitmap rendering pipeline
     use test_forttf_utils
     use forttf
@@ -113,4 +113,4 @@ contains
         
     end subroutine discover_system_fonts_simple
 
-end program test_debug_bitmap
+end program test_forttf_debug_bitmap

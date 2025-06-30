@@ -1,4 +1,4 @@
-program test_glyph_outline
+program test_forttf_glyph_outline
     !! Test glyph outline parsing functionality
     !! This implements the first failing test for TDD of glyph outline parsing
     use test_forttf_utils
@@ -84,4 +84,4 @@ contains
         
     end subroutine test_outline_parsing
 
-end program test_glyph_outline
+end program test_forttf_glyph_outline

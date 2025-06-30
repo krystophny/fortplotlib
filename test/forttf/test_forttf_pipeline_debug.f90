@@ -1,4 +1,4 @@
-program test_stb_pipeline_debug
+program test_forttf_pipeline_debug
     !! Debug the STB rasterization pipeline step by step
     !! Test each intermediate step to find the pixel count issue
     use forttf_types
@@ -165,4 +165,4 @@ contains
         
     end subroutine test_pipeline_steps_letter_a
 
-end program test_stb_pipeline_debug
+end program test_forttf_pipeline_debug

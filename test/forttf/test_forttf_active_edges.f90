@@ -1,4 +1,4 @@
-program test_active_edges
+program test_forttf_active_edges
     !! Test STB-compatible active edge management algorithms
     use forttf_types
     use forttf_stb_raster
@@ -173,4 +173,4 @@ contains
         
     end subroutine test_active_edge_removal
 
-end program test_active_edges
+end program test_forttf_active_edges

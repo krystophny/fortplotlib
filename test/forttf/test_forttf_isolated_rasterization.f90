@@ -1,4 +1,4 @@
-program test_isolated_rasterization
+program test_forttf_isolated_rasterization
     !! Test individual rasterization components in isolation (Phase 1.2)
     !! to identify the exact source of antialiasing differences
     use test_forttf_utils
@@ -243,4 +243,4 @@ contains
         deallocate(bitmap_data)
     end subroutine test_parameter_sensitivity
 
-end program test_isolated_rasterization
+end program test_forttf_isolated_rasterization

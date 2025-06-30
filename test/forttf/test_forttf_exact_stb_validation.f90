@@ -1,4 +1,4 @@
-program test_exact_stb_validation
+program test_forttf_exact_stb_validation
     !! Systematically validate EVERY STB function for exact matching
     !! Find the exact discrepancy causing 665 vs 1817 pixel mismatch
     use forttf_types
@@ -187,4 +187,4 @@ contains
         
     end subroutine test_step_3_build_edges
 
-end program test_exact_stb_validation
+end program test_forttf_exact_stb_validation

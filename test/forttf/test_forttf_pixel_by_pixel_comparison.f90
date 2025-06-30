@@ -1,4 +1,4 @@
-program test_pixel_by_pixel_comparison
+program test_forttf_pixel_by_pixel_comparison
     !! Detailed pixel-by-pixel comparison between STB and Fortran implementations
     !! to identify the exact source of the remaining 270-pixel difference
     use test_forttf_utils
@@ -187,4 +187,4 @@ contains
         end do
     end subroutine sample_region
 
-end program test_pixel_by_pixel_comparison
+end program test_forttf_pixel_by_pixel_comparison

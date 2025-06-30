@@ -1,4 +1,4 @@
-program test_exact_params
+program test_forttf_exact_params
     !! Test with EXACT same parameters as bitmap content test
     use forttf_types
     use forttf_stb_raster
@@ -80,4 +80,4 @@ program test_exact_params
     call stb_cleanup_font_pure(font_info)
     deallocate(pixels)
 
-end program test_exact_params
+end program test_forttf_exact_params

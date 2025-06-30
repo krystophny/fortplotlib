@@ -1,4 +1,4 @@
-program test_offset_coordination
+program test_forttf_offset_coordination
     !! Test to verify the coordinate offset hypothesis
     use test_forttf_utils
     use fortplot_stb_truetype
@@ -119,4 +119,4 @@ contains
 
     end subroutine debug_offset_coordination
 
-end program test_offset_coordination
+end program test_forttf_offset_coordination

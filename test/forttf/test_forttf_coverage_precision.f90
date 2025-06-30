@@ -1,4 +1,4 @@
-program test_coverage_precision
+program test_forttf_coverage_precision
     !! Test the exact coverage calculation precision for anti-aliasing
     !! Focus on the cases where Pure gives 255 but STB gives lower values
     use iso_c_binding
@@ -169,4 +169,4 @@ contains
 
     end subroutine test_single_pixel_coverage
 
-end program test_coverage_precision
+end program test_forttf_coverage_precision

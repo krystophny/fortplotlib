@@ -1,4 +1,4 @@
-program test_character_coverage
+program test_forttf_character_coverage
     !! Test Pure Fortran implementation across multiple characters to ensure broad compatibility
     use test_forttf_utils
     use fortplot_stb_truetype
@@ -143,4 +143,4 @@ contains
         
     end function test_single_character
 
-end program test_character_coverage
+end program test_forttf_character_coverage
