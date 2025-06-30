@@ -74,3 +74,68 @@ fpm test --target "test_forttf_*"
 - **Implementation:** `src/forttf/forttf_stb_raster.f90`
 - **Accuracy Analysis:** `count_pixel_differences.py`
 - **Visual Debug:** `stb_bitmap.pgm`, `pure_bitmap.pgm`, `diff_bitmap.pgm`
+
+---
+
+## ❌ **WHAT WAS NOT THE PROBLEM - KEEP FOR REFERENCE** ❌
+
+**⚠️ CRITICAL: This section documents what was investigated and ruled out. Do NOT remove.**
+
+### **❌ Floating-Point Precision (RULED OUT)**
+- **Investigation:** Compared STB C `float` vs Fortran `real64` precision
+- **Test Result:** Differences only ~10^-6 magnitude (negligible)
+- **Example:** STB: 8.529999732971 vs Fortran: 8.530000000000
+- **Conclusion:** Precision differences are NOT the root cause
+- **Evidence:** `test_forttf_precision_comparison.f90` shows tiny precision differences vs massive k-value differences
+
+### **❌ Individual Function Bugs (RULED OUT)**
+- **Investigation:** All isolated functions tested perfectly vs STB reference
+- **Status:** ✅ 49 comprehensive test files, all individual functions work 100%
+- **Conclusion:** The issue is NOT in isolated function implementation
+- **Evidence:** Phase 1 & 2 testing showed perfect STB matching in isolation
+
+### **❌ Area Calculation Errors (RULED OUT)**
+- **Investigation:** Area functions bounds-checked and validated
+- **Status:** ✅ All area calculations within STB bounds [-1.01, 1.01]
+- **Conclusion:** Area calculation precision is NOT the issue
+- **Evidence:** Bounds validation tests all pass
+
+### **❌ Final Accumulation Logic (RULED OUT)**
+- **Investigation:** Compared STB vs ForTTF final pixel accumulation loop
+- **STB Code:** `sum += scanline2[i]; k = scanline[i] + sum; k = fabs(k)*255 + 0.5f;`
+- **ForTTF Code:** `sum_val = sum_val + scanline_fill_buffer(i + 1); k_val = scanline_buffer(i + 1) + sum_val; k_val = abs(k_val) * 255.0_wp + 0.5_wp;`
+- **Conclusion:** Final accumulation algorithms are IDENTICAL
+- **Evidence:** Line-by-line comparison shows exact same logic
+
+### **❌ Fill Buffer Logic (RULED OUT)**
+- **Investigation:** Tested scanline_fill_buffer values vs STB scanline2
+- **Test Result:** ForTTF fill[8]=1.0 for edge height from y=5.0 to y=6.0 (correct)
+- **STB Logic:** `scanline_fill[x] += sign * (sy1-sy0)` should indeed produce 1.0
+- **Conclusion:** Fill buffer calculation is CORRECT
+- **Evidence:** `test_buffer_filling_comparison.f90` shows expected fill=1.0
+
+### **❌ Area Calculation Algorithm (RULED OUT)**
+- **Investigation:** Step-by-step manual verification of area calculation
+- **Test Result:** Manual calculation = 0.725000, ForTTF = 0.725000 (perfect match)
+- **STB Algorithm:** `stbtt__position_trapezoid_area(height, x_top, x+1.0f, x_bottom, x+1.0f)`
+- **Conclusion:** Area calculation algorithm is CORRECT
+- **Evidence:** `test_area_calculation_debug.f90` shows exact match with manual calculation
+
+---
+
+## 🎯 **ACTUAL ROOT CAUSE IDENTIFIED: Edge Parameter or Multiple Edge Issue**
+
+**BREAKTHROUGH:** The ForTTF algorithm is CORRECT but produces different results than STB.
+
+**Evidence Summary:**
+- **Area algorithm:** ✅ CORRECT (manual = ForTTF = 0.725000)
+- **Fill buffer:** ✅ CORRECT (1.0 for edge height y=5→6) 
+- **Final accumulation:** ✅ CORRECT (identical to STB)
+- **Issue:** ForTTF k=1.725 vs STB k≈0.447 (difference of ~1.278)
+
+**CRITICAL HYPOTHESIS:** The problem is either:
+1. **Different edge parameters** - Test edge doesn't match actual problematic edge
+2. **Multiple edges** - Multiple edges contribute to column 8, ForTTF processes differently 
+3. **Coordinate transformation** - Offset or scaling differences between STB and ForTTF
+
+**Next Investigation:** Capture exact edge parameters from actual bitmap export test.

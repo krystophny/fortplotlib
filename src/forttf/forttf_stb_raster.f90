@@ -1016,6 +1016,26 @@ contains
 
             ! Process all active edges (matches STB scanline_fill-1 pattern)
             if (associated(active_head%next)) then
+                ! DEBUG: Log edge parameters for Row 5 specifically to find exact problematic edge
+                if (y == 5) then
+                    block
+                        type(stb_active_edge_t), pointer :: debug_edge
+                        integer :: edge_count
+                        debug_edge => active_head%next
+                        edge_count = 0
+                        write(*,*) 'DEBUG Row 5: Active edges before processing:'
+                        do while (associated(debug_edge))
+                            edge_count = edge_count + 1
+                            write(*,'(A,I2,A,F8.3,A,F8.3,A,F8.3,A,F8.3,A,F8.3,A,F8.3)') &
+                                'Edge ', edge_count, ': fx=', debug_edge%fx, ' fdx=', debug_edge%fdx, &
+                                ' fdy=', debug_edge%fdy, ' dir=', debug_edge%direction, &
+                                ' sy=', debug_edge%sy, ' ey=', debug_edge%ey
+                            debug_edge => debug_edge%next
+                        end do
+                        write(*,'(A,I2,A)') 'Total edges for Row 5: ', edge_count, ' edges'
+                    end block
+                end if
+                
                 call stb_fill_active_edges_with_offset(active_head%next, scan_y_top, &
      &                                                 result%w, scanline_buffer, scanline_fill_buffer)
             end if
