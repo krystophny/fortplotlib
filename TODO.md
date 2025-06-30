@@ -103,8 +103,41 @@ fpm test --target test_forttf_bitmap_export > debug.log 2>&1
 **Next Step:** Add debug output to L694-795 `stb_process_non_vertical_edge` function
 **Target:** Identify coordinate precision differences in diagonal/curved edges
 
-**Key Function Line Numbers:**
-- `stb_process_non_vertical_edge` (L694-795) - Non-vertical edge handling
-- `stb_handle_clipped_edge` (L1180+) - Fill buffer writes
+### **📂 Key Files and Line Numbers**
+
+**ForTTF Implementation (src/forttf/forttf_stb_raster.f90):**
+- `stb_flatten_curves` (L41-144) - Curve flattening
+- `stb_build_edges` (L282-378) - Edge list creation
+- `stb_sort_edges` (L379-432) - Edge Y-ordering
+- `stb_new_active_edge` (L459-491) - Active edge creation
 - `stb_fill_active_edges` (L551-636) - Active edge processing
+- `stb_process_non_vertical_edge` (L694-795) - Non-vertical edge handling
 - `stb_rasterize_sorted_edges` (L940-1125) - Main scanline loop
+- `stb_handle_clipped_edge` (L1180+) - Fill buffer writes
+
+**STB Reference (thirdparty/stb_truetype.h):**
+- `stbtt__fill_active_edges` (L2882-2923) - Old active edge fill
+- `stbtt__rasterize_sorted_edges` (L2924+) - Main rasterization loop
+- `stbtt__handle_clipped_edge` (L3028-3081) - Clipped edge handling
+- `stbtt__fill_active_edges_new` (L3082-3300) - New active edge fill with antialiasing
+  - **CRITICAL:** L3096-3097 - Vertical edge handling
+  - **CRITICAL:** L3114-3129 - Non-vertical edge coordinate calculation
+  - **CRITICAL:** L3129+ - Fast path bounds checking
+
+**C Wrappers (src/):**
+- `stb_truetype_wrapper.c` - Main STB interface wrapper (26KB)
+- `stb_exact_validation_wrapper.c` - Exact validation wrapper (11KB)
+- `stb_fill_test_wrapper.c` - Fill buffer testing wrapper
+- `stb_edge_debug_wrapper.c` - Edge debugging wrapper
+- `stb_buffer_debug_wrapper.c` - Buffer state debugging wrapper
+- `stb_handle_clipped_edge_wrapper.c` - Clipped edge testing wrapper
+- `stb_debug_wrapper.c` - General debug wrapper
+- `stb_edge_capture.c` - Edge capture wrapper
+- `stb_rasterize_test_wrapper.c` - Rasterization testing wrapper
+
+**Test Files (test/forttf/):**
+- `test_forttf_bitmap_export.f90` - Main bitmap comparison test
+- `test_forttf_stb_comparison.f90` - STB vs ForTTF comparison
+- `test_forttf_exact_stb_validation.f90` - Exact validation test
+- `test_stb_debug_wrapper.f90` - Debug wrapper test
+- `test_forttf_stb_rasterization.f90` - Rasterization test
