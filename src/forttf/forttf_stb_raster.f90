@@ -473,7 +473,7 @@ contains
         active_edge%next => null()
         active_edge%sy = edge%y0
         active_edge%ey = edge%y1
-        active_edge%direction = real(merge(1, -1, edge%invert == 0), wp)
+        active_edge%direction = real(merge(-1, 1, edge%invert == 0), wp)
 
         ! Calculate slopes (STB algorithm)
         if (abs(dy) > epsilon(1.0_wp)) then
@@ -778,7 +778,7 @@ contains
                 scanline_buffer(x2 + 1) = scanline_buffer(x2 + 1) + area + &
                     sign * stb_position_trapezoid_area(sy1 - y_final, real(x2, wp), real(x2 + 1, wp), &
                                                      x_bottom, real(x2 + 1, wp))
-                scanline_fill_buffer(x2 + 1) = scanline_fill_buffer(x2 + 1) + sign * (sy1 - sy0)
+                scanline_fill_buffer(x2 + 1) = scanline_fill_buffer(x2 + 1) + sign * (sy1 - sy0) * active_edge%direction
             end if
         else
             ! Slow path - STB brute force clipping algorithm

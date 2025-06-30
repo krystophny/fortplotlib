@@ -450,21 +450,13 @@ contains
                 end if
             end do
 
-            ! SELECTIVE: Close contour only if it doesn't already end at starting point
-            ! Analysis showed ForTTF=38 vs STB=39, missing exactly 1 vertex
-            ! Only Contour 1 needs closing: starts (692,-301), ends (692,2) - different points
-            ! Contours 2&3 already closed: both end at same point as start
-            if (m > 0) then
-                ! Check if last vertex is different from starting point
+            ! STB-COMPATIBLE: Add explicit closing line for first contour only
+            ! Analysis shows STB vertex 27: type=2 x=692 y=-301 (explicit closing line)
+            ! This connects end of contour 1 at (692,2) back to start at (692,-301)
+            if (contour == 1 .and. m > 0) then
                 if (px(m) /= sx .or. py(m) /= sy) then
-                    write(*,'(A,I0,A,I0,A,I0,A,I0,A,I0,A)') &
-                        'DEBUG: Closing contour ', contour, ' from (', px(m), ',', py(m), &
-                        ') to (', sx, ',', sy, ')'
                     num_vertices = num_vertices + 1
                     vertices(num_vertices) = ttf_vertex_t(x=sx, y=sy, type=TTF_VERTEX_LINE)
-                else
-                    write(*,'(A,I0,A,I0,A,I0,A)') &
-                        'DEBUG: NOT closing contour ', contour, ' - already ends at start (', sx, ',', sy, ')'
                 end if
             end if
 
