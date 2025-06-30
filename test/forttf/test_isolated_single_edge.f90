@@ -46,7 +46,7 @@ contains
 
     subroutine test_synthetic_diagonal_edge()
         !! Test single diagonal edge using synthetic vertex data
-        integer, parameter :: width = 5, height = 5
+        integer, parameter :: width = 10, height = 10
         
         ! Define single diagonal edge from (0.5, 0.5) to (3.5, 3.5)
         type :: test_vertex_t
@@ -58,13 +58,13 @@ contains
         integer :: i, j, pixel_idx
         
         write(*,*) "--- Synthetic Diagonal Edge Test ---"
-        write(*,*) "Edge: (0.5, 0.5) → (3.5, 3.5) crossing 5x5 pixel grid"
+        write(*,*) "Edge: (1.0, 1.0) → (7.0, 7.0) crossing 10x10 pixel grid"
         write(*,*) ""
         
-        ! Define vertices for single diagonal line
-        vertices(1) = test_vertex_t(0.5_wp, 0.5_wp, 1)  ! Move to start
-        vertices(2) = test_vertex_t(3.5_wp, 3.5_wp, 2)  ! Line to end
-        vertices(3) = test_vertex_t(0.5_wp, 0.5_wp, 2)  ! Close contour
+        ! Define vertices for single diagonal line (scaled 2x)
+        vertices(1) = test_vertex_t(1.0_wp, 1.0_wp, 1)  ! Move to start
+        vertices(2) = test_vertex_t(7.0_wp, 7.0_wp, 2)  ! Line to end
+        vertices(3) = test_vertex_t(1.0_wp, 1.0_wp, 2)  ! Close contour
         
         write(*,*) "Diagonal edge vertices:"
         do i = 1, 3
