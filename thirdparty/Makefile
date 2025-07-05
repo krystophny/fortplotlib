@@ -16,6 +16,9 @@ fetch-matplotlib:
 fetch-pyplot-fortran:
 	git clone --depth 1 https://github.com/jacobwilliams/pyplot-fortran.git
 
+fetch-mpeg:
+	git clone --depth 1 https://github.com/maikmerten/mpeg.git
+
 clean:
 	rm -rf matplotlib
 	rm -rf pyplot-fortran

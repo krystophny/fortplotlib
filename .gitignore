@@ -15,3 +15,9 @@ example/*/*.txt
 terminal
 *.pyc
 *.egg-info
+*.dat
+*.o
+*.mpg
+*.mpeg
+*.avi
+*.mp4
