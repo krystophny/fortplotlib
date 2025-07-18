@@ -4,28 +4,49 @@ on: [push, pull_request]
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        compiler: [gfortran-11, gfortran-12, gfortran-13, gfortran-14]
+        include:
+          - os: ubuntu-latest
+            compiler: gfortran-11
+            install_deps: sudo apt-get update && sudo apt-get install -y gfortran-11 cmake make ffmpeg pkg-config libfreetype6-dev
+          - os: ubuntu-latest
+            compiler: gfortran-12
+            install_deps: sudo apt-get update && sudo apt-get install -y gfortran-12 cmake make ffmpeg pkg-config libfreetype6-dev
+          - os: ubuntu-latest
+            compiler: gfortran-13
+            install_deps: sudo apt-get update && sudo apt-get install -y gfortran-13 cmake make ffmpeg pkg-config libfreetype6-dev
+          - os: ubuntu-latest
+            compiler: gfortran-14
+            install_deps: sudo apt-get update && sudo apt-get install -y gfortran-14 cmake make ffmpeg pkg-config libfreetype6-dev
+          - os: macos-latest
+            compiler: gfortran
+            install_deps: brew install gcc cmake make ffmpeg pkg-config freetype
     
     steps:
     - uses: actions/checkout@v4
 
     - name: Setup Fortran Package Manager
       run: |
-        wget https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-linux-x86_64-gcc-12
-        chmod +x fpm-0.12.0-linux-x86_64-gcc-12
-        sudo mv fpm-0.12.0-linux-x86_64-gcc-12 /usr/local/bin/fpm
+        if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          wget https://github.com/fortran-lang/fpm/releases/download/v0.12.0/fpm-0.12.0-linux-x86_64-gcc-12
+          chmod +x fpm-0.12.0-linux-x86_64-gcc-12
+          sudo mv fpm-0.12.0-linux-x86_64-gcc-12 /usr/local/bin/fpm
+        elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+          brew install fortran-lang/fortran/fpm
+        fi
 
     - name: Install dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y ${{ matrix.compiler }} cmake make ffmpeg
+        ${{ matrix.install_deps }}
 
     - name: Set compiler
       run: |
-        if [ "${{ matrix.compiler }}" = "gfortran-11" ]; then
+        if [ "${{ matrix.os }}" = "macos-latest" ]; then
+          echo "FC=gfortran" >> $GITHUB_ENV
+          echo "FPM_FC=gfortran" >> $GITHUB_ENV
+        elif [ "${{ matrix.compiler }}" = "gfortran-11" ]; then
           echo "FC=gfortran-11" >> $GITHUB_ENV
           echo "FPM_FC=gfortran-11" >> $GITHUB_ENV
         elif [ "${{ matrix.compiler }}" = "gfortran-12" ]; then
@@ -60,16 +81,34 @@ jobs:
       run: |
         make example ARGS="basic_plots"
 
+    - name: Test FreeType detection
+      run: |
+        make test ARGS="--target test_freetype_pkg_config"
+
+    - name: Test FreeType dynamic loading
+      run: |
+        make test ARGS="--target test_freetype_dynamic_loading"
+
+    - name: Test backend selection
+      run: |
+        make example ARGS="backend_selection_demo"
+
   build-cmake:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            install_deps: sudo apt-get update && sudo apt-get install -y gfortran cmake pkg-config libfreetype6-dev
+          - os: macos-latest
+            install_deps: brew install gcc cmake pkg-config freetype
     
     steps:
     - uses: actions/checkout@v4
 
     - name: Install dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y gfortran cmake
+        ${{ matrix.install_deps }}
 
     - name: Test CMake build
       run: |
