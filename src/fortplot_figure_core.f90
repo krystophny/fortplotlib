@@ -25,11 +25,12 @@ module fortplot_figure_core
 
     private
     public :: figure_t, plot_data_t
-    public :: PLOT_TYPE_LINE, PLOT_TYPE_CONTOUR, PLOT_TYPE_PCOLORMESH
+    public :: PLOT_TYPE_LINE, PLOT_TYPE_CONTOUR, PLOT_TYPE_PCOLORMESH, PLOT_TYPE_HISTOGRAM
 
     integer, parameter :: PLOT_TYPE_LINE = 1
     integer, parameter :: PLOT_TYPE_CONTOUR = 2
     integer, parameter :: PLOT_TYPE_PCOLORMESH = 3
+    integer, parameter :: PLOT_TYPE_HISTOGRAM = 4
 
     type :: plot_data_t
         !! Data container for individual plots
@@ -46,6 +47,10 @@ module fortplot_figure_core
         logical :: show_colorbar = .true.
         ! Pcolormesh data
         type(pcolormesh_t) :: pcolormesh_data
+        ! Histogram data
+        real(wp), allocatable :: hist_bin_edges(:)
+        real(wp), allocatable :: hist_counts(:)
+        logical :: hist_density = .false.
         ! Common properties
         real(wp), dimension(3) :: color
         character(len=:), allocatable :: label
@@ -116,6 +121,7 @@ module fortplot_figure_core
         procedure :: add_contour
         procedure :: add_contour_filled
         procedure :: add_pcolormesh
+        procedure :: hist
         procedure :: streamplot
         procedure :: savefig
         procedure :: set_xlabel
@@ -243,6 +249,38 @@ contains
         call add_pcolormesh_plot_data(self, x, y, c, colormap, vmin, vmax, edgecolors, linewidths)
         call update_data_ranges_pcolormesh(self)
     end subroutine add_pcolormesh
+
+    subroutine hist(self, data, bins, density, label, color)
+        !! Add histogram plot to figure with automatic or custom binning
+        !!
+        !! Arguments:
+        !!   data: Input data array to create histogram from
+        !!   bins: Optional - number of bins (integer, default: 10)
+        !!   density: Optional - normalize to probability density (default: false)
+        !!   label: Optional - histogram label for legend
+        !!   color: Optional - histogram color
+        class(figure_t), intent(inout) :: self
+        real(wp), intent(in) :: data(:)
+        integer, intent(in), optional :: bins
+        logical, intent(in), optional :: density
+        character(len=*), intent(in), optional :: label
+        real(wp), intent(in), optional :: color(3)
+        
+        if (self%plot_count >= self%max_plots) then
+            write(*, '(A)') 'Warning: Maximum number of plots reached'
+            return
+        end if
+        
+        if (size(data) == 0) then
+            write(*, '(A)') 'Warning: Cannot create histogram from empty data'
+            return
+        end if
+        
+        self%plot_count = self%plot_count + 1
+        
+        call add_histogram_plot_data(self, data, bins, density, label, color)
+        call update_data_ranges(self)
+    end subroutine hist
 
     subroutine streamplot(self, x, y, u, v, density, color, linewidth, rtol, atol, max_time)
         !! Add streamline plot to figure using matplotlib-compatible algorithm
@@ -670,6 +708,69 @@ contains
         call self%plots(plot_idx)%pcolormesh_data%get_data_range()
     end subroutine add_pcolormesh_plot_data
 
+    subroutine add_histogram_plot_data(self, data, bins, density, label, color)
+        !! Add histogram data to internal storage with binning
+        class(figure_t), intent(inout) :: self
+        real(wp), intent(in) :: data(:)
+        integer, intent(in), optional :: bins
+        logical, intent(in), optional :: density
+        character(len=*), intent(in), optional :: label
+        real(wp), intent(in), optional :: color(3)
+        
+        integer :: plot_idx, color_idx, n_bins
+        real(wp) :: data_min, data_max, bin_width
+        integer :: i
+        
+        plot_idx = self%plot_count
+        self%plots(plot_idx)%plot_type = PLOT_TYPE_HISTOGRAM
+        
+        ! Determine number of bins and bin edges
+        if (present(bins)) then
+            n_bins = bins
+        else
+            n_bins = 10
+        end if
+        
+        call create_bin_edges_from_count(data, n_bins, self%plots(plot_idx)%hist_bin_edges)
+        
+        ! Calculate histogram counts
+        call calculate_histogram_counts(data, self%plots(plot_idx)%hist_bin_edges, &
+                                      self%plots(plot_idx)%hist_counts)
+        
+        ! Apply density normalization if requested
+        if (present(density)) then
+            self%plots(plot_idx)%hist_density = density
+            if (density) then
+                call normalize_histogram_density(self%plots(plot_idx)%hist_counts, &
+                                               self%plots(plot_idx)%hist_bin_edges)
+            end if
+        end if
+        
+        ! Create x,y data for bar rendering
+        call create_histogram_xy_data(self%plots(plot_idx)%hist_bin_edges, &
+                                    self%plots(plot_idx)%hist_counts, &
+                                    self%plots(plot_idx)%x, &
+                                    self%plots(plot_idx)%y)
+        
+        ! Set properties
+        if (present(label)) then
+            self%plots(plot_idx)%label = label
+        else
+            self%plots(plot_idx)%label = ''
+        end if
+        
+        if (present(color)) then
+            self%plots(plot_idx)%color = color
+        else
+            color_idx = mod(plot_idx - 1, 6) + 1
+            self%plots(plot_idx)%color = self%colors(:, color_idx)
+        end if
+        
+        ! Set default histogram style
+        self%plots(plot_idx)%linestyle = 'solid'
+        self%plots(plot_idx)%marker = 'None'
+    end subroutine add_histogram_plot_data
+
     subroutine update_data_ranges_pcolormesh(self)
         !! Update figure data ranges after adding pcolormesh plot
         class(figure_t), intent(inout) :: self
@@ -875,6 +976,37 @@ contains
                     y_max_trans = max(y_max_trans, apply_scale_transform(maxval(self%plots(i)%pcolormesh_data%y_vertices), &
                                                                          self%yscale, self%symlog_threshold))
                 end if
+            else if (self%plots(i)%plot_type == PLOT_TYPE_HISTOGRAM) then
+                if (first_plot) then
+                    ! Store ORIGINAL histogram ranges
+                    x_min_orig = minval(self%plots(i)%x)
+                    x_max_orig = maxval(self%plots(i)%x)
+                    y_min_orig = minval(self%plots(i)%y)
+                    y_max_orig = maxval(self%plots(i)%y)
+                    
+                    ! Calculate transformed ranges for rendering
+                    x_min_trans = apply_scale_transform(x_min_orig, self%xscale, self%symlog_threshold)
+                    x_max_trans = apply_scale_transform(x_max_orig, self%xscale, self%symlog_threshold)
+                    y_min_trans = apply_scale_transform(y_min_orig, self%yscale, self%symlog_threshold)
+                    y_max_trans = apply_scale_transform(y_max_orig, self%yscale, self%symlog_threshold)
+                    first_plot = .false.
+                else
+                    ! Update original ranges
+                    x_min_orig = min(x_min_orig, minval(self%plots(i)%x))
+                    x_max_orig = max(x_max_orig, maxval(self%plots(i)%x))
+                    y_min_orig = min(y_min_orig, minval(self%plots(i)%y))
+                    y_max_orig = max(y_max_orig, maxval(self%plots(i)%y))
+                    
+                    ! Update transformed ranges
+                    x_min_trans = min(x_min_trans, apply_scale_transform(minval(self%plots(i)%x), &
+                                                                         self%xscale, self%symlog_threshold))
+                    x_max_trans = max(x_max_trans, apply_scale_transform(maxval(self%plots(i)%x), &
+                                                                         self%xscale, self%symlog_threshold))
+                    y_min_trans = min(y_min_trans, apply_scale_transform(minval(self%plots(i)%y), &
+                                                                         self%yscale, self%symlog_threshold))
+                    y_max_trans = max(y_max_trans, apply_scale_transform(maxval(self%plots(i)%y), &
+                                                                         self%yscale, self%symlog_threshold))
+                end if
             end if
         end do
         
@@ -960,6 +1092,8 @@ contains
                 call render_contour_plot(self, i)
             else if (self%plots(i)%plot_type == PLOT_TYPE_PCOLORMESH) then
                 call render_pcolormesh_plot(self, i)
+            else if (self%plots(i)%plot_type == PLOT_TYPE_HISTOGRAM) then
+                call render_histogram_plot(self, i)
             end if
         end do
         
@@ -1179,6 +1313,52 @@ contains
             end do
         end do
     end subroutine render_pcolormesh_plot
+
+    subroutine render_histogram_plot(self, plot_idx)
+        !! Render histogram plot as filled bars
+        class(figure_t), intent(inout) :: self
+        integer, intent(in) :: plot_idx
+        
+        integer :: i, n_bins
+        real(wp) :: x1, y1, x2, y2, x3, y3, x4, y4
+        real(wp) :: x_screen(4), y_screen(4)
+        
+        if (plot_idx > self%plot_count) return
+        if (.not. allocated(self%plots(plot_idx)%hist_bin_edges)) return
+        if (.not. allocated(self%plots(plot_idx)%hist_counts)) return
+        
+        n_bins = size(self%plots(plot_idx)%hist_counts)
+        
+        ! Render each histogram bar as a filled rectangle
+        do i = 1, n_bins
+            if (self%plots(plot_idx)%hist_counts(i) > 0.0_wp) then
+                ! Get bin rectangle coordinates
+                x1 = self%plots(plot_idx)%hist_bin_edges(i)     ! left
+                x2 = self%plots(plot_idx)%hist_bin_edges(i+1)   ! right
+                y1 = 0.0_wp                                     ! bottom
+                y2 = self%plots(plot_idx)%hist_counts(i)        ! top
+                
+                ! Transform coordinates
+                x_screen(1) = apply_scale_transform(x1, self%xscale, self%symlog_threshold)
+                y_screen(1) = apply_scale_transform(y1, self%yscale, self%symlog_threshold)
+                x_screen(2) = apply_scale_transform(x2, self%xscale, self%symlog_threshold)
+                y_screen(2) = apply_scale_transform(y1, self%yscale, self%symlog_threshold)
+                x_screen(3) = apply_scale_transform(x2, self%xscale, self%symlog_threshold)
+                y_screen(3) = apply_scale_transform(y2, self%yscale, self%symlog_threshold)
+                x_screen(4) = apply_scale_transform(x1, self%xscale, self%symlog_threshold)
+                y_screen(4) = apply_scale_transform(y2, self%yscale, self%symlog_threshold)
+                
+                ! Draw filled rectangle
+                call draw_filled_quad(self%backend, x_screen, y_screen)
+                
+                ! Draw outline
+                call self%backend%line(x_screen(1), y_screen(1), x_screen(2), y_screen(2))
+                call self%backend%line(x_screen(2), y_screen(2), x_screen(3), y_screen(3))
+                call self%backend%line(x_screen(3), y_screen(3), x_screen(4), y_screen(4))
+                call self%backend%line(x_screen(4), y_screen(4), x_screen(1), y_screen(1))
+            end if
+        end do
+    end subroutine render_histogram_plot
 
     subroutine render_default_contour_levels(self, plot_idx, z_min, z_max)
         !! Render default contour levels with optional coloring
@@ -1738,5 +1918,131 @@ contains
         
         self%plots(plot_index)%y = y_new
     end subroutine set_ydata
+
+    subroutine create_bin_edges_from_count(data, n_bins, bin_edges)
+        !! Create evenly spaced bin edges from data range
+        real(wp), intent(in) :: data(:)
+        integer, intent(in) :: n_bins
+        real(wp), allocatable, intent(out) :: bin_edges(:)
+        
+        real(wp) :: data_min, data_max, bin_width
+        integer :: i
+        
+        data_min = minval(data)
+        data_max = maxval(data)
+        
+        ! Add small padding to avoid edge cases
+        bin_width = (data_max - data_min) / real(n_bins, wp)
+        data_min = data_min - bin_width * 0.001_wp
+        data_max = data_max + bin_width * 0.001_wp
+        bin_width = (data_max - data_min) / real(n_bins, wp)
+        
+        allocate(bin_edges(n_bins + 1))
+        do i = 1, n_bins + 1
+            bin_edges(i) = data_min + real(i - 1, wp) * bin_width
+        end do
+    end subroutine create_bin_edges_from_count
+
+    subroutine calculate_histogram_counts(data, bin_edges, counts)
+        !! Calculate histogram bin counts
+        real(wp), intent(in) :: data(:)
+        real(wp), intent(in) :: bin_edges(:)
+        real(wp), allocatable, intent(out) :: counts(:)
+        
+        integer :: n_bins, i, bin_idx
+        
+        n_bins = size(bin_edges) - 1
+        allocate(counts(n_bins))
+        counts = 0.0_wp
+        
+        do i = 1, size(data)
+            bin_idx = find_bin_index(data(i), bin_edges)
+            if (bin_idx > 0 .and. bin_idx <= n_bins) then
+                counts(bin_idx) = counts(bin_idx) + 1.0_wp
+            end if
+        end do
+    end subroutine calculate_histogram_counts
+
+    integer function find_bin_index(value, bin_edges) result(bin_idx)
+        !! Find which bin a value belongs to
+        real(wp), intent(in) :: value
+        real(wp), intent(in) :: bin_edges(:)
+        
+        integer :: i, n_bins
+        
+        n_bins = size(bin_edges) - 1
+        bin_idx = 0
+        
+        do i = 1, n_bins
+            if (value >= bin_edges(i) .and. value < bin_edges(i+1)) then
+                bin_idx = i
+                return
+            end if
+        end do
+        
+        ! Handle edge case: value equals last bin edge
+        if (value == bin_edges(n_bins + 1)) then
+            bin_idx = n_bins
+        end if
+    end function find_bin_index
+
+    subroutine normalize_histogram_density(counts, bin_edges)
+        !! Normalize histogram to probability density
+        real(wp), intent(inout) :: counts(:)
+        real(wp), intent(in) :: bin_edges(:)
+        
+        real(wp) :: total_area, bin_width
+        integer :: i
+        
+        total_area = 0.0_wp
+        do i = 1, size(counts)
+            bin_width = bin_edges(i+1) - bin_edges(i)
+            total_area = total_area + counts(i) * bin_width
+        end do
+        
+        if (total_area > 0.0_wp) then
+            counts = counts / total_area
+        end if
+    end subroutine normalize_histogram_density
+
+    subroutine create_histogram_xy_data(bin_edges, counts, x, y)
+        !! Convert histogram data to x,y coordinates for rendering as bars
+        real(wp), intent(in) :: bin_edges(:), counts(:)
+        real(wp), allocatable, intent(out) :: x(:), y(:)
+        
+        integer :: n_bins, i, point_idx
+        
+        n_bins = size(counts)
+        
+        ! Create bar outline: 4 points per bin (bottom-left, top-left, top-right, bottom-right)
+        allocate(x(4 * n_bins + 1), y(4 * n_bins + 1))
+        
+        point_idx = 1
+        do i = 1, n_bins
+            ! Bottom-left
+            x(point_idx) = bin_edges(i)
+            y(point_idx) = 0.0_wp
+            point_idx = point_idx + 1
+            
+            ! Top-left
+            x(point_idx) = bin_edges(i)
+            y(point_idx) = counts(i)
+            point_idx = point_idx + 1
+            
+            ! Top-right
+            x(point_idx) = bin_edges(i+1)
+            y(point_idx) = counts(i)
+            point_idx = point_idx + 1
+            
+            ! Bottom-right
+            x(point_idx) = bin_edges(i+1)
+            y(point_idx) = 0.0_wp
+            point_idx = point_idx + 1
+        end do
+        
+        ! Close the shape
+        x(point_idx) = bin_edges(1)
+        y(point_idx) = 0.0_wp
+    end subroutine create_histogram_xy_data
 
 end module fortplot_figure_core
