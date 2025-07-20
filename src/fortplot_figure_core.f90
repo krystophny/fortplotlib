@@ -25,11 +25,12 @@ module fortplot_figure_core
 
     private
     public :: figure_t, plot_data_t
-    public :: PLOT_TYPE_LINE, PLOT_TYPE_CONTOUR, PLOT_TYPE_PCOLORMESH
+    public :: PLOT_TYPE_LINE, PLOT_TYPE_CONTOUR, PLOT_TYPE_PCOLORMESH, PLOT_TYPE_ERRORBAR
 
     integer, parameter :: PLOT_TYPE_LINE = 1
     integer, parameter :: PLOT_TYPE_CONTOUR = 2
     integer, parameter :: PLOT_TYPE_PCOLORMESH = 3
+    integer, parameter :: PLOT_TYPE_ERRORBAR = 4
 
     type :: plot_data_t
         !! Data container for individual plots
@@ -46,6 +47,14 @@ module fortplot_figure_core
         logical :: show_colorbar = .true.
         ! Pcolormesh data
         type(pcolormesh_t) :: pcolormesh_data
+        ! Error bar data
+        real(wp), allocatable :: xerr(:), yerr(:)
+        real(wp), allocatable :: xerr_lower(:), xerr_upper(:)
+        real(wp), allocatable :: yerr_lower(:), yerr_upper(:)
+        real(wp) :: capsize = 5.0_wp
+        real(wp) :: elinewidth = 1.0_wp
+        logical :: has_xerr = .false., has_yerr = .false.
+        logical :: asymmetric_xerr = .false., asymmetric_yerr = .false.
         ! Common properties
         real(wp), dimension(3) :: color
         character(len=:), allocatable :: label
@@ -126,6 +135,7 @@ module fortplot_figure_core
         procedure :: set_xlim
         procedure :: set_ylim
         procedure :: set_line_width
+        procedure :: errorbar
         procedure :: set_ydata
         procedure :: legend => figure_legend
         procedure :: show
@@ -466,6 +476,115 @@ contains
         self%current_line_width = width
     end subroutine set_line_width
 
+    subroutine errorbar(self, x, y, xerr, yerr, xerr_lower, xerr_upper, &
+                       yerr_lower, yerr_upper, capsize, elinewidth, &
+                       label, linestyle, marker, color)
+        !! Add error bar plot to figure
+        class(figure_t), intent(inout) :: self
+        real(wp), intent(in) :: x(:), y(:)
+        real(wp), intent(in), optional :: xerr(:), yerr(:)
+        real(wp), intent(in), optional :: xerr_lower(:), xerr_upper(:)
+        real(wp), intent(in), optional :: yerr_lower(:), yerr_upper(:)
+        real(wp), intent(in), optional :: capsize, elinewidth
+        character(len=*), intent(in), optional :: label, linestyle, marker
+        real(wp), intent(in), optional :: color(3)
+        
+        type(plot_data_t) :: plot_data
+        integer :: n_points
+        
+        n_points = size(x)
+        
+        ! Validate input sizes
+        if (size(y) /= n_points) then
+            write(*,*) 'Error: x and y arrays must have the same size'
+            return
+        end if
+        
+        ! Initialize plot data
+        plot_data%plot_type = PLOT_TYPE_ERRORBAR
+        allocate(plot_data%x(n_points), plot_data%y(n_points))
+        plot_data%x = x
+        plot_data%y = y
+        
+        ! Handle symmetric error bars
+        if (present(xerr)) then
+            if (size(xerr) /= n_points) then
+                write(*,*) 'Error: xerr array size must match x and y'
+                return
+            end if
+            allocate(plot_data%xerr(n_points))
+            plot_data%xerr = xerr
+            plot_data%has_xerr = .true.
+        end if
+        
+        if (present(yerr)) then
+            if (size(yerr) /= n_points) then
+                write(*,*) 'Error: yerr array size must match x and y'
+                return
+            end if
+            allocate(plot_data%yerr(n_points))
+            plot_data%yerr = yerr
+            plot_data%has_yerr = .true.
+        end if
+        
+        ! Handle asymmetric error bars
+        if (present(xerr_lower) .and. present(xerr_upper)) then
+            if (present(xerr)) then
+                write(*,*) 'Warning: Both symmetric xerr and asymmetric xerr_lower/xerr_upper provided. Using asymmetric values.'
+            end if
+            if (size(xerr_lower) /= n_points .or. size(xerr_upper) /= n_points) then
+                write(*,*) 'Error: xerr_lower and xerr_upper array sizes must match x and y'
+                return
+            end if
+            allocate(plot_data%xerr_lower(n_points), plot_data%xerr_upper(n_points))
+            plot_data%xerr_lower = xerr_lower
+            plot_data%xerr_upper = xerr_upper
+            plot_data%has_xerr = .true.
+            plot_data%asymmetric_xerr = .true.
+        end if
+        
+        if (present(yerr_lower) .and. present(yerr_upper)) then
+            if (present(yerr)) then
+                write(*,*) 'Warning: Both symmetric yerr and asymmetric yerr_lower/yerr_upper provided. Using asymmetric values.'
+            end if
+            if (size(yerr_lower) /= n_points .or. size(yerr_upper) /= n_points) then
+                write(*,*) 'Error: yerr_lower and yerr_upper array sizes must match x and y'
+                return
+            end if
+            allocate(plot_data%yerr_lower(n_points), plot_data%yerr_upper(n_points))
+            plot_data%yerr_lower = yerr_lower
+            plot_data%yerr_upper = yerr_upper
+            plot_data%has_yerr = .true.
+            plot_data%asymmetric_yerr = .true.
+        end if
+        
+        ! Set customization options
+        if (present(capsize)) plot_data%capsize = capsize
+        if (present(elinewidth)) plot_data%elinewidth = elinewidth
+        if (present(label)) plot_data%label = label
+        if (present(linestyle)) plot_data%linestyle = linestyle
+        if (present(marker)) plot_data%marker = marker
+        
+        ! Set color (use next color in palette if not specified)
+        if (present(color)) then
+            plot_data%color = color
+        else
+            plot_data%color = self%colors(:, mod(self%plot_count, size(self%colors, 2)) + 1)
+        end if
+        
+        ! Check plot count limit
+        if (self%plot_count >= self%max_plots) then
+            write(*, '(A)') 'Warning: Maximum number of plots reached'
+            return
+        end if
+        
+        self%plot_count = self%plot_count + 1
+        
+        ! Add to plot list
+        call add_errorbar_plot_data(self, plot_data)
+        call update_data_ranges(self)
+    end subroutine errorbar
+
     subroutine destroy(self)
         !! Clean up figure resources
         type(figure_t), intent(inout) :: self
@@ -522,6 +641,24 @@ contains
             self%plots(plot_idx)%color = self%colors(:, color_idx)
         end if
     end subroutine add_line_plot_data
+
+    subroutine add_errorbar_plot_data(self, plot_data)
+        !! Add error bar plot data to internal storage
+        class(figure_t), intent(inout) :: self
+        type(plot_data_t), intent(in) :: plot_data
+        
+        integer :: plot_idx
+        
+        plot_idx = self%plot_count
+        
+        ! Ensure plots array is allocated
+        if (.not. allocated(self%plots)) then
+            allocate(self%plots(self%max_plots))
+        end if
+        
+        ! Copy the complete plot_data structure
+        self%plots(plot_idx) = plot_data
+    end subroutine add_errorbar_plot_data
 
     subroutine add_contour_plot_data(self, x_grid, y_grid, z_grid, levels, label)
         !! Add contour plot data to internal storage
@@ -782,7 +919,7 @@ contains
         first_plot = .true.
         
         do i = 1, self%plot_count
-            if (self%plots(i)%plot_type == PLOT_TYPE_LINE) then
+            if (self%plots(i)%plot_type == PLOT_TYPE_LINE .or. self%plots(i)%plot_type == PLOT_TYPE_ERRORBAR) then
                 if (first_plot) then
                     ! Store ORIGINAL data ranges for tick generation
                     x_min_orig = minval(self%plots(i)%x)
@@ -960,6 +1097,8 @@ contains
                 call render_contour_plot(self, i)
             else if (self%plots(i)%plot_type == PLOT_TYPE_PCOLORMESH) then
                 call render_pcolormesh_plot(self, i)
+            else if (self%plots(i)%plot_type == PLOT_TYPE_ERRORBAR) then
+                call render_errorbar_plot(self, i)
             end if
         end do
         
@@ -1026,6 +1165,93 @@ contains
         ! Always render markers regardless of linestyle (matplotlib behavior)
         call render_markers(self, plot_idx)
     end subroutine render_line_plot
+
+    subroutine render_errorbar_plot(self, plot_idx)
+        !! Render error bars with caps
+        use, intrinsic :: ieee_arithmetic, only: ieee_is_nan
+        class(figure_t), intent(inout) :: self
+        integer, intent(in) :: plot_idx
+        integer :: i
+        real(wp) :: x_screen, y_screen, x1_screen, y1_screen, x2_screen, y2_screen
+        real(wp) :: cap_half_size, x_err_lower, x_err_upper, y_err_lower, y_err_upper
+        
+        if (.not. allocated(self%plots(plot_idx)%x) .or. .not. allocated(self%plots(plot_idx)%y)) return
+        
+        cap_half_size = self%plots(plot_idx)%capsize * 0.5_wp
+        
+        do i = 1, size(self%plots(plot_idx)%x)
+            ! Skip NaN values
+            if (ieee_is_nan(self%plots(plot_idx)%x(i)) .or. ieee_is_nan(self%plots(plot_idx)%y(i))) cycle
+            
+            ! Transform data point to screen coordinates
+            x_screen = transform_x_coordinate(self%plots(plot_idx)%x(i), &
+                                            self%x_min, self%x_max, self%width)
+            y_screen = transform_y_coordinate(self%plots(plot_idx)%y(i), &
+                                            self%y_min, self%y_max, self%height, .true.)
+            
+            ! Draw Y error bars if present
+            if (self%plots(plot_idx)%has_yerr) then
+                if (self%plots(plot_idx)%asymmetric_yerr) then
+                    ! Asymmetric Y error bars
+                    y_err_lower = self%plots(plot_idx)%y(i) - self%plots(plot_idx)%yerr_lower(i)
+                    y_err_upper = self%plots(plot_idx)%y(i) + self%plots(plot_idx)%yerr_upper(i)
+                else
+                    ! Symmetric Y error bars
+                    y_err_lower = self%plots(plot_idx)%y(i) - self%plots(plot_idx)%yerr(i)
+                    y_err_upper = self%plots(plot_idx)%y(i) + self%plots(plot_idx)%yerr(i)
+                end if
+                
+                ! Transform error bar endpoints
+                y1_screen = transform_y_coordinate(y_err_lower, &
+                                                 self%y_min, self%y_max, self%height, .true.)
+                y2_screen = transform_y_coordinate(y_err_upper, &
+                                                 self%y_min, self%y_max, self%height, .true.)
+                
+                ! Draw vertical error bar line
+                call self%backend%line(x_screen, y1_screen, x_screen, y2_screen)
+                
+                ! Draw caps
+                call self%backend%line(x_screen - cap_half_size, y1_screen, x_screen + cap_half_size, y1_screen)
+                call self%backend%line(x_screen - cap_half_size, y2_screen, x_screen + cap_half_size, y2_screen)
+            end if
+            
+            ! Draw X error bars if present
+            if (self%plots(plot_idx)%has_xerr) then
+                if (self%plots(plot_idx)%asymmetric_xerr) then
+                    ! Asymmetric X error bars
+                    x_err_lower = self%plots(plot_idx)%x(i) - self%plots(plot_idx)%xerr_lower(i)
+                    x_err_upper = self%plots(plot_idx)%x(i) + self%plots(plot_idx)%xerr_upper(i)
+                else
+                    ! Symmetric X error bars
+                    x_err_lower = self%plots(plot_idx)%x(i) - self%plots(plot_idx)%xerr(i)
+                    x_err_upper = self%plots(plot_idx)%x(i) + self%plots(plot_idx)%xerr(i)
+                end if
+                
+                ! Transform error bar endpoints
+                x1_screen = transform_x_coordinate(x_err_lower, &
+                                                 self%x_min, self%x_max, self%width)
+                x2_screen = transform_x_coordinate(x_err_upper, &
+                                                 self%x_min, self%x_max, self%width)
+                
+                ! Draw horizontal error bar line
+                call self%backend%line(x1_screen, y_screen, x2_screen, y_screen)
+                
+                ! Draw caps
+                call self%backend%line(x1_screen, y_screen - cap_half_size, x1_screen, y_screen + cap_half_size)
+                call self%backend%line(x2_screen, y_screen - cap_half_size, x2_screen, y_screen + cap_half_size)
+            end if
+        end do
+        
+        ! Render data points if marker is specified
+        if (allocated(self%plots(plot_idx)%marker) .and. len_trim(self%plots(plot_idx)%marker) > 0) then
+            call render_markers(self, plot_idx)
+        end if
+        
+        ! Render connecting lines if linestyle is specified
+        if (allocated(self%plots(plot_idx)%linestyle) .and. len_trim(self%plots(plot_idx)%linestyle) > 0) then
+            call render_line_plot(self, plot_idx)
+        end if
+    end subroutine render_errorbar_plot
 
     subroutine render_markers(self, plot_idx)
         !! Render markers at each data point, skipping NaN values

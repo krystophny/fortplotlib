@@ -361,6 +361,8 @@ contains
             call render_contour_plot(fig, plot_data)
         case (3) ! PLOT_TYPE_PCOLORMESH
             call render_pcolormesh_plot(fig, plot_data)
+        case (4) ! PLOT_TYPE_ERRORBAR
+            call render_errorbar_plot(fig, plot_data)
         end select
     end subroutine render_single_plot
 
@@ -379,6 +381,31 @@ contains
         call set_plot_color(fig, plot_data)
         call draw_line_segments(fig, plot_data)
     end subroutine render_line_plot
+
+    subroutine render_errorbar_plot(fig, plot_data)
+        type(figure_t), intent(inout) :: fig
+        type(plot_data_t), intent(in) :: plot_data
+        
+        if (.not. is_valid_errorbar_data(plot_data)) return
+        
+        ! Placeholder - errorbar rendering in animation is simplified
+        ! Just draw the base line
+        call set_plot_color(fig, plot_data)
+        call draw_line_segments(fig, plot_data)
+    end subroutine render_errorbar_plot
+
+    function is_valid_errorbar_data(plot_data) result(valid)
+        type(plot_data_t), intent(in) :: plot_data
+        logical :: valid
+        
+        valid = allocated(plot_data%x) .and. allocated(plot_data%y)
+        if (.not. valid) return
+        
+        valid = size(plot_data%x) > 0 .and. size(plot_data%y) > 0
+        if (.not. valid) return
+        
+        valid = size(plot_data%x) == size(plot_data%y)
+    end function is_valid_errorbar_data
 
     function is_valid_line_data(plot_data) result(valid)
         type(plot_data_t), intent(in) :: plot_data
